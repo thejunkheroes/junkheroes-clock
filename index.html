@@ -54,7 +54,11 @@ const CONFIG = {
   --sunk:rgba(242,240,247,.07);
   --pad:22px;
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* touch-action:manipulation kills double-tap-to-zoom, which is what makes the
+   screen jump when somebody taps a big button twice in a hurry. iOS has ignored
+   user-scalable=no since iOS 10, so the meta tag alone does nothing. Scrolling
+   and pinch-to-zoom still work. */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 html,body{height:100%;margin:0}
 /* The canvas paints everything the layout viewport doesn't cover — a fractional
    device pixel down the edge, browser zoom, the letterbox in a preview pane.
