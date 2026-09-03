@@ -1,0 +1,16 @@
+{
+  "name": "Junk Heroes Time Clock",
+  "short_name": "Time Clock",
+  "description": "Clock in, clock out, and track breaks on the job.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#221E2B",
+  "theme_color": "#221E2B",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

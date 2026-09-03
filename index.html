@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Junk Heroes Time Clock</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#221E2B">
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   EDIT THIS BLOCK, THEN YOU'RE DONE.
+   ══════════════════════════════════════════════════════════════ */
+const CONFIG = {
+
+  // 1. Your Google Apps Script Web App URL (SETUP.md step 4)
+  ENDPOINT: "https://script.google.com/macros/s/AKfycbzhJZU_hatXNQALzjrp5_T7rK3Bxy5fTnFGWy_H-R1spmCRzc0ZZpWyMlp8S7rDXiFu/exec",
+
+  /* 2. The names offered on a fresh phone, in the order and grouping they
+     appear. The headings are labels only — what somebody is actually allowed
+     to do comes from their role on the People tab in the spreadsheet, which
+     also decides who can enrol at all. Nothing secret lives in this file. */
+  WORKERS: [
+    { group: "Admins",               names: ["Henrique", "Filipe"] },
+    { group: "Main truck crew",      names: ["Rey", "Paulo"] },
+    { group: "Assistant & Dispatch", names: ["Andy"] },
+    { group: "Extra crew",           names: ["Ryan", "Ethan"] }
+  ],
+
+  // Optional
+  RECORD_LOCATION: false,     // true = stamp each punch with GPS
+  /* Minutes the app can sit closed before it asks for the passcode again.
+     0 = never ask on its own. The passcode is then only wanted when the phone
+     is first set up and after somebody taps Log out — a man arriving at a job
+     opens the app and punches in, nothing in the way. */
+  LOCK_AFTER_MINUTES: 0,
+  ALLOW_BIOMETRICS: true      // false = passcode only, no Face ID offer
+};
+</script>
+
+<style>
+:root{
+  --void:#221E2B;        /* off the clock */
+  --working:#0D5F42;     /* on the clock */
+  --onbreak:#8F4E06;     /* on break */
+  --ink:#F2F0F7;
+  --haze:rgba(242,240,247,.60);
+  --lilac:#BCA6F2;
+  --edge:rgba(242,240,247,.15);
+  --sunk:rgba(242,240,247,.07);
+  --pad:22px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+/* The canvas paints everything the layout viewport doesn't cover — a fractional
+   device pixel down the edge, browser zoom, the letterbox in a preview pane.
+   Fixed elements clip to the viewport and can never reach it, so the root has
+   to carry the colour too; paint() keeps it in step with the body.
+
+   That strip is also why the colour changes instantly instead of fading. The
+   canvas repaints on its own schedule, so any cross-screen fade leaves the old
+   colour sitting in that strip for a frame or two — a hairline down the edge,
+   easiest to catch when you punch the button twice quickly. Nothing full-bleed
+   animates its colour here, so the two can never disagree. */
+html{background:var(--void)}
+html[data-state="in"]{background:var(--working)}
+html[data-state="break"]{background:var(--onbreak)}
+html.locked,html.sheet{background:var(--void)}   /* a sheet is void, so the root is too */
+body{
+  background:none;color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  font-size:17px;line-height:1.4;overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none;
+}
+
+/* Sits under everything and hangs past all four edges, so the visible page is
+   one painted layer rather than the tiled root canvas. */
+.bg{position:fixed;inset:-12px;z-index:-1;pointer-events:none;background:var(--void)}
+body[data-state="in"] .bg{background:var(--working)}
+body[data-state="break"] .bg{background:var(--onbreak)}
+body.locked .bg{background:var(--void)}
+
+.screen{
+  min-height:100%;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 14px) var(--pad) calc(env(safe-area-inset-bottom) + 18px);
+  max-width:520px;margin:0 auto;
+}
+.overlay{position:fixed;inset:0;z-index:20;background:var(--void);display:none;overflow-y:auto}
+.overlay.open{display:block}
+
+/* ── status strip ── */
+.strip{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-height:34px}
+.ident{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
+.who{display:flex;align-items:center;gap:7px;
+  font-size:19px;font-weight:650;letter-spacing:-.01em;padding:4px 2px 0;background:none;border:0;color:inherit}
+.who svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;flex:none;opacity:.85}
+.now{margin:2px 0 0 2px;font-size:13px;font-weight:500;color:var(--haze);
+  font-variant-numeric:tabular-nums;letter-spacing:.005em;white-space:nowrap}
+.sync{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--haze);font-weight:500;padding-top:7px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--lilac);flex:none}
+.dot.warn{background:#FFB020}
+.dot.off{background:rgba(242,240,247,.38)}
+
+/* ── hero ──
+   Not flex:1 any more: it sits its own height at the top and the button group
+   below claims the slack, so the clock reads at the top and everything you tap
+   is down in thumb reach. */
+.hero{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:34px 0 18px}
+.clock{font-size:clamp(56px,17vw,86px);font-weight:730;letter-spacing:-.045em;
+  font-variant-numeric:tabular-nums;line-height:1;color:var(--ink);margin:0}
+body[data-state="in"] .clock,body[data-state="break"] .clock{color:var(--lilac)}
+/* Always two lines tall. The captions vary between one line and two, and now
+   that the hero no longer flexes, that difference would shove the whole button
+   group up and down as the state changes. */
+.caption{margin:14px 0 0;font-size:16.5px;line-height:1.4;color:var(--haze);text-align:center;max-width:26ch;
+  min-height:2.8em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ── buttons ── */
+button{font-family:inherit;font-size:inherit;border:0;cursor:pointer;color:inherit}
+/* margin-top:auto drops the whole button group to the bottom of the column —
+   the slack sits under the clock instead of under the buttons. The gaps inside
+   the group are fixed, so its internal spacing never changes. */
+.stack{display:flex;flex-direction:column;align-items:center;gap:13px;margin-top:auto}
+.punch{position:relative;width:min(238px,63vw);aspect-ratio:1;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:27px;font-weight:700;letter-spacing:-.015em;background:var(--lilac);color:#1E1826;
+  box-shadow:0 14px 34px -14px rgba(188,166,242,.55),0 3px 10px -4px rgba(20,14,32,.6);
+  transition:transform .09s ease,filter .09s ease}
+.punch.stop{background:var(--ink);color:#1E1826;
+  box-shadow:0 14px 34px -14px rgba(242,240,247,.4),0 3px 10px -4px rgba(20,14,32,.6)}
+.punch:active{transform:scale(.965);filter:brightness(.93)}
+.minor{position:relative;width:min(238px,63vw);min-height:62px;border-radius:999px;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  font-size:18px;font-weight:600;background:transparent;border:2px solid var(--edge);
+  transition:transform .09s ease,background-color .09s ease}
+.minor:active{transform:scale(.975);background:var(--sunk)}
+/* Off the clock the break button keeps its slot instead of leaving, so the big
+   button sits at the same height whether or not there's a shift running. */
+.minor.ghost{visibility:hidden;pointer-events:none}
+.ico{width:19px;height:19px;fill:currentColor;flex:none}
+
+/* tracker — third rung of the hierarchy, below the punch group */
+.track{width:min(238px,63vw);min-height:58px;margin:24px auto 0;border-radius:999px;
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  font-size:16.5px;font-weight:600;background:var(--sunk);border:1.5px solid var(--edge);
+  transition:transform .09s ease,background-color .09s ease}
+.track:active{transform:scale(.975);background:rgba(188,166,242,.16)}
+.track svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+[hidden]{display:none!important}   /* display:flex above would otherwise beat it */
+
+/* Pulse ring on tap — transform/opacity only. The ring spends its life outside
+   the button, so it takes its colour from the page behind, not the button face. */
+.punch::after,.minor::after{content:'';position:absolute;inset:0;border-radius:inherit;
+  border:2.5px solid var(--ink);opacity:0;pointer-events:none}
+.minor::after{border-color:var(--lilac)}
+.punch.pulse::after,.minor.pulse::after{animation:pulse .6s cubic-bezier(.16,.72,.35,1) forwards}
+@keyframes pulse{
+  0%{opacity:.85;transform:scale(1)}
+  45%{opacity:.5}
+  100%{opacity:0;transform:scale(1.3)}
+}
+.foot{margin-top:16px;font-size:14.5px;color:var(--haze);text-align:center;min-height:20px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--lilac);outline-offset:3px}
+
+/* ── lock screen ── */
+.lock{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:calc(env(safe-area-inset-top) + 48px) var(--pad) calc(env(safe-area-inset-bottom) + 26px);
+  max-width:400px;margin:0 auto}
+.lock-top{text-align:center;width:100%}
+.lock-name{font-size:26px;font-weight:680;letter-spacing:-.02em;margin:0}
+.lock-hint{margin:7px 0 0;color:var(--haze);font-size:15.5px;min-height:22px}
+.pips{display:flex;gap:19px;justify-content:center;margin:36px 0 0}
+.pip{width:15px;height:15px;border-radius:50%;border:2px solid var(--edge);transition:all .16s ease}
+.pip.on{background:var(--lilac);border-color:var(--lilac);transform:scale(1.08)}
+.shake{animation:sh .4s}
+@keyframes sh{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;width:100%;margin-top:30px}
+.key{aspect-ratio:1;max-height:76px;border-radius:50%;background:var(--sunk);border:1px solid var(--edge);
+  font-size:29px;font-weight:520;font-variant-numeric:tabular-nums;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .08s ease,background-color .08s ease}
+.key:active{transform:scale(.93);background:rgba(188,166,242,.26)}
+.key.blank{background:none;border:0;pointer-events:none}
+.key.util{font-size:15px;font-weight:600;background:none;border:0;color:var(--haze);line-height:1.2}
+.key.util:active{background:var(--sunk)}
+.key.bio{font-size:26px;color:var(--lilac);background:none;border:0}
+.reset{margin-top:20px;background:none;border:0;color:var(--haze);font-size:15px;
+  text-decoration:underline;text-underline-offset:4px;padding:10px}
+
+/* ── sheets ── */
+.inner{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 26px) var(--pad) calc(env(safe-area-inset-bottom) + 26px)}
+
+/* Way out, top left of a sheet. Sheets that carry one reserve room for it so
+   it never lands on the heading. */
+.back{position:absolute;top:calc(env(safe-area-inset-top) + 18px);left:var(--pad);z-index:2;
+  display:flex;align-items:center;gap:8px;min-height:46px;padding:0 20px 0 15px;
+  border-radius:999px;background:#3B3448;color:var(--ink);opacity:.6;
+  font-size:15.5px;font-weight:600;
+  transition:transform .09s ease,opacity .12s ease}
+.back:active{transform:scale(.97);opacity:.85}
+.back svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+#trackSheet .inner,#confirmOut .inner,#work .inner,#owner .inner{
+  padding-top:calc(env(safe-area-inset-top) + 88px)}
+h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
+.sub{color:var(--haze);margin:0 0 24px;font-size:16px;line-height:1.5}
+.pick{width:100%;min-height:70px;border-radius:13px;background:var(--sunk);border:2px solid var(--edge);
+  font-size:20px;font-weight:600;margin-bottom:11px;text-align:left;padding:16px 22px}
+.pick:active{background:rgba(188,166,242,.18)}
+.pick small{display:block;font-size:14.5px;font-weight:400;color:var(--haze);margin-top:3px}
+
+/* solid variants — each restates its own background on :active, because the
+   plain .pick:active tint would otherwise wash the fill out */
+.pick.safe{background:var(--lilac);color:#1E1826;border:0}
+.pick.safe small{color:rgba(30,24,38,.7)}
+.pick.safe:active{background:var(--lilac);filter:brightness(.93)}
+.pick.danger{background:#B4442D;color:var(--ink);border:0}
+.pick.danger small{color:rgba(242,240,247,.78)}
+.pick.danger:active{background:#B4442D;filter:brightness(.93)}
+.pick.calm{background:#3B3448;color:var(--ink);border:0}
+.pick.calm small{color:var(--haze)}
+.pick.calm:active{background:#3B3448;filter:brightness(.93)}
+
+/* ── the clock-out check: three solid choices, centred in the sheet ── */
+#confirmOut h2{font-size:27px}
+#confirmOut .sub{margin-bottom:30px}
+#confirmOut .pick{min-height:96px;border:0;border-radius:19px;font-size:21px;font-weight:680;
+  padding:20px 26px;margin-bottom:15px;transition:transform .09s ease,filter .09s ease}
+#confirmOut .pick:last-child{margin-bottom:0}
+#confirmOut .pick small{font-size:15px;margin-top:5px}
+#confirmOut .pick:active{transform:scale(.985)}
+
+/* ── track a job or a quote ── */
+.flabel{margin:0 0 9px;font-size:14.5px;font-weight:600;color:var(--haze)}
+/* first and last name share a line. The inputs bottom-align inside their cells
+   so a label that wraps on a narrow phone can't knock one box out of line. */
+/* align-items:end bottom-aligns the row, so a label that wraps to two lines on a
+   narrow phone lifts its own box without knocking the other one out of line. */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end}
+.field{display:block;margin-bottom:15px}
+.field span{display:block;font-size:14.5px;font-weight:600;color:var(--haze);margin:0 0 7px 2px}
+.field span i{font-style:normal;font-weight:400;opacity:.75}
+.field input,.field textarea{
+  width:100%;min-height:58px;border-radius:13px;padding:15px 17px;
+  background:var(--sunk);border:2px solid var(--edge);color:var(--ink);
+  font-family:inherit;font-size:17px;line-height:1.35;-webkit-user-select:text;user-select:text;
+  transition:border-color .12s ease,background-color .12s ease}
+.field textarea{min-height:96px;resize:none}
+.field input:focus,.field textarea:focus{outline:0;border-color:var(--lilac);background:rgba(188,166,242,.1)}
+.field input.bad,.field textarea.bad{border-color:#B4442D}
+/* .money is a span too, so the label rule above lands on it — undo those margins */
+.field .money{display:block;position:relative;margin:0}
+.money b{position:absolute;left:17px;top:50%;transform:translateY(-50%);
+  font-size:17px;font-weight:650;color:var(--haze);pointer-events:none}
+.money input{padding-left:34px;font-variant-numeric:tabular-nums}
+
+.pays{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 20px}
+.pay{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  min-height:66px;border-radius:13px;background:var(--sunk);border:2px solid var(--edge);
+  font-size:12.5px;font-weight:600;padding:6px 3px;
+  transition:transform .09s ease,background-color .09s ease,border-color .09s ease}
+.pay svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round}
+.pay svg text{stroke:none;fill:currentColor}
+.pay:active{transform:scale(.96)}
+.pay.on{background:var(--lilac);border-color:var(--lilac);color:#1E1826}
+.pays.bad .pay{border-color:#B4442D}
+.err{margin:0 0 16px;color:#E58A76;font-size:15px;font-weight:500}
+
+/* saved-confirmation, bottom of the clock screen */
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 26px);transform:translateX(-50%);
+  z-index:30;max-width:min(420px,88vw);padding:14px 20px;border-radius:14px;
+  background:var(--lilac);color:#1E1826;font-size:15.5px;font-weight:600;text-align:center;
+  box-shadow:0 12px 30px -12px rgba(20,14,32,.8);opacity:0;pointer-events:none;
+  transition:opacity .2s ease}
+.toast.show{opacity:1}
+/* log out — quiet until it is armed, then unmistakably the red one */
+.logout{display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;min-height:60px;margin-top:26px;border-radius:13px;
+  background:transparent;border:2px solid var(--edge);color:var(--haze);
+  font-size:17px;font-weight:600;
+  transition:transform .09s ease,background-color .14s ease,border-color .14s ease,color .14s ease}
+.logout:active{transform:scale(.985)}
+.logout svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+.logout.armed{background:#B4442D;border-color:#B4442D;color:var(--ink)}
+
+.row{display:flex;justify-content:space-between;gap:14px;padding:15px 0;border-bottom:1px solid var(--edge);font-size:16px}
+.row b{font-weight:650;font-variant-numeric:tabular-nums}
+.row span{color:var(--haze)}
+.wk{margin:26px 0 4px;font-size:14.5px;color:var(--haze);font-weight:600}
+/* section headings on the name picker */
+.grp{margin:24px 0 10px 2px;font-size:13px;font-weight:700;color:var(--haze);
+  letter-spacing:.06em;text-transform:uppercase}
+.grp:first-child{margin-top:0}
+.note{margin-top:26px;font-size:14.5px;color:var(--haze);line-height:1.55}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body class="locked" data-state="out">
+<div class="bg" aria-hidden="true"></div>
+
+<!-- ═══ lock / passcode ═══ -->
+<div class="overlay open" id="lockScreen">
+  <div class="lock">
+    <div class="lock-top">
+      <p class="lock-name" id="lockName">—</p>
+      <p class="lock-hint" id="lockHint">Enter your passcode</p>
+      <div class="pips" id="pips"><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i></div>
+    </div>
+    <div class="keys" id="keys"></div>
+    <button class="reset" id="reset" hidden>Forgot passcode</button>
+  </div>
+</div>
+
+<!-- ═══ main ═══ -->
+<div class="screen" id="app">
+  <div class="strip">
+    <div class="ident">
+      <button class="who" id="who">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.9 20a7.1 7.1 0 0 1 14.2 0"/></svg>
+        <span id="whoName">—</span>
+      </button>
+      <p class="now" id="now">—</p>
+    </div>
+    <div class="sync"><span class="dot" id="dot"></span><span id="syncTxt">Sent</span></div>
+  </div>
+  <div class="hero">
+    <p class="clock" id="clock">0:00</p>
+    <p class="caption" id="caption">Tap the button when you get to the job.</p>
+  </div>
+  <div class="stack">
+    <button class="punch" id="main">Clock in</button>
+    <button class="minor ghost" id="brk">Start break</button>
+  </div>
+  <button class="track" id="track">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8a2 2 0 0 1 2 2v13a1 1 0 0 1-1.5.87L12 17.5l-4.5 2.37A1 1 0 0 1 6 19V6a2 2 0 0 1 2-2z"/><path d="M9.5 9h5"/></svg>
+    <span>Track job/quote</span>
+  </button>
+  <p class="foot" id="foot"></p>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ═══ who's on this phone ═══ -->
+<div class="overlay" id="setup"><div class="inner">
+  <h2>Who's on this phone?</h2>
+  <p class="sub">Pick your name once. This phone will remember it.</p>
+  <div id="workerList"></div>
+</div></div>
+
+<!-- ═══ enrolment — one code, one phone ═══ -->
+<div class="overlay" id="enrol"><div class="inner">
+  <h2 id="enrolTitle">Set up this phone</h2>
+  <p class="sub" id="enrolSub">Henrique will give you an 8-character code. It works once, on this phone.</p>
+  <label class="field"><span>Your setup code</span>
+    <input id="enrolCode" type="text" inputmode="latin" autocomplete="off"
+           autocapitalize="characters" spellcheck="false" maxlength="9" enterkeyhint="done"></label>
+  <p class="err" id="enrolErr" hidden></p>
+  <button class="pick safe" id="enrolGo">Set up this phone</button>
+  <button class="pick calm" id="enrolBack">Pick a different name</button>
+  <p class="note">Nothing works until this phone is set up. Your code is yours —
+    it can't be used on anybody else's phone.</p>
+</div></div>
+
+<!-- ═══ clock-out check ═══ -->
+<div class="overlay" id="confirmOut">
+  <button class="back" id="outBackTop">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span>Go back</span>
+  </button>
+  <div class="inner">
+  <h2>Clock out for the day?</h2>
+  <p class="sub" id="confirmSub"></p>
+  <button class="pick safe" id="cBreak">Start a break instead<small>Pauses the clock. The shift keeps running.</small></button>
+  <button class="pick danger" id="cYes">Yes, clock out<small>Ends the shift for the day</small></button>
+  <button class="pick calm" id="cNo">Never mind</button>
+</div></div>
+
+<!-- ═══ track a job or a quote ═══ -->
+<div class="overlay" id="trackSheet">
+  <button class="back" id="trkBackTop">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span>Go back</span>
+  </button>
+  <div class="inner">
+
+  <div id="trkPick">
+    <h2>Track a job or quote</h2>
+    <p class="sub">Which one was it?</p>
+    <button class="pick safe" id="trkJobBtn">Completed job<small>Work is done and you collected payment</small></button>
+    <button class="pick" id="trkQuoteBtn">Gave a quote<small>You priced it. No work done yet.</small></button>
+  </div>
+
+  <form id="trkForm" hidden novalidate>
+    <h2 id="trkTitle">Completed job</h2>
+
+    <div class="duo">
+      <label class="field"><span>First name</span>
+        <input id="fFirst" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
+      <label class="field"><span>Last name <i>— optional</i></span>
+        <input id="fLast" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
+    </div>
+    <div class="duo">
+      <label class="field"><span>Town or city</span>
+        <input id="fTown" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
+      <label class="field"><span id="fValueLabel">Job total</span>
+        <span class="money"><b>$</b><input id="fValue" type="text" inputmode="decimal" enterkeyhint="done"></span></label>
+    </div>
+
+    <div id="fPayWrap">
+      <p class="flabel">How did they pay?</p>
+      <div class="pays" id="pays"></div>
+    </div>
+
+    <label class="field" id="fNotesWrap" hidden><span>Notes <i>— optional</i></span>
+      <textarea id="fNotes" rows="3" autocapitalize="sentences"></textarea></label>
+
+    <p class="err" id="trkErr" hidden></p>
+    <button class="pick safe" type="submit" id="trkSave">Save it</button>
+    <button class="pick calm" type="button" id="trkBack">Back</button>
+  </form>
+
+</div></div>
+
+<!-- ═══ menu ═══ -->
+<div class="overlay" id="menu"><div class="inner">
+  <h2>Menu</h2>
+  <p class="sub" id="menuWho"></p>
+  <button class="pick safe" id="mSync">Go to clock</button>
+  <button class="pick" id="mOwner">My hours</button>
+  <button class="pick" id="mWork" hidden>Jobs &amp; quotes</button>
+  <button class="pick" id="mBio" hidden></button>
+  <button class="pick" id="mPin">Change passcode</button>
+  <button class="pick" id="mSwitch">Change name on this phone</button>
+  <p class="note" id="diag"></p>
+  <button class="logout" id="mOut">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 20H5.5A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4h4"/><path d="M16 8.5l3.5 3.5-3.5 3.5"/><path d="M9.5 12h10"/></svg>
+    <span id="mOutLabel">Log out</span>
+  </button>
+</div></div>
+
+<!-- ═══ jobs & quotes (full admins and job admins) ═══ -->
+<div class="overlay" id="work">
+  <button class="back" id="workBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span>Go back</span>
+  </button>
+  <div class="inner">
+    <h2>Jobs &amp; quotes</h2>
+    <p class="sub" id="workSub">Loading…</p>
+    <div id="workData"></div>
+  </div>
+</div>
+
+<!-- ═══ hours ═══ -->
+<div class="overlay" id="owner">
+  <button class="back" id="oClose">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span>Go back</span>
+  </button>
+  <div class="inner">
+    <h2 id="ownerTitle">Hours</h2>
+    <p class="sub" id="ownerSub">Loading…</p>
+    <div id="ownerData"></div>
+  </div>
+</div>
+
+<script>
+/* ═══════════ storage ═══════════ */
+const mem = {};
+const DB = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v===null ? (k in mem ? mem[k] : d) : JSON.parse(v); }
+             catch(e){ return k in mem ? mem[k] : d; } },
+  set(k, v){ mem[k] = v; try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ delete mem[k]; try{ localStorage.removeItem(k); }catch(e){} }
+};
+const $ = id => document.getElementById(id);
+const buzz = p => { try{ navigator.vibrate && navigator.vibrate(p); }catch(e){} };
+
+/* one tap = one ring. The class has to come off or it only ever plays once. */
+function pulse(el){
+  el.classList.remove('pulse');
+  void el.offsetWidth;
+  el.classList.add('pulse');
+}
+document.addEventListener('animationend', function(e){
+  if (e.animationName === 'pulse') e.target.classList.remove('pulse');
+}, true);
+
+const ICON_PAUSE = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<rect x="6" y="4.5" width="4.2" height="15" rx="1.6"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1.6"/></svg>';
+const ICON_PLAY  = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<path d="M7.5 4.9v14.2a1 1 0 0 0 1.54.84l10.6-7.1a1 1 0 0 0 0-1.68L9.04 4.06A1 1 0 0 0 7.5 4.9z"/></svg>';
+
+/* ═══════════ passcode ═══════════ */
+async function hash(pin, salt){
+  const data = new TextEncoder().encode(salt + '|' + pin + '|jh');
+  if (window.crypto && crypto.subtle){
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    } catch(e){}
+  }
+  let h = 5381;                              // fallback for non-secure contexts
+  data.forEach(b => { h = ((h * 33) ^ b) >>> 0; });
+  return 'w' + h.toString(16);
+}
+function newSalt(){
+  const a = new Uint8Array(16);
+  if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
+  else for (let i=0;i<a.length;i++) a[i] = Math.floor(Math.random()*256);
+  return Array.from(a).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+async function setPin(pin){
+  const salt = newSalt();
+  DB.set('jh.salt', salt);
+  DB.set('jh.pin', await hash(pin, salt));
+}
+async function checkPin(pin){
+  const stored = DB.get('jh.pin', null);
+  if (!stored) return false;
+  return (await hash(pin, DB.get('jh.salt',''))) === stored;
+}
+
+/* ═══════════ Face ID / fingerprint (WebAuthn) ═══════════ */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const BIO = isIOS ? 'Face ID' : 'Fingerprint';
+
+const b64 = buf => btoa(String.fromCharCode.apply(null, new Uint8Array(buf)))
+  .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+function unb64(s){
+  const t = s.replace(/-/g,'+').replace(/_/g,'/');
+  const bin = atob(t + '='.repeat((4 - t.length % 4) % 4));
+  return Uint8Array.from(bin, c => c.charCodeAt(0));
+}
+function rand(n){ const a = new Uint8Array(n); crypto.getRandomValues(a); return a; }
+
+async function bioAvailable(){
+  if (!CONFIG.ALLOW_BIOMETRICS) return false;
+  if (!window.PublicKeyCredential || !navigator.credentials) return false;
+  if (!window.isSecureContext) return false;
+  try { return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
+  catch(e){ return false; }
+}
+
+async function bioEnroll(){
+  const cred = await navigator.credentials.create({ publicKey: {
+    challenge: rand(32),
+    rp: { name: 'Junk Heroes Time Clock', id: location.hostname },
+    user: { id: rand(16), name: worker + '@junkheroes', displayName: worker },
+    pubKeyCredParams: [{ type:'public-key', alg:-7 }, { type:'public-key', alg:-257 }],
+    authenticatorSelection: {
+      authenticatorAttachment: 'platform',   // the phone itself, not a USB key
+      userVerification: 'required',          // this is what forces Face ID
+      residentKey: 'discouraged'
+    },
+    timeout: 60000,
+    attestation: 'none'
+  }});
+  DB.set('jh.bio', b64(cred.rawId));
+}
+
+async function bioUnlock(){
+  const id = DB.get('jh.bio', null);
+  if (!id) return false;
+  await navigator.credentials.get({ publicKey: {
+    challenge: rand(32),
+    rpId: location.hostname,
+    allowCredentials: [{ id: unb64(id), type:'public-key', transports:['internal'] }],
+    userVerification: 'required',
+    timeout: 60000
+  }});
+  return true;   // resolving at all means the phone verified the face
+}
+
+/* ═══════════ state ═══════════ */
+let worker  = DB.get('jh.worker', null);
+let st      = DB.get('jh.state', { status:'out', shiftStart:null, breakStart:null, breakMs:0, breaks:0 });
+let queue   = DB.get('jh.queue', []);
+let syncing = false, unlocked = false, bioReady = false;
+let entry = '', pinMode = null, firstEntry = '', fails = 0;
+
+function save(){ DB.set('jh.state', st); DB.set('jh.queue', queue); }
+function uid(){ return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,9); }
+
+function hms(ms){
+  if (ms < 0) ms = 0;
+  const t = Math.floor(ms/1000), h = Math.floor(t/3600), m = Math.floor(t%3600/60), s = t%60;
+  return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+function human(ms){
+  const t = Math.round(ms/60000), h = Math.floor(t/60), m = t%60;
+  return h ? h + 'h ' + m + 'm' : m + 'm';
+}
+
+/* ═══════════ punching ═══════════ */
+function punch(type, extra){
+  const ev = { id:uid(), ts:new Date().toISOString(), worker:worker, type:type,
+               tzOffset:new Date().getTimezoneOffset(), lat:null, lng:null };
+  if (extra) Object.keys(extra).forEach(function(k){ ev[k] = extra[k]; });
+  queue.push(ev); save(); paint(); sync();
+
+  if (CONFIG.RECORD_LOCATION && navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(function(p){
+      const q = queue.find(function(x){ return x.id === ev.id; });
+      if (q){ q.lat = +p.coords.latitude.toFixed(6); q.lng = +p.coords.longitude.toFixed(6); save(); sync(); }
+    }, function(){}, { timeout:8000, maximumAge:60000 });
+  }
+}
+function clockIn(){ st = { status:'in', shiftStart:Date.now(), breakStart:null, breakMs:0, breaks:0 }; punch('in'); buzz(35); }
+function clockOut(){
+  if (st.status === 'break'){ st.breakMs += Date.now() - st.breakStart; st.breaks++; punch('break_end'); }
+  punch('out');
+  const worked = Date.now() - st.shiftStart - st.breakMs;
+  st = { status:'out', shiftStart:null, breakStart:null, breakMs:0, breaks:0, last:worked, lastAt:Date.now() };
+  buzz([30,60,30]);
+}
+function startBreak(){ st.status='break'; st.breakStart=Date.now(); punch('break_start'); buzz(35); }
+function endBreak(){
+  st.breakMs += Date.now() - st.breakStart; st.breaks++;
+  st.status='in'; st.breakStart=null; punch('break_end'); buzz(35);
+}
+
+/* ═══════════ sync ═══════════ */
+async function sync(){
+  if (syncing || !queue.length) return;
+  if (!navigator.onLine){ paint(); return; }
+  if (!CONFIG.ENDPOINT || CONFIG.ENDPOINT.indexOf('PASTE') === 0){ paint(); return; }
+  if (!DB.get('jh.token', null)){ paint(); return; }   // not set up yet — punches keep queueing
+  syncing = true; paint();
+  const batch = queue.slice(0, 60);
+  try {
+    const r = await fetch(CONFIG.ENDPOINT, {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },   // avoids CORS preflight
+      body: JSON.stringify({ who:worker, token:DB.get('jh.token', null), events:batch })
+    });
+    const d = await r.json();
+    if (d && !d.ok && d.error === 'unauthorized'){
+      // Revoked from the spreadsheet, or the phone was wiped and restored.
+      // The queue is untouched; it uploads once the phone is set up again.
+      DB.del('jh.token'); DB.set('jh.err', 'this phone needs setting up again');
+      syncing = false; paint(); needsEnrol(); return;
+    }
+    if (d && d.ok){
+      const done = {};
+      batch.forEach(function(e){ done[e.id] = true; });
+      queue = queue.filter(function(e){ return !done[e.id]; });
+      DB.set('jh.lastSync', Date.now()); DB.set('jh.err', null); save();
+    } else DB.set('jh.err', (d && d.error) || 'rejected');
+  } catch(e){ DB.set('jh.err', 'no connection'); }
+  syncing = false; paint();
+  if (queue.length) setTimeout(sync, 20000);
+}
+
+/* ═══════════ lock screen ═══════════ */
+function statusLine(){
+  if (st.status === 'in')    return 'On the clock right now';
+  if (st.status === 'break') return 'On break right now';
+  return 'Enter your passcode';
+}
+
+function buildKeys(){
+  const box = $('keys'); box.innerHTML = '';
+  ['1','2','3','4','5','6','7','8','9','L','0','B'].forEach(function(k){
+    const b = document.createElement('button');
+    if (k === 'L'){
+      if (pinMode === null && bioReady && DB.get('jh.bio', null)){
+        b.className = 'key bio'; b.textContent = '☺'; b.setAttribute('aria-label', BIO);
+        b.onclick = tryBio;
+      } else { b.className = 'key blank'; b.disabled = true; }
+    } else if (k === 'B'){
+      b.className = 'key util'; b.textContent = 'Delete';
+      b.onclick = function(){ if (entry){ entry = entry.slice(0,-1); pips(); buzz(12); } };
+    } else {
+      b.className = 'key'; b.textContent = k;
+      b.onclick = function(){ tap(k); };
+    }
+    box.appendChild(b);
+  });
+}
+function pips(){
+  const kids = $('pips').children;
+  for (let i = 0; i < kids.length; i++) kids[i].classList.toggle('on', i < entry.length);
+}
+function reject(msg){
+  entry = ''; pips();
+  $('lockHint').textContent = msg;
+  $('pips').classList.remove('shake'); void $('pips').offsetWidth; $('pips').classList.add('shake');
+  buzz([50,80,50]);
+}
+
+async function tap(d){
+  if (entry.length >= 4) return;
+  entry += d; pips(); buzz(12);
+  if (entry.length < 4) return;
+  const code = entry;
+  await new Promise(function(r){ setTimeout(r, 130); });
+
+  if (pinMode === 'new'){
+    firstEntry = code; entry = ''; pips();
+    $('lockHint').textContent = 'Enter it once more';
+    pinMode = 'confirm'; return;
+  }
+  if (pinMode === 'confirm'){
+    if (code !== firstEntry){ pinMode = 'new'; firstEntry = ''; reject('Those did not match. Start again'); return; }
+    await setPin(code);
+    pinMode = null; entry = '';
+    unlock();
+    if (bioReady && !DB.get('jh.bio', null)) offerBio();
+    return;
+  }
+  if (await checkPin(code)){ fails = 0; $('reset').hidden = true; unlock(); }
+  else {
+    fails++;
+    reject(fails >= 3 ? 'Wrong passcode. ' + (5 - fails > 0 ? (5 - fails) + ' tries left' : '') : 'Wrong passcode');
+    if (fails >= 5) $('reset').hidden = false;
+  }
+}
+
+/* Forgetting a passcode means setting the phone up again with a fresh code from
+   an admin. There is deliberately no reset code baked into the app — one of
+   those is a master key sitting in the page source for anyone to read.
+   Unsent punches survive the reset and upload once the phone is set up. */
+$('reset').onclick = function(){
+  if (!confirm('Ask Henrique for a new setup code, then set this phone up again.\n\n' +
+               'Any punches still waiting to send are safe.')) return;
+  DB.del('jh.pin'); DB.del('jh.salt'); DB.del('jh.bio'); DB.del('jh.token'); DB.del('jh.role');
+  fails = 0; $('reset').hidden = true;
+  $('lockScreen').classList.remove('open');
+  needsEnrol();
+};
+
+async function tryBio(){
+  $('lockHint').textContent = 'Waiting for ' + BIO + '…';
+  try { await bioUnlock(); unlock(); }
+  catch(e){ $('lockHint').textContent = 'Enter your passcode'; }
+}
+
+/* skipBio: a deliberate log out must not immediately offer Face ID and let the
+   same person straight back in. Auto-locking still does. */
+function lock(skipBio){
+  if (!worker) return;
+  unlocked = false; entry = ''; pinMode = null;
+  closeOut(); closeTrack();   // never leave a sheet hanging over the lock screen
+  document.body.classList.add('locked'); mirrorRoot();
+  $('lockName').textContent = worker;
+  $('lockHint').textContent = statusLine();
+  $('lockScreen').classList.add('open');
+  pips(); buildKeys();
+  if (!skipBio && bioReady && DB.get('jh.bio', null)) setTimeout(tryBio, 260);
+}
+function askNewPin(){
+  unlocked = false; entry = ''; firstEntry = ''; pinMode = 'new';
+  $('reset').hidden = true;
+  document.body.classList.add('locked'); mirrorRoot();
+  $('lockName').textContent = worker;
+  $('lockHint').textContent = 'Pick a 4-digit passcode';
+  $('lockScreen').classList.add('open');
+  pips(); buildKeys();
+}
+function unlock(){
+  unlocked = true; entry = '';
+  DB.set('jh.unlockedAt', Date.now());
+  DB.set('jh.loggedOut', false);      // whatever made us lock, it's answered now
+  document.body.classList.remove('locked'); mirrorRoot();
+  $('lockScreen').classList.remove('open');
+  paint(); sync();
+}
+async function offerBio(){
+  if (!confirm('Use ' + BIO + ' to unlock this app instead of typing your passcode?')) return;
+  try { await bioEnroll(); alert(BIO + ' is on. Your passcode still works as a backup.'); }
+  catch(e){ alert(BIO + " didn't turn on. You can try again from the menu."); }
+}
+
+/* ═══════════ render ═══════════ */
+/* the root has to match the backdrop exactly — see the html rules up top */
+function mirrorRoot(){
+  const h = document.documentElement;
+  h.dataset.state = document.body.dataset.state || 'out';
+  h.classList.toggle('locked', document.body.classList.contains('locked'));
+}
+
+/* A sheet covers the app in flat void, so the root goes void with it. Watching
+   the overlays directly means every path that opens one is covered. */
+const sheets = [].slice.call(document.querySelectorAll('.overlay'));
+function syncSheets(){
+  const open = sheets.some(function(s){ return s.classList.contains('open'); });
+  document.documentElement.classList.toggle('sheet', open);
+}
+sheets.forEach(function(s){
+  new MutationObserver(syncSheets).observe(s, { attributes:true, attributeFilter:['class'] });
+});
+syncSheets();
+function paint(){
+  if (!worker || !unlocked) return;
+  document.body.dataset.state = st.status;
+  mirrorRoot();
+  $('whoName').textContent = worker;
+
+  const main = $('main'), brk = $('brk');
+  if (st.status === 'out'){
+    main.textContent = 'Clock in'; main.classList.remove('stop');
+    brk.classList.add('ghost');
+    $('caption').textContent = 'Tap the button when you get to the job.';
+  } else {
+    main.textContent = 'Clock out'; main.classList.add('stop');
+    brk.classList.remove('ghost');
+    brk.innerHTML = st.status === 'break'
+      ? ICON_PLAY  + '<span>Back to work</span>'
+      : ICON_PAUSE + '<span>Start break</span>';
+    $('caption').textContent = st.status === 'break'
+      ? 'On break. The clock is paused.'
+      : 'On the clock' + (st.breaks ? ', ' + human(st.breakMs) + ' of breaks so far' : '');
+  }
+
+  const dot = $('dot'), txt = $('syncTxt');
+  if (queue.length){ dot.className = 'dot warn'; txt.textContent = queue.length + ' waiting to send'; }
+  else if (!navigator.onLine){ dot.className = 'dot off'; txt.textContent = 'Offline'; }
+  else { dot.className = 'dot'; txt.textContent = 'Sent'; }
+
+  if (st.status === 'out' && st.last) $('foot').textContent = 'Last shift: ' + human(st.last) + '.';
+  else if (st.status !== 'out' && st.breaks) $('foot').textContent = st.breaks + (st.breaks===1?' break':' breaks') + ' today.';
+  else $('foot').textContent = '';
+
+  stamp();
+  tick();
+}
+/* today's date and the wall clock, under the name */
+function stamp(){
+  const d = new Date();
+  $('now').textContent =
+    d.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' }) + ' · ' +
+    d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+}
+function tick(){
+  if (st.status === 'out'){ $('clock').textContent = st.last ? human(st.last) : '0:00'; return; }
+  const paused = st.status === 'break' ? Date.now() - st.breakStart : 0;
+  $('clock').textContent = hms(Date.now() - st.shiftStart - st.breakMs - paused);
+}
+setInterval(function(){
+  if (!unlocked) return;
+  stamp();
+  if (st.status !== 'out') tick();
+}, 1000);
+
+/* ═══════════ wiring ═══════════ */
+/* Clocking out by mistake — reaching for the break button and hitting the big
+   one — costs somebody their afternoon on the sheet. Always ask first, and put
+   the break they probably meant right there in the answer. */
+/* Left open, this sheet is a phone sitting in a pocket with the shift neither
+   ended nor running. After 7 seconds with nobody answering it, back out to the
+   clock — the same thing "Never mind" does. The count is on the button so the
+   screen never closes itself without warning. */
+const OUT_SECONDS = 7;
+let outTimer = null;
+function closeOut(){
+  clearInterval(outTimer); outTimer = null;
+  $('confirmOut').classList.remove('open');
+  $('cNo').textContent = 'Never mind';
+}
+function askClockOut(){
+  const worked = Date.now() - st.shiftStart - st.breakMs -
+                 (st.status === 'break' ? Date.now() - st.breakStart : 0);
+  $('confirmSub').textContent = st.status === 'break'
+    ? "You're on break — clocking out ends the break and the shift. " + human(worked) + ' on the clock so far.'
+    : "You've been on the clock " + human(worked) + '. Clocking out ends the shift for the day.';
+  $('cBreak').hidden = st.status === 'break';
+  $('confirmOut').classList.add('open');
+
+  let left = OUT_SECONDS;
+  const draw = function(){
+    $('cNo').innerHTML = 'Never mind<small>Going back in ' + left + 's</small>';
+  };
+  draw();
+  clearInterval(outTimer);
+  outTimer = setInterval(function(){
+    if (--left <= 0){ closeOut(); return; }
+    draw();
+  }, 1000);
+}
+$('main').onclick = function(){
+  if (st.status === 'out'){ clockIn(); paint(); }
+  else askClockOut();
+  pulse(this);
+};
+$('brk').onclick = function(){
+  st.status === 'break' ? endBreak() : startBreak();
+  paint(); pulse(this);
+};
+$('cNo').onclick       = function(){ closeOut(); };
+$('outBackTop').onclick = function(){ closeOut(); };   // same as Never mind, timer and all
+$('cYes').onclick   = function(){ closeOut(); clockOut(); paint(); };
+$('cBreak').onclick = function(){ closeOut(); startBreak(); paint(); };
+
+$('who').onclick = function(){
+  disarmLogout();
+  $('menuWho').textContent = 'Signed in as ' + worker + '.';
+  const bioBtn = $('mBio');
+  if (bioReady){
+    bioBtn.hidden = false;
+    bioBtn.innerHTML = DB.get('jh.bio', null)
+      ? 'Turn off ' + BIO + '<small>Passcode only from then on</small>'
+      : 'Turn on ' + BIO + '<small>Skip typing the passcode</small>';
+  } else bioBtn.hidden = true;
+  // Everybody can see their own hours; only a full admin sees the crew's.
+  $('mOwner').textContent = isOwner() ? 'Hours' : 'My hours';
+  $('mWork').hidden = !isOwner() && !isJobAdmin();
+
+  const err = DB.get('jh.err', null), last = DB.get('jh.lastSync', null);
+  $('diag').textContent =
+    (queue.length ? queue.length + ' punch(es) still on this phone. ' : 'Everything has been sent. ') +
+    (last ? 'Last sent ' + new Date(last).toLocaleString() + '. ' : '') +
+    (err ? 'Last problem: ' + err + '.' : '');
+  $('menu').classList.add('open');
+};
+/* This was two buttons that both shut the menu. Merged — going back to the
+   clock also kicks the queue, so a stuck punch still has a way to be retried
+   by hand without a button of its own. */
+$('mSync').onclick = function(){ $('menu').classList.remove('open'); sync(); };
+$('mBio').onclick   = async function(){
+  $('menu').classList.remove('open');
+  if (DB.get('jh.bio', null)){ DB.del('jh.bio'); alert(BIO + ' is off. Use your passcode from now on.'); }
+  else await offerBio();
+};
+$('mPin').onclick = function(){ $('menu').classList.remove('open'); askNewPin(); };
+
+/* Log out takes two taps. The first arms the button and says so; it disarms
+   itself after a few seconds, and again whenever the menu is reopened, so a
+   stray tap can never be waiting to catch somebody out later. */
+let logoutArmed = null;
+function disarmLogout(){
+  clearTimeout(logoutArmed); logoutArmed = null;
+  $('mOut').classList.remove('armed');
+  $('mOutLabel').textContent = 'Log out';
+}
+$('mOut').onclick = function(){
+  if (!logoutArmed){
+    this.classList.add('armed');
+    $('mOutLabel').textContent = 'Tap again to log out';
+    buzz(12);
+    logoutArmed = setTimeout(disarmLogout, 5000);
+    return;
+  }
+  disarmLogout();
+  $('menu').classList.remove('open');
+  buzz([30, 60, 30]);
+  // Remembered, so closing and reopening the app doesn't undo the log out.
+  DB.set('jh.loggedOut', true);
+  lock(true);           // straight to the passcode, no Face ID shortcut
+};
+$('mSwitch').onclick = function(){
+  if (st.status !== 'out'){ alert('Clock out first, then switch.'); return; }
+  /* Punches upload under whoever's token sends them, so anything still queued
+     would land on the next man's timesheet. Send them first. */
+  if (queue.length){
+    alert(queue.length + " of " + worker + "'s punches haven't been sent yet.\n\n" +
+          'Get a bar of signal and tap "Go to clock" to send them, then switch. ' +
+          "Otherwise they'd be recorded under the new name.");
+    sync();
+    return;
+  }
+  worker = null; DB.set('jh.worker', null);
+  DB.del('jh.pin'); DB.del('jh.salt'); DB.del('jh.bio'); DB.del('jh.token'); DB.del('jh.role');
+  $('menu').classList.remove('open'); buildSetup();
+};
+
+function buildSetup(){
+  const box = $('workerList'); box.innerHTML = '';
+  CONFIG.WORKERS.forEach(function(section){
+    // a plain string still works, in case the groups are ever flattened again
+    const label = typeof section === 'string' ? null : section.group;
+    const names = typeof section === 'string' ? [section] : (section.names || []);
+
+    if (label){
+      const h = document.createElement('p');
+      h.className = 'grp'; h.textContent = label;
+      box.appendChild(h);
+    }
+    names.forEach(function(n){
+      const b = document.createElement('button');
+      b.className = 'pick'; b.textContent = n;
+      b.onclick = function(){
+        worker = n; DB.set('jh.worker', n);
+        $('setup').classList.remove('open');
+        needsEnrol();
+      };
+      box.appendChild(b);
+    });
+  });
+  $('setup').classList.add('open');
+  $('lockScreen').classList.remove('open');
+}
+
+/* ═══════════ enrolment ═══════════ */
+/* A phone is useless until an admin hands its owner a one-time code. What comes
+   back is a token belonging to this phone alone: it can't clock anybody else in
+   and it can't read anything the person's role doesn't allow. */
+function needsEnrol(){
+  unlocked = false;
+  document.body.classList.add('locked'); mirrorRoot();
+  $('lockScreen').classList.remove('open');
+  $('enrolTitle').textContent = worker ? 'Set up ' + worker + "'s phone" : 'Set up this phone';
+  $('enrolCode').value = '';
+  $('enrolCode').classList.remove('bad');
+  $('enrolErr').hidden = true;
+  $('enrol').classList.add('open');
+}
+
+$('enrolBack').onclick = function(){
+  $('enrol').classList.remove('open');
+  worker = null; DB.set('jh.worker', null);
+  buildSetup();
+};
+
+$('enrolGo').onclick = async function(){
+  const code = $('enrolCode').value.trim();
+  $('enrolCode').classList.remove('bad');
+  if (!code){
+    $('enrolErr').textContent = 'Type the code you were given.';
+    $('enrolErr').hidden = false; $('enrolCode').classList.add('bad'); $('enrolCode').focus();
+    return;
+  }
+  if (!CONFIG.ENDPOINT || CONFIG.ENDPOINT.indexOf('PASTE') === 0){
+    $('enrolErr').textContent = 'This app has not been pointed at the spreadsheet yet. Tell Henrique.';
+    $('enrolErr').hidden = false; return;
+  }
+
+  this.disabled = true; this.textContent = 'Checking…';
+  try {
+    const r = await fetch(CONFIG.ENDPOINT, {
+      method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'enrol', who:worker, code:code })
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'bad code');
+
+    DB.set('jh.token', d.token);
+    DB.set('jh.role', d.role || 'crew');
+    if (d.name) { worker = d.name; DB.set('jh.worker', d.name); }
+    DB.set('jh.err', null);
+    $('enrol').classList.remove('open');
+    askNewPin();                     // straight on to picking a passcode
+  } catch(e){
+    const msg = String(e.message || e);
+    $('enrolErr').textContent =
+      msg === 'bad code'  ? "That code didn't work. Check it with Henrique." :
+      /expired/.test(msg) ? 'That code has expired. Ask Henrique for a new one.' :
+      /too many/.test(msg)? 'Too many tries. Wait half an hour, then try again.' :
+                            "Couldn't reach the office. Check your signal and try again.";
+    $('enrolErr').hidden = false;
+    $('enrolCode').classList.add('bad');
+  }
+  this.disabled = false; this.textContent = 'Set up this phone';
+};
+
+/* ═══════════ track a job or a quote ═══════════ */
+/* Jobs and quotes ride the same queue as punches, so they survive a basement
+   with no signal exactly the way a clock-in does. */
+function payMark(ch){
+  return '<rect x="3" y="3" width="18" height="18" rx="5.5"/>' +
+         '<text x="12" y="16.4" text-anchor="middle" font-size="11" font-weight="700">' + ch + '</text>';
+}
+const PAYMENTS = [
+  { id:'card',    label:'Card',     icon:'<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/>' },
+  { id:'cash',    label:'Cash',     icon:'<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.7"/>' },
+  { id:'check',   label:'Check',    icon:'<rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M6 10.5h8M6 14h5"/>' },
+  { id:'venmo',   label:'Venmo',    icon:payMark('V') },
+  { id:'zelle',   label:'Zelle',    icon:payMark('Z') },
+  { id:'cashapp', label:'Cash App', icon:payMark('$') }
+];
+
+let trkKind = null, trkPay = null, toastTimer = null;
+
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
+
+function buildPays(){
+  const box = $('pays'); box.innerHTML = ''; trkPay = null;
+  PAYMENTS.forEach(function(p){
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'pay';
+    b.setAttribute('aria-pressed', 'false');
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + p.icon + '</svg><span>' + p.label + '</span>';
+    b.onclick = function(){
+      trkPay = p.id;
+      box.classList.remove('bad');
+      [].forEach.call(box.children, function(c){
+        const on = c === b;
+        c.classList.toggle('on', on);
+        c.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      buzz(12);
+    };
+    box.appendChild(b);
+  });
+}
+
+function openTrack(){
+  $('trkForm').hidden = true;
+  $('trkPick').hidden = false;
+  $('trackSheet').classList.add('open');
+}
+function closeTrack(){ $('trackSheet').classList.remove('open'); }
+
+function startTrack(kind){
+  trkKind = kind;
+  const job = kind === 'job';
+  $('trkTitle').textContent = job ? 'Completed job' : 'Quote given';
+  $('fValueLabel').textContent = job ? 'Job total' : 'Quote total';
+  $('trkSave').textContent = job ? 'Save job' : 'Save quote';
+  $('fPayWrap').hidden   = !job;
+  $('fNotesWrap').hidden = job;
+  ['fFirst','fLast','fTown','fValue','fNotes'].forEach(function(id){
+    $(id).value = ''; $(id).classList.remove('bad');
+  });
+  buildPays();
+  $('trkErr').hidden = true;
+  $('trkPick').hidden = true;
+  $('trkForm').hidden = false;
+  $('trackSheet').scrollTop = 0;
+}
+
+function trkFail(msg, el){
+  $('trkErr').textContent = msg;
+  $('trkErr').hidden = false;
+  if (el){ el.classList.add('bad'); el.focus(); }
+}
+
+$('track').onclick      = openTrack;
+$('trkBackTop').onclick = closeTrack;   // straight out to the clock from either step
+$('trkJobBtn').onclick  = function(){ startTrack('job'); };
+$('trkQuoteBtn').onclick= function(){ startTrack('quote'); };
+$('trkBack').onclick    = function(){ $('trkForm').hidden = true; $('trkPick').hidden = false; };
+
+$('trkForm').onsubmit = function(e){
+  e.preventDefault();
+  const first = $('fFirst').value.trim();
+  const town  = $('fTown').value.trim();
+  const raw   = $('fValue').value.replace(/[^0-9.]/g, '');
+  const amount = parseFloat(raw);
+
+  ['fFirst','fTown','fValue'].forEach(function(id){ $(id).classList.remove('bad'); });
+  $('pays').classList.remove('bad');
+  const job = trkKind === 'job';
+
+  if (!first) return trkFail('A first name is needed.', $('fFirst'));
+  if (!town)  return trkFail('Which town or city was this in?', $('fTown'));
+  if (!raw || isNaN(amount) || amount <= 0)
+    return trkFail(job ? 'How much was the job?' : 'How much did you quote?', $('fValue'));
+  if (job && !trkPay){
+    $('trkErr').textContent = 'Tap how they paid.';
+    $('trkErr').hidden = false;
+    $('pays').classList.add('bad');
+    $('pays').scrollIntoView({ block:'center' });
+    return;
+  }
+
+  const rec = { first:first, last:$('fLast').value.trim(), town:town,
+                amount: Math.round(amount * 100) / 100 };
+  if (job) rec.method = trkPay;
+  else     rec.notes  = $('fNotes').value.trim();
+
+  punch(trkKind, rec);
+  buzz(35);
+  closeTrack();
+  toast((job ? 'Job saved for ' : 'Quote saved for ') + first + '.');
+};
+
+/* ═══════════ who can see what ═══════════ */
+/* The role is whatever the server said when this phone was set up. It only
+   decides which buttons appear — every request is checked again on the server
+   against the People tab, so editing this value on the phone gains nothing. */
+function isOwner(){ return DB.get('jh.role', 'crew') === 'full'; }
+function isJobAdmin(){ return DB.get('jh.role', 'crew') === 'jobs'; }
+
+function ask(payload){
+  return fetch(CONFIG.ENDPOINT, {
+    method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ who:worker, token:DB.get('jh.token', null) }, payload))
+  }).then(function(r){ return r.json(); });
+}
+
+/* ═══════════ jobs & quotes ═══════════ */
+$('workBack').onclick = function(){ $('work').classList.remove('open'); };
+$('mWork').onclick = async function(){
+  $('menu').classList.remove('open');
+  $('workData').innerHTML = ''; $('workSub').textContent = 'Loading…';
+  $('work').classList.add('open');
+  try {
+    const d = await ask({ action:'work', limit:60 });
+    if (!d.ok) throw new Error(d.error || 'failed');
+    renderWork(d.work || []);
+  } catch(e){ $('workSub').textContent = "Couldn't load jobs and quotes. Check the connection, then try again."; }
+};
+
+function renderWork(items){
+  const box = $('workData'); box.innerHTML = '';
+  if (!items.length){
+    $('workSub').textContent = '';
+    box.innerHTML = '<p class="note">Nothing tracked yet.</p>';
+    return;
+  }
+  let jobs = 0, quotes = 0, took = 0;
+  items.forEach(function(w){
+    if (w.kind === 'Job'){ jobs++; took += Number(w.amount) || 0; } else quotes++;
+  });
+  $('workSub').textContent = jobs + (jobs === 1 ? ' job' : ' jobs') + ' ($' + took.toFixed(2) + ') and ' +
+                             quotes + (quotes === 1 ? ' quote' : ' quotes') + ', newest first.';
+
+  let day = '';
+  items.forEach(function(w){
+    if (w.date !== day){
+      day = w.date;
+      const h = document.createElement('p'); h.className = 'wk'; h.textContent = day; box.appendChild(h);
+    }
+    const el = document.createElement('div'); el.className = 'row';
+    el.innerHTML = '<span></span><b></b>';
+    const who = (w.first || '') + (w.last ? ' ' + w.last : '');
+    el.firstChild.textContent = w.kind + ' · ' + who + (w.town ? ', ' + w.town : '') +
+                                (w.method ? ' · ' + w.method : '') + ' · ' + w.worker;
+    el.lastChild.textContent = '$' + (Number(w.amount) || 0).toFixed(2);
+    box.appendChild(el);
+  });
+}
+
+/* ═══════════ hours ═══════════ */
+$('mOwner').onclick = async function(){
+  $('menu').classList.remove('open');
+  $('ownerTitle').textContent = isOwner() ? 'Hours' : 'My hours';
+  $('ownerData').innerHTML = ''; $('ownerSub').textContent = 'Loading…';
+  $('owner').classList.add('open');
+  try {
+    const d = await ask({ action:'summary', weeks:3 });
+    if (!d.ok) throw new Error(d.error || 'failed');
+    // The server decides the scope from the role on the sheet, so trust its
+    // answer over anything this phone thinks it is.
+    $('ownerTitle').textContent = d.scope === 'all' ? 'Hours' : 'My hours';
+    render(d.summary, d.scope === 'all');
+  } catch(e){ $('ownerSub').textContent = "Couldn't load hours. Check the connection, then try again."; }
+};
+$('oClose').onclick = function(){ $('owner').classList.remove('open'); };
+
+function render(weeks, everyone){
+  $('ownerSub').textContent = everyone
+    ? 'The whole crew. Weeks start Monday, and anyone still clocked in is marked.'
+    : 'Your hours. Weeks start Monday.';
+  const box = $('ownerData'); box.innerHTML = '';
+  if (!weeks || !weeks.length){
+    box.innerHTML = everyone
+      ? '<p class="note">No punches recorded yet.</p>'
+      : '<p class="note">Nothing recorded for you yet. Hours show up here once a shift is finished and sent.</p>';
+    return;
+  }
+  weeks.forEach(function(w){
+    const h = document.createElement('p'); h.className = 'wk'; h.textContent = w.label; box.appendChild(h);
+    w.rows.forEach(function(rw){
+      const el = document.createElement('div'); el.className = 'row';
+      el.innerHTML = '<span></span><b></b>';
+      el.firstChild.textContent = (everyone ? rw.worker : 'Worked') + (rw.open ? ' (still clocked in)' : '');
+      el.lastChild.textContent = rw.hours.toFixed(2) + ' hrs';
+      box.appendChild(el);
+    });
+  });
+}
+
+/* ═══════════ boot ═══════════ */
+window.addEventListener('online', sync);
+document.addEventListener('visibilitychange', function(){
+  // Note when it went away, so the gap below is time actually spent closed
+  // rather than time since the passcode was last typed.
+  if (document.hidden){ DB.set('jh.awayAt', Date.now()); return; }
+  if (!unlocked) return;
+  const mins = CONFIG.LOCK_AFTER_MINUTES;
+  const gap = Date.now() - DB.get('jh.awayAt', Date.now());
+  if (mins > 0 && gap > mins * 60000) lock();
+  else { paint(); sync(); }
+});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
+
+(async function boot(){
+  bioReady = await bioAvailable();
+  if (!worker){ buildSetup(); return; }
+  if (!DB.get('jh.token', null)){ needsEnrol(); return; }
+  if (!DB.get('jh.pin', null)){ askNewPin(); return; }
+
+  /* Straight to the clock unless there's a reason not to be. Somebody who
+     logged out on purpose has to answer for it — Face ID counts, and is
+     offered, because it's the quick way through. */
+  if (DB.get('jh.loggedOut', false)){ lock(); sync(); return; }
+
+  const mins = CONFIG.LOCK_AFTER_MINUTES;
+  const gap = Date.now() - DB.get('jh.awayAt', Date.now());
+  if (mins > 0 && gap > mins * 60000) lock();
+  else unlock();
+  sync();
+})();
+</script>
+</body>
+</html>
