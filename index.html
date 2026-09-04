@@ -10,6 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#221E2B">
+<meta name="robots" content="noindex, nofollow">
 
 <script>
 /* ══════════════════════════════════════════════════════════════
@@ -25,11 +26,24 @@ const CONFIG = {
      to do comes from their role on the People tab in the spreadsheet, which
      also decides who can enrol at all. Nothing secret lives in this file. */
   WORKERS: [
-    { group: "Admins",               names: ["Henrique", "Filipe"] },
+    { group: "Admins", admin: true, pair: true, names: ["Henrique", "Filipe"] },
     { group: "Main truck crew",      names: ["Rey", "Paulo"] },
     { group: "Assistant & Dispatch", names: ["Andy"] },
     { group: "Extra crew",           names: ["Ryan", "Ethan"] }
   ],
+
+  // 6. The trucks a man can be on. Two people who pick the same one on the same
+  //    day are that day's crew for it — no pairing to do by hand.
+  TRUCKS: [
+    { name: "2007 Isuzu NPR-HD", tag: "Truck 1" },
+    { name: "2020 Hino 195",     tag: "Truck 2" }
+  ],
+
+  /* 7. A sandbox for having a look round. No setup code, a fixed passcode, and
+        crew-level access only. Nothing it does ever reaches the spreadsheet —
+        its punches are kept on the phone and dropped, so a poke about can never
+        turn into somebody's hours or a truck's takings. */
+  TEST_USER: { name: "Test", pin: "0608" },
 
   // Optional
   RECORD_LOCATION: false,     // true = stamp each punch with GPS
@@ -103,6 +117,7 @@ body.locked .bg{background:var(--void)}
   font-size:19px;font-weight:650;letter-spacing:-.01em;padding:4px 2px 0;background:none;border:0;color:inherit}
 .who svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;
   stroke-linecap:round;stroke-linejoin:round;flex:none;opacity:.85}
+.who .star{width:14px;height:14px;fill:var(--lilac);stroke:none;opacity:1}
 .now{margin:2px 0 0 2px;font-size:13px;font-weight:500;color:var(--haze);
   font-variant-numeric:tabular-nums;letter-spacing:.005em;white-space:nowrap}
 .sync{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--haze);font-weight:500;padding-top:7px}
@@ -160,10 +175,10 @@ button{font-family:inherit;font-size:inherit;border:0;cursor:pointer;color:inher
 
 /* Pulse ring on tap — transform/opacity only. The ring spends its life outside
    the button, so it takes its colour from the page behind, not the button face. */
-.punch::after,.minor::after{content:'';position:absolute;inset:0;border-radius:inherit;
+.punch::after,.minor::after,.say::after{content:'';position:absolute;inset:0;border-radius:inherit;
   border:2.5px solid var(--ink);opacity:0;pointer-events:none}
-.minor::after{border-color:var(--lilac)}
-.punch.pulse::after,.minor.pulse::after{animation:pulse .6s cubic-bezier(.16,.72,.35,1) forwards}
+.minor::after,.say::after{border-color:var(--lilac)}
+.punch.pulse::after,.minor.pulse::after,.say.pulse::after{animation:pulse .6s cubic-bezier(.16,.72,.35,1) forwards}
 @keyframes pulse{
   0%{opacity:.85;transform:scale(1)}
   45%{opacity:.5}
@@ -197,6 +212,137 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--lilac);outline-
 .reset{margin-top:20px;background:none;border:0;color:var(--haze);font-size:15px;
   text-decoration:underline;text-underline-offset:4px;padding:10px}
 
+/* ── motion ──
+   One easing for the whole app so everything moves the same way. Entrances are
+   short and small; nothing bounces, nothing slides a long way. The reduced-motion
+   rule at the bottom of this stylesheet switches all of it off. */
+:root{ --ease:cubic-bezier(.22,.8,.28,1); }
+
+.overlay.open{animation:sheetIn .24s var(--ease) both}
+@keyframes sheetIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+
+body:not(.locked) .screen{animation:fadeIn .3s var(--ease) both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes riseIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* the punch button arrives with the screen rather than just appearing */
+body:not(.locked) .punch{animation:popIn .34s var(--ease) both .04s}
+@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ease) both .1s}
+
+.heard{animation:riseIn .26s var(--ease) both}
+.toast{transform:translateX(-50%) translateY(8px)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast{transition:opacity .2s var(--ease),transform .2s var(--ease)}
+
+/* ── the thank-you, after a day's work ── */
+.thanks .glow{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.thanks .glow::before{content:'';position:absolute;inset:-30%;
+  background:
+    radial-gradient(46% 40% at 22% 24%, rgba(126,182,255,.72), transparent 68%),
+    radial-gradient(50% 44% at 78% 72%, rgba(190,166,248,.68), transparent 70%),
+    radial-gradient(40% 34% at 58% 12%, rgba(150,124,252,.50), transparent 68%),
+    radial-gradient(36% 32% at 14% 84%, rgba(112,196,255,.38), transparent 70%);
+  animation:glowDrift 11s ease-in-out infinite alternate}
+@keyframes glowDrift{
+  from{opacity:.82;transform:scale(1) translateY(0)}
+  to{opacity:1;transform:scale(1.13) translateY(-3%)}
+}
+/* a little grain so the gradient doesn't band on a big phone screen */
+.thanks .grain{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.thanks .inner{position:relative;z-index:2;min-height:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.thanks-mark{width:54px;height:54px;margin:0 0 24px;fill:none;stroke:var(--ink);
+  stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;
+  animation:markIn .5s var(--ease) both .04s}
+@keyframes markIn{from{opacity:0;transform:scale(.82)}to{opacity:.92;transform:scale(1)}}
+.thanks h2{font-size:31px;line-height:1.22;margin:0 0 12px;max-width:16ch;
+  animation:riseIn .45s var(--ease) both .12s}
+.thanks-sub{margin:0;font-size:17.5px;line-height:1.5;color:var(--haze);max-width:24ch;
+  animation:riseIn .45s var(--ease) both .2s}
+.thanks .brand{margin-top:34px;animation:riseIn .45s var(--ease) both .3s}
+.thanks .pick{margin-top:30px;max-width:290px;text-align:center;animation:riseIn .45s var(--ease) both .38s}
+
+/* ── branding ── */
+.brand{margin:0;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--haze);text-align:center}
+.brand em{font-style:normal;color:var(--lilac)}
+.brand-top{margin-bottom:20px}
+.brand-foot{margin-top:30px;opacity:.75}
+
+/* ── hours: week switch, split, chart, stats ──
+   Series colours are not the UI lilac. --lilac sits at L 0.77, outside the band
+   a chart mark needs on this dark surface, and paired with a blue it collapses
+   to deltaE 1.8 for a red-green colourblind reader. These two were run through the
+   palette validator against #221E2B and pass every check: worst CVD deltaE 16.4,
+   normal-vision 24.1, both inside the lightness band for this surface. */
+:root{
+  --s-now:#9085e9;      /* the week being looked at */
+  --s-prev:#20AC80;     /* the week before it */
+}
+
+.wk-switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;margin:0 0 16px;
+  background:var(--sunk);border:1px solid var(--edge);border-radius:13px}
+.wk-opt{padding:11px 8px;border-radius:9px;background:transparent;
+  font-size:15px;font-weight:600;color:var(--haze);
+  transition:background-color .14s var(--ease),color .14s var(--ease)}
+.wk-opt.on{background:var(--lilac);color:#1E1826}
+.wk-range{margin:0 0 20px;font-size:14.5px;color:var(--haze);text-align:center}
+
+.hero-num{text-align:center;margin:0 0 20px}
+.hero-num b{display:block;font-size:52px;font-weight:730;letter-spacing:-.04em;
+  line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
+.hero-num span{display:block;margin-top:7px;font-size:14.5px;color:var(--haze)}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:0 0 26px}
+.split-part{padding:15px 16px;border-radius:13px;background:var(--sunk);
+  border:1px solid var(--edge)}
+.split-part b{display:block;font-size:23px;font-weight:680;font-variant-numeric:tabular-nums}
+.split-part span{display:block;margin-top:3px;font-size:13.5px;color:var(--haze)}
+.split-part.ot b{color:#F0A07E}
+.split-part.ot.none b{color:var(--haze)}
+
+.chart-card{padding:16px 14px 12px;border-radius:15px;background:var(--sunk);
+  border:1px solid var(--edge);margin:0 0 22px}
+.legend{display:flex;gap:16px;justify-content:center;margin:0 0 12px;
+  font-size:13px;color:var(--haze)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;
+  margin-right:6px;vertical-align:-1px}
+.legend .now{background:var(--s-now)}
+.legend .prev{background:var(--s-prev)}
+.chart svg{display:block;width:100%;height:auto}
+.chart .grid{stroke:var(--edge);stroke-width:1}
+.chart .axis{fill:var(--haze);font-size:9.5px}
+.chart .dayl{fill:var(--haze);font-size:10.5px}
+.chart .dayl.today{fill:var(--ink);font-weight:700}
+.chart .hit{fill:transparent}
+.chart .hit.sel{fill:rgba(242,240,247,.05)}
+.chart-tip{margin:10px 0 0;min-height:19px;font-size:13.5px;color:var(--haze);text-align:center}
+.chart-tip b{color:var(--ink);font-weight:650}
+
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:0 0 8px}
+.stat{padding:14px 15px;border-radius:13px;background:var(--sunk);border:1px solid var(--edge)}
+.stat b{display:block;font-size:20px;font-weight:680;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stat span{display:block;margin-top:3px;font-size:13px;color:var(--haze);line-height:1.35}
+.stat.up b{color:#8FD9B6}
+.stat.down b{color:#F0A07E}
+.hours-older{margin-top:30px}
+
+/* ── truck ── */
+.truck-chip{display:inline-flex;align-items:center;gap:7px;margin:12px auto 0;
+  padding:7px 14px;border-radius:999px;background:var(--sunk);border:1px solid var(--edge);
+  font-size:14px;font-weight:600;color:var(--ink)}
+.truck-chip svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round;flex:none;opacity:.85}
+.truck-chip em{font-style:normal;color:var(--haze);font-weight:500}
+
+.crew-line{margin:22px 0 0;padding:14px 16px;border-radius:13px;
+  background:var(--sunk);border:1px solid var(--edge);font-size:15.5px;line-height:1.5}
+.crew-line b{font-weight:650}
+.crew-truck{margin:16px 0 6px;font-size:14px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--haze)}
+
 /* ── sheets ── */
 .inner{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 26px) var(--pad) calc(env(safe-area-inset-bottom) + 26px)}
 
@@ -210,6 +356,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--lilac);outline-
 .back:active{transform:scale(.97);opacity:.85}
 .back svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.1;
   stroke-linecap:round;stroke-linejoin:round;flex:none}
+#enrol .inner,#truckSheet .inner,#crews .inner,#lockScreen.hasback .lock,#setup.hasback .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
 #trackSheet .inner,#confirmOut .inner,#work .inner,#owner .inner{
   padding-top:calc(env(safe-area-inset-top) + 88px)}
 h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
@@ -264,6 +411,30 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   font-size:17px;font-weight:650;color:var(--haze);pointer-events:none}
 .money input{padding-left:34px;font-variant-numeric:tabular-nums}
 
+/* dictation — the same circle as the punch button, so it reads as the one big
+   thing to press. Outlined rather than filled, since it is the alternative to
+   the two solid choices above it. */
+.say{position:relative;width:min(238px,63vw);aspect-ratio:1;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  margin:26px auto 0;padding:0 22px;text-align:center;
+  font-size:19px;font-weight:650;letter-spacing:-.01em;
+  background:var(--sunk);border:2px dashed var(--edge);color:var(--ink);
+  transition:transform .09s ease,background-color .12s ease,border-color .12s ease,color .12s ease}
+.say svg{width:40px;height:40px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+.say:active{transform:scale(.965)}
+.say.hot{border-style:solid;border-color:var(--lilac);color:var(--lilac);
+  background:rgba(188,166,242,.16)}
+.say.hot svg{animation:hear 1.1s ease-in-out infinite}
+@keyframes hear{0%,100%{opacity:.45}50%{opacity:1}}
+.say-hint{max-width:30ch;margin:14px auto 0;font-size:14.5px;line-height:1.5;
+  color:var(--haze);text-align:center}
+
+.heard{margin:0 0 22px;padding:14px 16px;border-radius:13px;
+  background:var(--sunk);border:1px solid var(--edge)}
+.heard-said{margin:0;font-size:16px;line-height:1.45;color:var(--ink)}
+.heard-miss{margin:7px 0 0;font-size:14px;color:var(--haze)}
+
 .pays{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 20px}
 .pay{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
   min-height:66px;border-radius:13px;background:var(--sunk);border:2px solid var(--edge);
@@ -299,6 +470,22 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 .row b{font-weight:650;font-variant-numeric:tabular-nums}
 .row span{color:var(--haze)}
 .wk{margin:26px 0 4px;font-size:14.5px;color:var(--haze);font-weight:600}
+/* the two admins share a line; everybody else gets a full-width button */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.pair .pick{margin-bottom:11px}
+.pick.with-star{display:flex;align-items:center;gap:8px}
+.pick.with-icon{display:flex;align-items:center;gap:11px}
+.pico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;flex:none;opacity:.85}
+.star{width:15px;height:15px;fill:var(--lilac);stroke:none;flex:none}
+
+/* the sandbox account: set apart below a rule, and deliberately quiet */
+.test-sep{margin:26px 0 0;border-top:1px solid var(--edge);opacity:.6}
+.pick.test-user{margin-top:14px;opacity:.42;background:transparent;
+  border-style:dashed;transition:opacity .14s var(--ease)}
+.pick.test-user:active{opacity:.7}
+.pick.test-user small{opacity:.9}
+
 /* section headings on the name picker */
 .grp{margin:24px 0 10px 2px;font-size:13px;font-weight:700;color:var(--haze);
   letter-spacing:.06em;text-transform:uppercase}
@@ -312,6 +499,10 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 
 <!-- ═══ lock / passcode ═══ -->
 <div class="overlay open" id="lockScreen">
+  <button class="back" id="lockBack" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span id="lockBackLabel">Go back</span>
+  </button>
   <div class="lock">
     <div class="lock-top">
       <p class="lock-name" id="lockName">—</p>
@@ -320,6 +511,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
     </div>
     <div class="keys" id="keys"></div>
     <button class="reset" id="reset" hidden>Forgot passcode</button>
+    <p class="brand brand-foot">The Junk <em>Heroes</em></p>
   </div>
 </div>
 
@@ -330,6 +522,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
       <button class="who" id="who">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.9 20a7.1 7.1 0 0 1 14.2 0"/></svg>
         <span id="whoName">—</span>
+        <svg class="star" id="whoStar" viewBox="0 0 24 24" aria-label="Admin" hidden><path d="M12 2.7l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.51l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg>
       </button>
       <p class="now" id="now">—</p>
     </div>
@@ -338,6 +531,10 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <div class="hero">
     <p class="clock" id="clock">0:00</p>
     <p class="caption" id="caption">Tap the button when you get to the job.</p>
+    <span class="truck-chip" id="truckChip" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 7.5h11v9h-11z"/><path d="M13.5 11h4l3 3v2.5h-7z"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>
+      <span id="truckName">Truck 1</span><em id="truckMates"></em>
+    </span>
   </div>
   <div class="stack">
     <button class="punch" id="main">Clock in</button>
@@ -353,14 +550,26 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- ═══ who's on this phone ═══ -->
-<div class="overlay" id="setup"><div class="inner">
+<div class="overlay" id="setup">
+  <button class="back" id="setupBack" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span id="setupBackLabel">Go back</span>
+  </button>
+  <div class="inner">
+  <p class="brand brand-top">The Junk <em>Heroes</em></p>
   <h2>Who's on this phone?</h2>
   <p class="sub">Pick your name once. This phone will remember it.</p>
   <div id="workerList"></div>
-</div></div>
+  </div>
+</div>
 
 <!-- ═══ enrolment — one code, one phone ═══ -->
-<div class="overlay" id="enrol"><div class="inner">
+<div class="overlay hasback" id="enrol">
+  <button class="back" id="enrolBackTop">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span>Go back</span>
+  </button>
+  <div class="inner">
   <h2 id="enrolTitle">Set up this phone</h2>
   <p class="sub" id="enrolSub">Henrique will give you an 8-character code. It works once, on this phone.</p>
   <label class="field"><span>Your setup code</span>
@@ -368,10 +577,10 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
            autocapitalize="characters" spellcheck="false" maxlength="9" enterkeyhint="done"></label>
   <p class="err" id="enrolErr" hidden></p>
   <button class="pick safe" id="enrolGo">Set up this phone</button>
-  <button class="pick calm" id="enrolBack">Pick a different name</button>
   <p class="note">Nothing works until this phone is set up. Your code is yours —
     it can't be used on anybody else's phone.</p>
-</div></div>
+  </div>
+</div>
 
 <!-- ═══ clock-out check ═══ -->
 <div class="overlay" id="confirmOut">
@@ -400,10 +609,21 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
     <p class="sub">Which one was it?</p>
     <button class="pick safe" id="trkJobBtn">Completed job<small>Work is done and you collected payment</small></button>
     <button class="pick" id="trkQuoteBtn">Gave a quote<small>You priced it. No work done yet.</small></button>
+
+    <button class="say" id="trkSay" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg>
+      <span id="traySayLabel">Say it instead</span>
+    </button>
+    <p class="say-hint" id="trkSayHint" hidden>&ldquo;Finished Anna in Peabody, she paid $500 on Venmo&rdquo;</p>
   </div>
 
   <form id="trkForm" hidden novalidate>
     <h2 id="trkTitle">Completed job</h2>
+
+    <div class="heard" id="heardBox" hidden>
+      <p class="heard-said" id="heardText"></p>
+      <p class="heard-miss" id="heardMiss"></p>
+    </div>
 
     <div class="duo">
       <label class="field"><span>First name</span>
@@ -433,6 +653,45 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 
 </div></div>
 
+<!-- ═══ which truck today ═══ -->
+<div class="overlay" id="truckSheet">
+  <button class="back" id="truckBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span>Go back</span>
+  </button>
+  <div class="inner">
+    <h2>Which truck today?</h2>
+    <p class="sub">Whoever else picks the same one is your crew for the day.</p>
+    <div id="truckList"></div>
+  </div>
+</div>
+
+<!-- ═══ trucks and crews, for admins ═══ -->
+<div class="overlay" id="crews">
+  <button class="back" id="crewsBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span>Go back</span>
+  </button>
+  <div class="inner">
+    <h2>Trucks &amp; crews</h2>
+    <p class="sub" id="crewsSub">Loading…</p>
+    <div id="crewsData"></div>
+  </div>
+</div>
+
+<!-- ═══ thank you, after clocking out ═══ -->
+<div class="overlay thanks" id="thanks">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="inner">
+    <svg class="thanks-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3s-7.4-4.6-7.4-9.6A4.2 4.2 0 0 1 12 8.1a4.2 4.2 0 0 1 7.4 2.6c0 5-7.4 9.6-7.4 9.6z"/></svg>
+    <h2 id="thanksLine">Thanks.</h2>
+    <p class="thanks-sub" id="thanksSub"></p>
+    <p class="brand">The Junk <em>Heroes</em></p>
+    <button class="pick safe" id="thanksDone">Done for today</button>
+  </div>
+</div>
+
 <!-- ═══ menu ═══ -->
 <div class="overlay" id="menu"><div class="inner">
   <h2>Menu</h2>
@@ -440,14 +699,19 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <button class="pick safe" id="mSync">Go to clock</button>
   <button class="pick" id="mOwner">My hours</button>
   <button class="pick" id="mWork" hidden>Jobs &amp; quotes</button>
+  <button class="pick" id="mCrews" hidden>Trucks &amp; crews</button>
   <button class="pick" id="mBio" hidden></button>
   <button class="pick" id="mPin">Change passcode</button>
-  <button class="pick" id="mSwitch">Change name on this phone</button>
+  <button class="pick with-icon" id="mSwitch">
+    <svg class="pico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.9 20a7.1 7.1 0 0 1 14.2 0"/></svg>
+    <span>Switch User</span>
+  </button>
   <p class="note" id="diag"></p>
   <button class="logout" id="mOut">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 20H5.5A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4h4"/><path d="M16 8.5l3.5 3.5-3.5 3.5"/><path d="M9.5 12h10"/></svg>
     <span id="mOutLabel">Log out</span>
   </button>
+  <p class="brand brand-foot">The Junk <em>Heroes</em></p>
 </div></div>
 
 <!-- ═══ jobs & quotes (full admins and job admins) ═══ -->
@@ -472,7 +736,34 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <div class="inner">
     <h2 id="ownerTitle">Hours</h2>
     <p class="sub" id="ownerSub">Loading…</p>
-    <div id="ownerData"></div>
+
+    <div id="hoursTop" hidden>
+      <div class="wk-switch">
+        <button class="wk-opt on" id="wkNow">This week</button>
+        <button class="wk-opt" id="wkPrev">Last week</button>
+      </div>
+      <p class="wk-range" id="wkRange"></p>
+
+      <div class="hero-num"><b id="hTotal">0h</b><span id="hTotalLabel">on the clock</span></div>
+
+      <div class="split">
+        <div class="split-part"><b id="hReg">0h</b><span>regular, up to 40</span></div>
+        <div class="split-part ot" id="hOtCard"><b id="hOt">None</b><span>overtime, past 40</span></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="legend">
+          <span><i class="now"></i><span id="legNow">This week</span></span>
+          <span><i class="prev"></i><span id="legPrev">Last week</span></span>
+        </div>
+        <div class="chart" id="chart"></div>
+        <p class="chart-tip" id="chartTip">Tap a day for the numbers.</p>
+      </div>
+
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <div id="ownerData" class="hours-older"></div>
   </div>
 </div>
 
@@ -497,6 +788,9 @@ function pulse(el){
 document.addEventListener('animationend', function(e){
   if (e.animationName === 'pulse') e.target.classList.remove('pulse');
 }, true);
+
+/* One star, used on the picker and beside the name on the clock. */
+const STAR_PATH = '<path d="M12 2.7l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.51l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/>';
 
 const ICON_PAUSE = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' +
   '<rect x="6" y="4.5" width="4.2" height="15" rx="1.6"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1.6"/></svg>';
@@ -524,13 +818,12 @@ function newSalt(){
 }
 async function setPin(pin){
   const salt = newSalt();
-  DB.set('jh.salt', salt);
-  DB.set('jh.pin', await hash(pin, salt));
+  acctSet({ salt: salt, pin: await hash(pin, salt) });
 }
 async function checkPin(pin){
-  const stored = DB.get('jh.pin', null);
+  const stored = acctGet('pin', null);
   if (!stored) return false;
-  return (await hash(pin, DB.get('jh.salt',''))) === stored;
+  return (await hash(pin, acctGet('salt',''))) === stored;
 }
 
 /* ═══════════ Face ID / fingerprint (WebAuthn) ═══════════ */
@@ -569,11 +862,11 @@ async function bioEnroll(){
     timeout: 60000,
     attestation: 'none'
   }});
-  DB.set('jh.bio', b64(cred.rawId));
+  acctSet({ bio: b64(cred.rawId) });
 }
 
 async function bioUnlock(){
-  const id = DB.get('jh.bio', null);
+  const id = acctGet('bio', null);
   if (!id) return false;
   await navigator.credentials.get({ publicKey: {
     challenge: rand(32),
@@ -587,10 +880,53 @@ async function bioUnlock(){
 
 /* ═══════════ state ═══════════ */
 let worker  = DB.get('jh.worker', null);
+
+/* ═══════════ accounts ═══════════
+   One phone, several people. Credentials are filed under each name instead of
+   one flat set, so switching back to somebody who has used this phone before
+   only asks for his passcode. The setup code is for a name that has never been
+   on this phone — it is account creation, not logging in. */
+function accounts(){ return DB.get('jh.accounts', {}); }
+function acct(name){ return accounts()[name] || null; }
+function acctGet(key, dflt){
+  const a = worker ? acct(worker) : null;
+  return a && a[key] != null ? a[key] : dflt;
+}
+function acctSet(patch){
+  if (!worker) return;
+  const all = accounts();
+  all[worker] = Object.assign(all[worker] || {}, patch);
+  DB.set('jh.accounts', all);
+}
+function acctDel(name){
+  const all = accounts();
+  delete all[name];
+  DB.set('jh.accounts', all);
+}
+
+/* Older builds kept the one user's credentials in flat keys. Fold them in once
+   so a phone that is already set up is not asked to enrol all over again. */
+(function migrateAccounts(){
+  if (DB.get('jh.accounts', null)) return;
+  const tok = DB.get('jh.token', null);
+  if (!worker || !tok) return;
+  const all = {};
+  all[worker] = { token: tok, role: DB.get('jh.role', 'crew'),
+                  pin: DB.get('jh.pin', null), salt: DB.get('jh.salt', ''),
+                  bio: DB.get('jh.bio', null) };
+  DB.set('jh.accounts', all);
+  ['jh.token','jh.role','jh.pin','jh.salt','jh.bio'].forEach(function(k){ DB.del(k); });
+})();
 let st      = DB.get('jh.state', { status:'out', shiftStart:null, breakStart:null, breakMs:0, breaks:0 });
 let queue   = DB.get('jh.queue', []);
 let syncing = false, unlocked = false, bioReady = false;
 let entry = '', pinMode = null, firstEntry = '', fails = 0;
+/* Set only while changing an EXISTING passcode, so that flow can be cancelled.
+   Creating the first one cannot be — the phone would be left without one. */
+let pinChanging = false;
+/* Where an accidental Switch User came from, so it can be undone without
+   making somebody who is already unlocked type his passcode again. */
+let pickerReturn = null;
 
 function save(){ DB.set('jh.state', st); DB.set('jh.queue', queue); }
 function uid(){ return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,9); }
@@ -619,13 +955,19 @@ function punch(type, extra){
     }, function(){}, { timeout:8000, maximumAge:60000 });
   }
 }
-function clockIn(){ st = { status:'in', shiftStart:Date.now(), breakStart:null, breakMs:0, breaks:0 }; punch('in'); buzz(35); }
+function clockIn(truck){
+  st = { status:'in', shiftStart:Date.now(), breakStart:null, breakMs:0, breaks:0, truck: truck || '' };
+  punch('in', truck ? { truck: truck } : null);
+  buzz(35);
+  loadCrew();                       // find out who else picked this truck
+}
 function clockOut(){
   if (st.status === 'break'){ st.breakMs += Date.now() - st.breakStart; st.breaks++; punch('break_end'); }
   punch('out');
   const worked = Date.now() - st.shiftStart - st.breakMs;
   st = { status:'out', shiftStart:null, breakStart:null, breakMs:0, breaks:0, last:worked, lastAt:Date.now() };
   buzz([30,60,30]);
+  return worked;
 }
 function startBreak(){ st.status='break'; st.breakStart=Date.now(); punch('break_start'); buzz(35); }
 function endBreak(){
@@ -633,25 +975,150 @@ function endBreak(){
   st.status='in'; st.breakStart=null; punch('break_end'); buzz(35);
 }
 
+/* ═══════════ trucks and crews ═══════════ */
+/* Nobody pairs anybody. Pick a truck, and whoever else picked it that day is
+   your crew — the grouping does the pairing. */
+function buildTrucks(){
+  const box = $('truckList'); box.innerHTML = '';
+  (CONFIG.TRUCKS || []).forEach(function(t){
+    // a plain string still works, if the list is ever simplified again
+    const name = typeof t === 'string' ? t : t.name;
+    const tag  = typeof t === 'string' ? '' : (t.tag || '');
+    const b = document.createElement('button');
+    b.className = 'pick';
+    const line = document.createElement('span');
+    line.textContent = name;
+    b.appendChild(line);
+    if (tag){
+      const sm = document.createElement('small');
+      sm.textContent = tag;
+      b.appendChild(sm);
+    }
+    b.onclick = function(){
+      $('truckSheet').classList.remove('open');
+      clockIn(name);          // the vehicle is what gets recorded and reported
+      paint();
+    };
+    box.appendChild(b);
+  });
+}
+function askTruck(){
+  buildTrucks();
+  $('truckSheet').classList.add('open');
+}
+function closeTruck(){ $('truckSheet').classList.remove('open'); }
+
+/* Who shares the truck today. Silent when there is no signal — the chip simply
+   shows the truck on its own until the next sync. */
+async function loadCrew(){
+  if (!st.truck) return;
+  try {
+    const d = await ask({ action:'crew' });
+    if (!d.ok || !d.day) return;
+    const mine = (d.day.trucks || []).filter(function(t){ return t.truck === st.truck; })[0];
+    if (!mine) return;
+    const mates = mine.people.filter(function(p){ return p !== worker; });
+    st.mates = mates;
+    save(); paint();
+  } catch(e){ /* no signal: the truck alone is enough to go on */ }
+}
+
+function renderCrews(days){
+  const box = $('crewsData'); box.innerHTML = '';
+  if (!days || !days.length){
+    $('crewsSub').textContent = '';
+    box.innerHTML = '<p class="note">Nobody has picked a truck yet.</p>';
+    return;
+  }
+  $('crewsSub').textContent = 'Newest first. Revenue is the jobs that crew logged that day.';
+  days.forEach(function(d){
+    const h = document.createElement('p');
+    h.className = 'wk'; h.textContent = d.label;
+    box.appendChild(h);
+    d.trucks.forEach(function(t){
+      const el = document.createElement('div'); el.className = 'row';
+      el.innerHTML = '<span></span><b></b>';
+      const who = t.people.length > 1
+        ? t.people.slice(0, -1).join(', ') + ' and ' + t.people[t.people.length - 1]
+        : (t.people[0] || 'nobody');
+      el.firstChild.textContent = t.truck + ': ' + who +
+        (t.jobs ? '  ·  ' + t.jobs + (t.jobs === 1 ? ' job' : ' jobs') : '');
+      el.lastChild.textContent = '$' + (Number(t.revenue) || 0).toFixed(2);
+      box.appendChild(el);
+    });
+  });
+}
+
+$('truckBack').onclick = closeTruck;
+$('crewsBack').onclick = function(){ $('crews').classList.remove('open'); };
+$('mCrews').onclick = async function(){
+  $('menu').classList.remove('open');
+  $('crewsData').innerHTML = ''; $('crewsSub').textContent = 'Loading…';
+  $('crews').classList.add('open');
+  try {
+    const d = await ask({ action:'crews', days:14 });
+    if (!d.ok) throw new Error(d.error || 'failed');
+    renderCrews(d.days || []);
+  } catch(e){ $('crewsSub').textContent = "Couldn't load the trucks. Check the connection, then try again."; }
+};
+
+/* ═══════════ the thank-you ═══════════ */
+/* Said differently each time so it doesn't wear thin by Wednesday. It changes
+   nothing and clears nothing — the shift is already recorded by the time this
+   appears, and the man is still signed in behind it. */
+const THANKS_LINES = [
+  'Thanks, {name}.',
+  'Good work today, {name}.',
+  "That's the day done, {name}.",
+  'Nice work out there, {name}.',
+  'Appreciate you, {name}.',
+  'Thanks for today, {name}.'
+];
+const THANKS_SUBS = [
+  '{h} on the clock. Get home safe.',
+  '{h} today. Go put your feet up.',
+  '{h} in the books. Enjoy your evening.',
+  '{h} done. Rest up.',
+  '{h} today, and every minute of it counted.'
+];
+let thanksTimer = null;
+
+function showThanks(ms){
+  const pick = function(a){ return a[Math.floor(Math.random() * a.length)]; };
+  $('thanksLine').textContent = pick(THANKS_LINES).split('{name}').join(worker || 'friend');
+  $('thanksSub').textContent  = pick(THANKS_SUBS).split('{h}').join(human(ms || 0));
+  $('thanks').classList.add('open');
+  clearTimeout(thanksTimer);
+  thanksTimer = setTimeout(closeThanks, 14000);   // it lets itself out
+}
+function closeThanks(){
+  clearTimeout(thanksTimer); thanksTimer = null;
+  $('thanks').classList.remove('open');
+}
+
 /* ═══════════ sync ═══════════ */
 async function sync(){
   if (syncing || !queue.length) return;
   if (!navigator.onLine){ paint(); return; }
   if (!CONFIG.ENDPOINT || CONFIG.ENDPOINT.indexOf('PASTE') === 0){ paint(); return; }
-  if (!DB.get('jh.token', null)){ paint(); return; }   // not set up yet — punches keep queueing
+  if (isTest()){
+    // let it look like it sent, then forget it — this is a sandbox
+    queue = []; save(); paint(); return;
+  }
+  if (!acctGet('token', null)){ paint(); return; }   // not set up yet — punches keep queueing
   syncing = true; paint();
   const batch = queue.slice(0, 60);
   try {
     const r = await fetch(CONFIG.ENDPOINT, {
       method:'POST',
       headers:{ 'Content-Type':'text/plain;charset=utf-8' },   // avoids CORS preflight
-      body: JSON.stringify({ who:worker, token:DB.get('jh.token', null), events:batch })
+      body: JSON.stringify({ who:worker, token:acctGet('token', null), events:batch })
     });
     const d = await r.json();
     if (d && !d.ok && d.error === 'unauthorized'){
       // Revoked from the spreadsheet, or the phone was wiped and restored.
       // The queue is untouched; it uploads once the phone is set up again.
-      DB.del('jh.token'); DB.set('jh.err', 'this phone needs setting up again');
+      acctSet({ token: null }); DB.set('jh.err', 'this phone needs setting up again');
       syncing = false; paint(); needsEnrol(); return;
     }
     if (d && d.ok){
@@ -666,6 +1133,12 @@ async function sync(){
 }
 
 /* ═══════════ lock screen ═══════════ */
+function setBack(overlayId, btnId, label, on){
+  $(overlayId).classList.toggle('hasback', !!on);
+  $(btnId).toggleAttribute('hidden', !on);
+  if (on) $(btnId + 'Label').textContent = label;
+}
+
 function statusLine(){
   if (st.status === 'in')    return 'On the clock right now';
   if (st.status === 'break') return 'On break right now';
@@ -677,7 +1150,7 @@ function buildKeys(){
   ['1','2','3','4','5','6','7','8','9','L','0','B'].forEach(function(k){
     const b = document.createElement('button');
     if (k === 'L'){
-      if (pinMode === null && bioReady && DB.get('jh.bio', null)){
+      if (pinMode === null && bioReady && acctGet('bio', null)){
         b.className = 'key bio'; b.textContent = '☺'; b.setAttribute('aria-label', BIO);
         b.onclick = tryBio;
       } else { b.className = 'key blank'; b.disabled = true; }
@@ -717,9 +1190,9 @@ async function tap(d){
   if (pinMode === 'confirm'){
     if (code !== firstEntry){ pinMode = 'new'; firstEntry = ''; reject('Those did not match. Start again'); return; }
     await setPin(code);
-    pinMode = null; entry = '';
+    pinMode = null; entry = ''; pinChanging = false;
     unlock();
-    if (bioReady && !DB.get('jh.bio', null)) offerBio();
+    if (bioReady && !acctGet('bio', null)) offerBio();
     return;
   }
   if (await checkPin(code)){ fails = 0; $('reset').hidden = true; unlock(); }
@@ -737,7 +1210,7 @@ async function tap(d){
 $('reset').onclick = function(){
   if (!confirm('Ask Henrique for a new setup code, then set this phone up again.\n\n' +
                'Any punches still waiting to send are safe.')) return;
-  DB.del('jh.pin'); DB.del('jh.salt'); DB.del('jh.bio'); DB.del('jh.token'); DB.del('jh.role');
+  acctDel(worker);
   fails = 0; $('reset').hidden = true;
   $('lockScreen').classList.remove('open');
   needsEnrol();
@@ -753,17 +1226,20 @@ async function tryBio(){
    same person straight back in. Auto-locking still does. */
 function lock(skipBio){
   if (!worker) return;
-  unlocked = false; entry = ''; pinMode = null;
-  closeOut(); closeTrack();   // never leave a sheet hanging over the lock screen
+  unlocked = false; entry = ''; pinMode = null; pinChanging = false;
+  setBack('lockScreen', 'lockBack', 'Go back', true);
+  closeOut(); closeTrack(); closeThanks(); closeTruck();   // no sheet over the lock screen
   document.body.classList.add('locked'); mirrorRoot();
   $('lockName').textContent = worker;
   $('lockHint').textContent = statusLine();
   $('lockScreen').classList.add('open');
   pips(); buildKeys();
-  if (!skipBio && bioReady && DB.get('jh.bio', null)) setTimeout(tryBio, 260);
+  if (!skipBio && bioReady && acctGet('bio', null)) setTimeout(tryBio, 260);
 }
-function askNewPin(){
+function askNewPin(changing){
   unlocked = false; entry = ''; firstEntry = ''; pinMode = 'new';
+  pinChanging = !!changing;
+  setBack('lockScreen', 'lockBack', 'Cancel', pinChanging);
   $('reset').hidden = true;
   document.body.classList.add('locked'); mirrorRoot();
   $('lockName').textContent = worker;
@@ -809,6 +1285,9 @@ function paint(){
   document.body.dataset.state = st.status;
   mirrorRoot();
   $('whoName').textContent = worker;
+  // toggleAttribute, not .hidden — that property only exists on HTML elements,
+  // so setting it on an <svg> silently does nothing and the star stays gone.
+  $('whoStar').toggleAttribute('hidden', !isOwner());
 
   const main = $('main'), brk = $('brk');
   if (st.status === 'out'){
@@ -825,6 +1304,18 @@ function paint(){
       ? 'On break. The clock is paused.'
       : 'On the clock' + (st.breaks ? ', ' + human(st.breakMs) + ' of breaks so far' : '');
   }
+
+  const chip = $('truckChip');
+  if (st.status !== 'out' && st.truck){
+    chip.hidden = false;
+    $('truckName').textContent = st.truck;
+    const mates = st.mates || [];
+    $('truckMates').textContent = mates.length
+      ? '  with ' + (mates.length > 1
+          ? mates.slice(0, -1).join(', ') + ' and ' + mates[mates.length - 1]
+          : mates[0])
+      : '';
+  } else chip.hidden = true;
 
   const dot = $('dot'), txt = $('syncTxt');
   if (queue.length){ dot.className = 'dot warn'; txt.textContent = queue.length + ' waiting to send'; }
@@ -892,7 +1383,11 @@ function askClockOut(){
   }, 1000);
 }
 $('main').onclick = function(){
-  if (st.status === 'out'){ clockIn(); paint(); }
+  if (st.status === 'out'){
+    // pick the truck first; clockIn happens once one is chosen
+    if (CONFIG.TRUCKS && CONFIG.TRUCKS.length) askTruck();
+    else { clockIn(); paint(); }
+  }
   else askClockOut();
   pulse(this);
 };
@@ -902,7 +1397,7 @@ $('brk').onclick = function(){
 };
 $('cNo').onclick       = function(){ closeOut(); };
 $('outBackTop').onclick = function(){ closeOut(); };   // same as Never mind, timer and all
-$('cYes').onclick   = function(){ closeOut(); clockOut(); paint(); };
+$('cYes').onclick   = function(){ closeOut(); const worked = clockOut(); paint(); showThanks(worked); };
 $('cBreak').onclick = function(){ closeOut(); startBreak(); paint(); };
 
 $('who').onclick = function(){
@@ -911,13 +1406,14 @@ $('who').onclick = function(){
   const bioBtn = $('mBio');
   if (bioReady){
     bioBtn.hidden = false;
-    bioBtn.innerHTML = DB.get('jh.bio', null)
+    bioBtn.innerHTML = acctGet('bio', null)
       ? 'Turn off ' + BIO + '<small>Passcode only from then on</small>'
       : 'Turn on ' + BIO + '<small>Skip typing the passcode</small>';
   } else bioBtn.hidden = true;
   // Everybody can see their own hours; only a full admin sees the crew's.
   $('mOwner').textContent = isOwner() ? 'Hours' : 'My hours';
-  $('mWork').hidden = !isOwner() && !isJobAdmin();
+  $('mWork').hidden  = !isOwner() && !isJobAdmin();
+  $('mCrews').hidden = !isOwner() && !isJobAdmin();
 
   const err = DB.get('jh.err', null), last = DB.get('jh.lastSync', null);
   $('diag').textContent =
@@ -932,10 +1428,39 @@ $('who').onclick = function(){
 $('mSync').onclick = function(){ $('menu').classList.remove('open'); sync(); };
 $('mBio').onclick   = async function(){
   $('menu').classList.remove('open');
-  if (DB.get('jh.bio', null)){ DB.del('jh.bio'); alert(BIO + ' is off. Use your passcode from now on.'); }
+  if (acctGet('bio', null)){ acctSet({ bio: null }); alert(BIO + ' is off. Use your passcode from now on.'); }
   else await offerBio();
 };
-$('mPin').onclick = function(){ $('menu').classList.remove('open'); askNewPin(); };
+$('mPin').onclick = function(){
+  if (!confirm('Change your passcode?\n\n' +
+               "You'll pick a new 4-digit code, and the old one stops working.")) return;
+  $('menu').classList.remove('open');
+  askNewPin(true);
+};
+
+/* Cancel a passcode change, or step back out to the list of names. */
+$('lockBack').onclick = function(){
+  entry = ''; firstEntry = ''; pips();
+  if (pinChanging){                      // old passcode is untouched — just leave
+    pinMode = null; pinChanging = false;
+    unlock();
+    return;
+  }
+  pinMode = null;
+  $('lockScreen').classList.remove('open');
+  worker = null; DB.set('jh.worker', null);
+  buildSetup();
+};
+
+/* Tapping Switch User by mistake shouldn't cost a passcode. */
+$('setupBack').onclick = function(){
+  if (!pickerReturn) return;
+  worker = pickerReturn; DB.set('jh.worker', worker);
+  pickerReturn = null;
+  setBack('setup', 'setupBack', 'Go back', false);
+  $('setup').classList.remove('open');
+  unlock();
+};
 
 /* Log out takes two taps. The first arms the button and says so; it disarms
    itself after a few seconds, and again whenever the menu is reopened, so a
@@ -972,8 +1497,8 @@ $('mSwitch').onclick = function(){
     sync();
     return;
   }
-  worker = null; DB.set('jh.worker', null);
-  DB.del('jh.pin'); DB.del('jh.salt'); DB.del('jh.bio'); DB.del('jh.token'); DB.del('jh.role');
+  pickerReturn = worker;                     // so it can be undone
+  worker = null; DB.set('jh.worker', null);   // the account stays on this phone
   $('menu').classList.remove('open'); buildSetup();
 };
 
@@ -989,17 +1514,67 @@ function buildSetup(){
       h.className = 'grp'; h.textContent = label;
       box.appendChild(h);
     }
+
+    // a paired group sits two across; everything else is one per line
+    const row = section.pair ? document.createElement('div') : box;
+    if (section.pair){ row.className = 'pair'; box.appendChild(row); }
+
     names.forEach(function(n){
       const b = document.createElement('button');
-      b.className = 'pick'; b.textContent = n;
+      b.className = 'pick' + (section.admin ? ' with-star' : '');
+      const nm = document.createElement('span');
+      nm.textContent = n;
+      b.appendChild(nm);
+      if (section.admin){
+        const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        s.setAttribute('class', 'star');
+        s.setAttribute('viewBox', '0 0 24 24');
+        s.setAttribute('aria-label', 'Admin');
+        s.innerHTML = STAR_PATH;
+        b.appendChild(s);
+      }
       b.onclick = function(){
         worker = n; DB.set('jh.worker', n);
+        pickerReturn = null;
+        setBack('setup', 'setupBack', 'Go back', false);
         $('setup').classList.remove('open');
-        needsEnrol();
+        /* Somebody who has used this phone before just needs his passcode.
+           The setup code is only for a name that has never been on it. */
+        const a = acct(n);
+        if (a && a.token && a.pin) lock();
+        else if (a && a.token)     askNewPin();
+        else                       needsEnrol();
       };
-      box.appendChild(b);
+      row.appendChild(b);
     });
   });
+  const t = CONFIG.TEST_USER;
+  if (t && t.name){
+    const sep = document.createElement('div');
+    sep.className = 'test-sep';
+    box.appendChild(sep);
+
+    const b = document.createElement('button');
+    b.className = 'pick test-user';
+    const line = document.createElement('span');
+    line.textContent = t.name;
+    const sm = document.createElement('small');
+    sm.textContent = 'A look round. Nothing is recorded.';
+    b.appendChild(line); b.appendChild(sm);
+    b.onclick = async function(){
+      worker = t.name; DB.set('jh.worker', t.name);
+      pickerReturn = null;
+      setBack('setup', 'setupBack', 'Go back', false);
+      // no code to type for: it sets itself up, crew level, and stays local
+      acctSet({ token: 'local-sandbox', role: 'crew', test: true });
+      await setPin(t.pin);          // re-asserted every time, so it never drifts
+      $('setup').classList.remove('open');
+      lock();
+    };
+    box.appendChild(b);
+  }
+
+  setBack('setup', 'setupBack', 'Go back', !!pickerReturn && unlocked);
   $('setup').classList.add('open');
   $('lockScreen').classList.remove('open');
 }
@@ -1019,7 +1594,7 @@ function needsEnrol(){
   $('enrol').classList.add('open');
 }
 
-$('enrolBack').onclick = function(){
+$('enrolBackTop').onclick = function(){
   $('enrol').classList.remove('open');
   worker = null; DB.set('jh.worker', null);
   buildSetup();
@@ -1047,8 +1622,7 @@ $('enrolGo').onclick = async function(){
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || 'bad code');
 
-    DB.set('jh.token', d.token);
-    DB.set('jh.role', d.role || 'crew');
+    acctSet({ token: d.token, role: d.role || 'crew' });
     if (d.name) { worker = d.name; DB.set('jh.worker', d.name); }
     DB.set('jh.err', null);
     $('enrol').classList.remove('open');
@@ -1065,6 +1639,109 @@ $('enrolGo').onclick = async function(){
   }
   this.disabled = false; this.textContent = 'Set up this phone';
 };
+
+/* ═══════════ speech ═══════════ */
+/* SPOKEN-START */
+/* Turns one spoken sentence into the fields on the form. Deliberately plain
+   pattern matching rather than anything clever: it runs on the phone, costs
+   nothing, and when it is unsure it leaves a field empty for a person to fill
+   instead of inventing a value. Nothing is saved without a look. */
+const SPOKEN_STOP = /^(a|an|and|the|she|he|they|them|it|we|us|i|his|her|their|paid|pay|paying|for|with|on|at|to|from|of|in|was|is|job|quote|quoted|today|just|now|finished|finish|done|did|got|up|cash|card|check|cheque|venmo|zelle|dollars|bucks)$/i;
+
+const SPOKEN_METHODS = [
+  ['cashapp', /\bcash\s?app\b/],          // before 'cash', or it would never match
+  ['venmo',   /\bvenmo\b/],
+  ['zelle',   /\bzelle\b/],
+  ['check',   /\b(check|cheque)\b/],
+  ['card',    /\b(card|credit|debit)\b/],
+  ['cash',    /\bcash\b/]
+];
+
+const SPOKEN_ONES = { zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8,
+  nine:9, ten:10, eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16,
+  seventeen:17, eighteen:18, nineteen:19, twenty:20, thirty:30, forty:40, fifty:50, sixty:60,
+  seventy:70, eighty:80, ninety:90 };
+const SPOKEN_NUMWORD = '(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|' +
+  'thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|' +
+  'sixty|seventy|eighty|ninety|hundred|thousand)';
+
+function wordsToNumber(str){
+  const words = String(str).toLowerCase().split(/[\s-]+/).filter(Boolean);
+  let total = 0, current = 0, saw = false;
+  for (let i = 0; i < words.length; i++){
+    const w = words[i];
+    if (SPOKEN_ONES[w] != null){ current += SPOKEN_ONES[w]; saw = true; }
+    else if (w === 'hundred'){ current = (current || 1) * 100; saw = true; }
+    else if (w === 'thousand'){ total += (current || 1) * 1000; current = 0; saw = true; }
+    else break;
+  }
+  return saw ? total + current : null;
+}
+
+function spokenAmount(text){
+  const num = function(x){ return parseFloat(String(x).replace(/,/g, '')); };
+  let m = text.match(/\$\s*([\d,]+(?:\.\d{1,2})?)/);                     // "$500"
+  if (m) return num(m[1]);
+  m = text.match(/\b([\d,]+(?:\.\d{1,2})?)\s*(?:dollars|bucks)\b/i);     // "500 dollars"
+  if (m) return num(m[1]);
+  m = text.match(new RegExp('\\b((?:' + SPOKEN_NUMWORD + '[\\s-]+)*' + SPOKEN_NUMWORD + ')\\b', 'i'));
+  if (m){ const v = wordsToNumber(m[1]); if (v) return v; }              // "five hundred"
+  m = text.match(/\b(\d[\d,]*(?:\.\d{1,2})?)\b/);                        // bare number, last resort
+  if (m) return num(m[1]);
+  return null;
+}
+
+function spokenTown(text){
+  const m = text.match(/\bin\s+([A-Za-z][A-Za-z.'’-]*(?:\s+[A-Za-z][A-Za-z.'’-]*){0,2})/i);
+  if (!m) return '';
+  // Stop at the first word that can't be part of a town — filtering them out
+  // instead would let "in Ridgefield eight hundred" swallow the amount.
+  const isNumWord = new RegExp('^' + SPOKEN_NUMWORD + '$', 'i');
+  const kept = [];
+  const words = m[1].split(/\s+/);
+  for (let i = 0; i < words.length; i++){
+    if (SPOKEN_STOP.test(words[i]) || isNumWord.test(words[i]) || /\d/.test(words[i])) break;
+    kept.push(words[i]);
+  }
+  return kept.slice(0, 3).map(function(w){
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join(' ');
+}
+
+function spokenName(text){
+  const LEAD = '(?:finished|finish|completed|complete|did|done|for|quoted|quote|gave)';
+  // a capitalised word straight after the verb is almost always the customer
+  let m = text.match(new RegExp('\\b' + LEAD +
+    '\\s+(?:up\\s+)?(?:a\\s+quote\\s+)?(?:to\\s+|for\\s+)?' +
+    '([A-Z][a-z\'’-]+(?:\\s+[A-Z][a-z\'’-]+)?)'));
+  if (m) return m[1];
+  m = text.match(new RegExp('\\b' + LEAD +
+    '\\s+(?:up\\s+)?(?:a\\s+quote\\s+)?(?:to\\s+|for\\s+)?([A-Za-z][a-z\'’-]+)', 'i'));
+  if (m && !SPOKEN_STOP.test(m[1])) return m[1].charAt(0).toUpperCase() + m[1].slice(1);
+  return '';
+}
+
+function parseSpoken(said){
+  const text = String(said || '').replace(/\s+/g, ' ').trim();
+  const low  = text.toLowerCase();
+
+  let method = '';
+  for (let i = 0; i < SPOKEN_METHODS.length; i++){
+    if (SPOKEN_METHODS[i][1].test(low)){ method = SPOKEN_METHODS[i][0]; break; }
+  }
+  const saidQuote = /\b(quote|quoted|quoting|estimate|estimated)\b/.test(low);
+  const saidPaid  = /\b(paid|paying|collected|took)\b/.test(low);
+  // "quoted" only wins if nothing says money actually changed hands
+  const kind = (saidQuote && !saidPaid && !method) ? 'quote' : 'job';
+
+  const name = spokenName(text);
+  const bits = name ? name.split(' ') : [];
+  return { heard: text, kind: kind,
+           first: bits[0] || '', last: bits.slice(1).join(' '),
+           town: spokenTown(text), amount: spokenAmount(text),
+           method: kind === 'job' ? method : '' };
+}
+/* SPOKEN-END */
 
 /* ═══════════ track a job or a quote ═══════════ */
 /* Jobs and quotes ride the same queue as punches, so they survive a basement
@@ -1096,6 +1773,7 @@ function buildPays(){
   PAYMENTS.forEach(function(p){
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'pay';
+    b.setAttribute('data-pay', p.id);
     b.setAttribute('aria-pressed', 'false');
     b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + p.icon + '</svg><span>' + p.label + '</span>';
     b.onclick = function(){
@@ -1113,11 +1791,15 @@ function buildPays(){
 }
 
 function openTrack(){
+  micStop();
+  const canHear = micSupported();
+  $('trkSay').toggleAttribute('hidden', !canHear);
+  $('trkSayHint').toggleAttribute('hidden', !canHear);   // the caption goes with it
   $('trkForm').hidden = true;
   $('trkPick').hidden = false;
   $('trackSheet').classList.add('open');
 }
-function closeTrack(){ $('trackSheet').classList.remove('open'); }
+function closeTrack(){ micStop(); $('trackSheet').classList.remove('open'); }
 
 function startTrack(kind){
   trkKind = kind;
@@ -1131,6 +1813,7 @@ function startTrack(kind){
     $(id).value = ''; $(id).classList.remove('bad');
   });
   buildPays();
+  $('heardBox').hidden = true;
   $('trkErr').hidden = true;
   $('trkPick').hidden = true;
   $('trkForm').hidden = false;
@@ -1183,17 +1866,127 @@ $('trkForm').onsubmit = function(e){
   toast((job ? 'Job saved for ' : 'Quote saved for ') + first + '.');
 };
 
+/* MIC-START */
+/* Dictation. The browser does the listening; the parsing above is ours. The
+   form is filled in and shown for a look — never saved straight off, because a
+   misheard "fifteen" for "fifty" would go into the books unnoticed. */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let listener = null, listening = false;
+
+function micSupported(){
+  // needs the API and a secure context; a file:// page has neither
+  return !!SR && window.isSecureContext;
+}
+
+function micIdle(){
+  listening = false;
+  $('trkSay').classList.remove('hot');
+  $('traySayLabel').textContent = 'Say it instead';
+  $('trkSayHint').textContent = '“Finished Anna in Peabody, she paid $500 on Venmo”';
+}
+
+function micStop(){
+  if (listener){ try { listener.abort(); } catch(e){} listener = null; }
+  micIdle();
+}
+
+function micFail(msg){
+  micStop();
+  $('trkSayHint').textContent = msg;
+}
+
+function startListening(){
+  if (listening){ micStop(); return; }
+  if (!micSupported()){ micFail('This phone cannot listen. Type it in instead.'); return; }
+
+  try { listener = new SR(); }
+  catch(e){ micFail('This phone cannot listen. Type it in instead.'); return; }
+
+  listener.lang = 'en-US';
+  listener.interimResults = false;
+  listener.maxAlternatives = 1;
+  listener.continuous = false;
+
+  listening = true;
+  $('trkSay').classList.add('hot');
+  $('traySayLabel').textContent = 'Listening…';
+  $('trkSayHint').textContent = 'Say it, then stop talking.';
+  buzz(12);
+
+  listener.onresult = function(ev){
+    const said = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : '';
+    micStop();
+    if (!said.trim()){ micFail("Didn't catch that. Try again, or type it in."); return; }
+    applySpoken(parseSpoken(said));
+  };
+  listener.onerror = function(ev){
+    const e = ev && ev.error;
+    micFail(e === 'not-allowed' || e === 'service-not-allowed'
+              ? 'The microphone is blocked. Allow it in your phone settings, or type it in.'
+          : e === 'no-speech' ? "Didn't hear anything. Tap and try again."
+          : e === 'network'   ? 'No signal for listening. Type it in instead.'
+          : "That didn't work. Type it in instead.");
+  };
+  listener.onend = function(){ if (listening) micIdle(); };
+
+  try { listener.start(); }
+  catch(e){ micFail("Couldn't start listening. Try again."); }
+}
+
+/* Fill the form from what was heard and show it. Whatever the parser could not
+   work out is simply left blank, and the raw words sit above the fields so the
+   man can see what it thought it heard. */
+function applySpoken(p){
+  startTrack(p.kind);
+  $('fFirst').value = p.first || '';
+  $('fLast').value  = p.last  || '';
+  $('fTown').value  = p.town  || '';
+  $('fValue').value = p.amount == null ? '' : String(p.amount);
+
+  if (p.kind === 'job' && p.method){
+    const btn = [].filter.call($('pays').children, function(b){
+      return b.getAttribute('data-pay') === p.method;
+    })[0];
+    if (btn) btn.click();
+  }
+
+  $('heardText').textContent = '“' + p.heard + '”';
+  $('heardBox').hidden = false;
+
+  const missing = [];
+  if (!p.first) missing.push('a name');
+  if (!p.town) missing.push('a town');
+  if (p.amount == null) missing.push('an amount');
+  if (p.kind === 'job' && !p.method) missing.push('how they paid');
+  $('heardMiss').textContent = missing.length
+    ? 'Still needs ' + missing.join(', ') + '. Check the rest before saving.'
+    : 'Check it over, then save.';
+  buzz(35);
+}
+/* MIC-END */
+
+$('trkSay').onclick = function(){ pulse(this); startListening(); };
+$('thanksDone').onclick = closeThanks;
+
 /* ═══════════ who can see what ═══════════ */
 /* The role is whatever the server said when this phone was set up. It only
    decides which buttons appear — every request is checked again on the server
    against the People tab, so editing this value on the phone gains nothing. */
-function isOwner(){ return DB.get('jh.role', 'crew') === 'full'; }
-function isJobAdmin(){ return DB.get('jh.role', 'crew') === 'jobs'; }
+/* The sandbox account. Kept crew-level and kept off the network — every check
+   that could reach the spreadsheet asks this first. */
+function isTest(){ return acctGet('test', false) === true; }
+function isOwner(){ return !isTest() && acctGet('role', 'crew') === 'full'; }
+function isJobAdmin(){ return !isTest() && acctGet('role', 'crew') === 'jobs'; }
 
 function ask(payload){
+  // Nothing from the sandbox goes out, and nothing real comes back to it.
+  if (isTest()){
+    if (payload.action === 'summary') return Promise.resolve({ ok:true, scope:'self', summary:[] });
+    return Promise.resolve({ ok:true, day:null, days:[], work:[] });
+  }
   return fetch(CONFIG.ENDPOINT, {
     method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({ who:worker, token:DB.get('jh.token', null) }, payload))
+    body: JSON.stringify(Object.assign({ who:worker, token:acctGet('token', null) }, payload))
   }).then(function(r){ return r.json(); });
 }
 
@@ -1245,9 +2038,11 @@ $('mOwner').onclick = async function(){
   $('menu').classList.remove('open');
   $('ownerTitle').textContent = isOwner() ? 'Hours' : 'My hours';
   $('ownerData').innerHTML = ''; $('ownerSub').textContent = 'Loading…';
+  $('hoursTop').hidden = true;
+  hoursData.sel = 0; $('wkNow').classList.add('on'); $('wkPrev').classList.remove('on');
   $('owner').classList.add('open');
   try {
-    const d = await ask({ action:'summary', weeks:3 });
+    const d = await ask({ action:'summary', weeks:4 });
     if (!d.ok) throw new Error(d.error || 'failed');
     // The server decides the scope from the role on the sheet, so trust its
     // answer over anything this phone thinks it is.
@@ -1256,29 +2051,217 @@ $('mOwner').onclick = async function(){
   } catch(e){ $('ownerSub').textContent = "Couldn't load hours. Check the connection, then try again."; }
 };
 $('oClose').onclick = function(){ $('owner').classList.remove('open'); };
+$('wkNow').onclick  = function(){ hoursData.sel = 0; this.classList.add('on');
+  $('wkPrev').classList.remove('on'); paintHours(); };
+$('wkPrev').onclick = function(){ hoursData.sel = 1; this.classList.add('on');
+  $('wkNow').classList.remove('on'); paintHours(); };
 
 function render(weeks, everyone){
   $('ownerSub').textContent = everyone
-    ? 'The whole crew. Weeks start Monday, and anyone still clocked in is marked.'
-    : 'Your hours. Weeks start Monday.';
+    ? 'The whole crew. The work week runs Wednesday to Tuesday.'
+    : 'The work week runs Wednesday to Tuesday.';
+
+  const list = weeks || [];
+  const find = function(iso){
+    return list.filter(function(w){ return w.start === iso; })[0] || null;
+  };
+  const nowISO  = weekStartISO(new Date());
+  const prevISO = shiftWeekISO(nowISO, 1);
+  const backISO = shiftWeekISO(nowISO, 2);
+  const wNow = find(nowISO), wPrev = find(prevISO);
+
+  hoursData.everyone  = everyone;
+  hoursData.now       = foldWeek(wNow);
+  hoursData.prev      = foldWeek(wPrev);
+  hoursData.older     = foldWeek(find(backISO));
+  hoursData.nowLabel  = wNow ? wNow.label : 'This week';
+  hoursData.prevLabel = wPrev ? wPrev.label : 'Last week';
+  $('hTotalLabel').textContent = everyone ? 'crew hours on the clock' : 'on the clock';
+  $('hoursTop').hidden = false;
+  paintHours();
+
   const box = $('ownerData'); box.innerHTML = '';
-  if (!weeks || !weeks.length){
+  if (!list.length){
     box.innerHTML = everyone
       ? '<p class="note">No punches recorded yet.</p>'
       : '<p class="note">Nothing recorded for you yet. Hours show up here once a shift is finished and sent.</p>';
     return;
   }
-  weeks.forEach(function(w){
+  list.forEach(function(w){
     const h = document.createElement('p'); h.className = 'wk'; h.textContent = w.label; box.appendChild(h);
     w.rows.forEach(function(rw){
       const el = document.createElement('div'); el.className = 'row';
       el.innerHTML = '<span></span><b></b>';
-      el.firstChild.textContent = (everyone ? rw.worker : 'Worked') + (rw.open ? ' (still clocked in)' : '');
+      el.firstChild.textContent = (everyone ? rw.worker : 'Worked') +
+        (rw.overtime > 0 ? ' · ' + rw.overtime.toFixed(2) + ' OT' : '') +
+        (rw.open ? ' (still clocked in)' : '');
       el.lastChild.textContent = rw.hours.toFixed(2) + ' hrs';
       box.appendChild(el);
     });
   });
 }
+
+/* HOURS-START */
+/* The work week runs Wednesday to Tuesday, matching the backend. */
+const DAY_LETTERS = ['W', 'T', 'F', 'S', 'S', 'M', 'T'];
+const DAY_NAMES = ['Wednesday','Thursday','Friday','Saturday','Sunday','Monday','Tuesday'];
+
+function weekStartISO(d){
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay() + 4) % 7));
+  return x.getFullYear() + '-' +
+         String(x.getMonth() + 1).padStart(2, '0') + '-' +
+         String(x.getDate()).padStart(2, '0');
+}
+function shiftWeekISO(iso, backWeeks){
+  const p = iso.split('-').map(Number);
+  const d = new Date(p[0], p[1] - 1, p[2]);
+  d.setDate(d.getDate() - 7 * backWeeks);
+  return weekStartISO(d);
+}
+function hrsText(h){
+  const t = Math.round(h * 60);
+  const H = Math.floor(t / 60), M = t % 60;
+  return H ? H + 'h' + (M ? ' ' + M + 'm' : '') : M + 'm';
+}
+
+/* One week folded into the shape the screen needs. For an admin the crew is
+   summed, except overtime, which is each person's own 40 and so is added up
+   rather than recalculated from the total. */
+function foldWeek(week){
+  const empty = { total:0, regular:0, overtime:0, days:[0,0,0,0,0,0,0], open:false, people:0 };
+  if (!week || !week.rows || !week.rows.length) return empty;
+  const out = { total:0, regular:0, overtime:0, days:[0,0,0,0,0,0,0], open:false,
+                people: week.rows.length };
+  week.rows.forEach(function(r){
+    out.total    += Number(r.hours) || 0;
+    out.regular  += Number(r.regular) || 0;
+    out.overtime += Number(r.overtime) || 0;
+    if (r.open) out.open = true;
+    (r.days || []).forEach(function(v, i){ out.days[i] += Number(v) || 0; });
+  });
+  return out;
+}
+
+let hoursData = { now:null, prev:null, everyone:false, sel:0 };
+
+/* ── the chart: seven days, two weeks, grouped bars ── */
+function drawChart(now, prev, todayIdx){
+  const W = 320, H = 158, padL = 26, padR = 6, padT = 8, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const peak = Math.max.apply(null, now.days.concat(prev.days).concat([4]));
+  const top = Math.ceil(peak / 2) * 2;                 // even number, never zero
+  const y = function(v){ return padT + plotH - (v / top) * plotH; };
+
+  const groupW = plotW / 7;
+  const barW = Math.min(13, (groupW - 8) / 2);
+  const svg = [];
+
+  svg.push('<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Hours each day, this week against last week">');
+
+  // recessive gridlines, labelled at top and middle only
+  [0, top / 2, top].forEach(function(v){
+    svg.push('<line class="grid" x1="' + padL + '" y1="' + y(v) + '" x2="' + (W - padR) + '" y2="' + y(v) + '"/>');
+    svg.push('<text class="axis" x="' + (padL - 6) + '" y="' + (y(v) + 3.5) + '" text-anchor="end">' + v + '</text>');
+  });
+
+  function bar(x, v, cls){
+    if (v <= 0) return '';
+    const yy = y(v), h = padT + plotH - yy, r = Math.min(4, barW / 2, h);
+    return '<path class="' + cls + '" fill="' + (cls === 'now' ? 'var(--s-now)' : 'var(--s-prev)') + '" d="' +
+      'M' + x + ',' + (yy + h) + ' L' + x + ',' + (yy + r) +
+      ' Q' + x + ',' + yy + ' ' + (x + r) + ',' + yy +
+      ' L' + (x + barW - r) + ',' + yy +
+      ' Q' + (x + barW) + ',' + yy + ' ' + (x + barW) + ',' + (yy + r) +
+      ' L' + (x + barW) + ',' + (yy + h) + ' Z"/>';
+  }
+
+  for (let i = 0; i < 7; i++){
+    const gx = padL + i * groupW;
+    const pairW = barW * 2 + 2;                        // 2px surface gap between the two
+    const x0 = gx + (groupW - pairW) / 2;
+    svg.push(bar(x0, now.days[i], 'now'));                 // legend order, left to right
+    svg.push(bar(x0 + barW + 2, prev.days[i], 'prev'));
+    svg.push('<text class="dayl' + (i === todayIdx ? ' today' : '') + '" x="' + (gx + groupW / 2) +
+             '" y="' + (H - 8) + '" text-anchor="middle">' + DAY_LETTERS[i] + '</text>');
+    svg.push('<rect class="hit" data-day="' + i + '" x="' + gx + '" y="' + padT +
+             '" width="' + groupW + '" height="' + plotH + '"/>');
+  }
+  svg.push('</svg>');
+  return svg.join('');
+}
+
+function chartTip(i){
+  const n = hoursData.now.days[i], p = hoursData.prev.days[i];
+  $('chartTip').innerHTML = '';
+  const b = document.createElement('b');
+  b.textContent = DAY_NAMES[i];
+  $('chartTip').appendChild(b);
+  $('chartTip').appendChild(document.createTextNode(
+    ' — ' + (n > 0 ? hrsText(n) : 'nothing') + ' this week, ' +
+    (p > 0 ? hrsText(p) : 'nothing') + ' last'));
+  [].forEach.call(document.querySelectorAll('#chart .hit'), function(el){
+    el.classList.toggle('sel', Number(el.getAttribute('data-day')) === i);
+  });
+}
+
+/* ── stats worth a crew member's attention ── */
+function drawStats(cur, other){
+  const worked = cur.days.filter(function(v){ return v > 0; }).length;
+  const avg = worked ? cur.total / worked : 0;
+  const longest = Math.max.apply(null, cur.days.concat([0]));
+  const diff = cur.total - other.total;
+  const left = 40 - cur.total;
+
+  const cards = [
+    { v: worked ? hrsText(avg) : '—', l: 'average per day worked' },
+    { v: String(worked), l: worked === 1 ? 'day worked' : 'days worked' },
+    { v: longest > 0 ? hrsText(longest) : '—', l: 'longest day' },
+    cur.overtime > 0
+      ? { v: hrsText(cur.overtime), l: 'over 40 this week' }
+      : { v: left > 0 ? hrsText(left) : '—', l: 'until overtime' },
+    { v: (diff >= 0 ? '+' : '−') + hrsText(Math.abs(diff)),
+      l: hoursData.sel === 0 ? 'versus last week' : 'versus the week before',
+      cls: Math.abs(diff) < 0.02 ? '' : (diff > 0 ? 'up' : 'down') }
+  ];
+  if (hoursData.everyone) cards.push({ v: String(cur.people), l: 'people on the clock' });
+
+  const box = $('stats'); box.innerHTML = '';
+  cards.forEach(function(c){
+    const el = document.createElement('div');
+    el.className = 'stat' + (c.cls ? ' ' + c.cls : '');
+    const b = document.createElement('b'); b.textContent = c.v;
+    const s = document.createElement('span'); s.textContent = c.l;
+    el.appendChild(b); el.appendChild(s);
+    box.appendChild(el);
+  });
+}
+
+function paintHours(){
+  const cur   = hoursData.sel === 0 ? hoursData.now : hoursData.prev;
+  const other = hoursData.sel === 0 ? hoursData.prev : hoursData.older;
+
+  $('wkRange').textContent = hoursData.sel === 0 ? hoursData.nowLabel : hoursData.prevLabel;
+  $('hTotal').textContent = hrsText(cur.total);
+  $('hReg').textContent   = hrsText(cur.regular);
+  $('hOt').textContent    = cur.overtime > 0 ? hrsText(cur.overtime) : 'None';
+  $('hOtCard').classList.toggle('none', !(cur.overtime > 0));
+
+  // the chart always compares the two weeks either side of the switch
+  const a = hoursData.sel === 0 ? hoursData.now : hoursData.prev;
+  const b = hoursData.sel === 0 ? hoursData.prev : hoursData.older;
+  const todayIdx = hoursData.sel === 0 ? (new Date().getDay() + 4) % 7 : -1;
+  $('chart').innerHTML = drawChart(a, b, todayIdx);
+  [].forEach.call(document.querySelectorAll('#chart .hit'), function(el){
+    el.onclick = function(){ chartTip(Number(this.getAttribute('data-day'))); };
+  });
+  $('chartTip').textContent = 'Tap a day for the numbers.';
+  $('legNow').textContent  = hoursData.sel === 0 ? 'This week' : 'That week';
+  $('legPrev').textContent = hoursData.sel === 0 ? 'Last week' : 'The week before';
+
+  drawStats(cur, other);
+}
+/* HOURS-END */
 
 /* ═══════════ boot ═══════════ */
 window.addEventListener('online', sync);
@@ -1290,15 +2273,15 @@ document.addEventListener('visibilitychange', function(){
   const mins = CONFIG.LOCK_AFTER_MINUTES;
   const gap = Date.now() - DB.get('jh.awayAt', Date.now());
   if (mins > 0 && gap > mins * 60000) lock();
-  else { paint(); sync(); }
+  else { paint(); sync(); loadCrew(); }
 });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
 
 (async function boot(){
   bioReady = await bioAvailable();
   if (!worker){ buildSetup(); return; }
-  if (!DB.get('jh.token', null)){ needsEnrol(); return; }
-  if (!DB.get('jh.pin', null)){ askNewPin(); return; }
+  if (!acctGet('token', null)){ needsEnrol(); return; }
+  if (!acctGet('pin', null)){ askNewPin(); return; }
 
   /* Straight to the clock unless there's a reason not to be. Somebody who
      logged out on purpose has to answer for it — Face ID counts, and is

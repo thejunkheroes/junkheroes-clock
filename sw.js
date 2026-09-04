@@ -1,5 +1,5 @@
 /* Bump CACHE whenever you edit index.html, then reload twice on each phone. */
-const CACHE = 'jh-clock-v22';
+const CACHE = 'jh-clock-v35';
 const FILES = [
   './', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'
