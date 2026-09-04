@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Junk Heroes Time Clock</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -68,11 +68,11 @@ const CONFIG = {
   --sunk:rgba(242,240,247,.07);
   --pad:22px;
 }
-/* touch-action:manipulation kills double-tap-to-zoom, which is what makes the
-   screen jump when somebody taps a big button twice in a hurry. iOS has ignored
-   user-scalable=no since iOS 10, so the meta tag alone does nothing. Scrolling
-   and pinch-to-zoom still work. */
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+/* No zooming at all: pan-x pan-y leaves scrolling alone but rules out both
+   pinch-zoom and double-tap-to-zoom. The meta tag above covers Android; iOS has
+   ignored user-scalable=no since iOS 10, so this and the gesture handlers at the
+   bottom of the script are what actually stop it there. */
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:pan-x pan-y}
 html,body{height:100%;margin:0}
 /* The canvas paints everything the layout viewport doesn't cover — a fractional
    device pixel down the edge, browser zoom, the letterbox in a preview pane.
@@ -1869,9 +1869,15 @@ $('trkForm').onsubmit = function(e){
 /* MIC-START */
 /* Dictation. The browser does the listening; the parsing above is ours. The
    form is filled in and shown for a look — never saved straight off, because a
-   misheard "fifteen" for "fifty" would go into the books unnoticed. */
+   misheard "fifteen" for "fifty" would go into the books unnoticed.
+
+   It listens until you tap again. Waiting for the browser to decide you had
+   finished was unreliable — on some phones it simply never decided — so the
+   second tap is what ends it. Interim results are kept as they arrive, so
+   whatever was said is in hand the moment you tap, whether or not the browser
+   ever gets round to calling the result final. */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let listener = null, listening = false;
+let listener = null, listening = false, heard = '', handled = true;
 
 function micSupported(){
   // needs the API and a secure context; a file:// page has neither
@@ -1885,8 +1891,15 @@ function micIdle(){
   $('trkSayHint').textContent = '“Finished Anna in Peabody, she paid $500 on Venmo”';
 }
 
+/* Walk away from it: whatever was said is dropped. Used when a sheet closes. */
 function micStop(){
-  if (listener){ try { listener.abort(); } catch(e){} listener = null; }
+  handled = true;
+  if (listener){
+    try { listener.onresult = null; listener.onend = null; listener.onerror = null; listener.abort(); }
+    catch(e){}
+    listener = null;
+  }
+  heard = '';
   micIdle();
 }
 
@@ -1895,42 +1908,76 @@ function micFail(msg){
   $('trkSayHint').textContent = msg;
 }
 
+/* Use what was heard. Guarded so the browser calling back late can't run it a
+   second time on top of a form the man is already filling in. */
+function useHeard(){
+  if (handled) return;
+  handled = true;
+  const said = String(heard || '').trim();
+  listener = null;
+  micIdle();
+  if (!said){ $('trkSayHint').textContent = "Didn't catch that. Tap and try again."; return; }
+  applySpoken(parseSpoken(said));
+}
+
+/* The second tap: stop() finalises and hands the words over. abort() would
+   throw them away, which is exactly what used to happen here. */
+function finishListening(){
+  if (!listening) return;
+  listening = false;
+  $('trkSay').classList.remove('hot');
+  $('traySayLabel').textContent = 'One moment…';
+  if (listener){
+    try { listener.stop(); } catch(e){ useHeard(); return; }
+  } else { useHeard(); return; }
+  // if the browser never calls back, go with what we already have
+  setTimeout(function(){ if (!handled) useHeard(); }, 1500);
+}
+
 function startListening(){
-  if (listening){ micStop(); return; }
+  if (listening){ finishListening(); return; }
   if (!micSupported()){ micFail('This phone cannot listen. Type it in instead.'); return; }
 
   try { listener = new SR(); }
   catch(e){ micFail('This phone cannot listen. Type it in instead.'); return; }
 
   listener.lang = 'en-US';
-  listener.interimResults = false;
+  listener.interimResults = true;    // keep the words as they arrive
+  listener.continuous = true;        // it stops when tapped, not when it feels like it
   listener.maxAlternatives = 1;
-  listener.continuous = false;
 
-  listening = true;
+  listening = true; heard = ''; handled = false;
   $('trkSay').classList.add('hot');
   $('traySayLabel').textContent = 'Listening…';
-  $('trkSayHint').textContent = 'Say it, then stop talking.';
+  $('trkSayHint').textContent = 'Tap again when you’ve finished.';
   buzz(12);
 
   listener.onresult = function(ev){
-    const said = ev.results && ev.results[0] && ev.results[0][0] ? ev.results[0][0].transcript : '';
-    micStop();
-    if (!said.trim()){ micFail("Didn't catch that. Try again, or type it in."); return; }
-    applySpoken(parseSpoken(said));
+    let txt = '';
+    for (let i = 0; i < ev.results.length; i++) txt += ev.results[i][0].transcript;
+    heard = txt;
+    // show it back live, so it is obvious the phone is hearing him
+    if (listening) $('trkSayHint').textContent = txt.trim()
+      ? '“' + txt.trim() + '”'
+      : 'Tap again when you’ve finished.';
   };
+
   listener.onerror = function(ev){
     const e = ev && ev.error;
+    if (e === 'no-speech' && String(heard).trim()){ useHeard(); return; }
+    handled = true;
     micFail(e === 'not-allowed' || e === 'service-not-allowed'
               ? 'The microphone is blocked. Allow it in your phone settings, or type it in.'
           : e === 'no-speech' ? "Didn't hear anything. Tap and try again."
           : e === 'network'   ? 'No signal for listening. Type it in instead.'
           : "That didn't work. Type it in instead.");
   };
-  listener.onend = function(){ if (listening) micIdle(); };
+
+  // the browser ending on its own must not lose the words either
+  listener.onend = function(){ listening = false; useHeard(); };
 
   try { listener.start(); }
-  catch(e){ micFail("Couldn't start listening. Try again."); }
+  catch(e){ handled = true; micFail("Couldn't start listening. Try again."); }
 }
 
 /* Fill the form from what was heard and show it. Whatever the parser could not
@@ -2262,6 +2309,20 @@ function paintHours(){
   drawStats(cur, other);
 }
 /* HOURS-END */
+
+/* ═══════════ no zooming ═══════════ */
+/* CSS and the viewport tag cover Android. iOS Safari ignores both and zooms on
+   its own gesture events, so those are refused here as well — including a
+   two-finger drag, which is how a pinch starts. Scrolling with one finger is
+   untouched. */
+['gesturestart', 'gesturechange', 'gestureend'].forEach(function (evt) {
+  document.addEventListener(evt, function (e) { e.preventDefault(); }, { passive: false });
+});
+document.addEventListener('touchmove', function (e) {
+  if (e.touches && e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+// a stray double-tap on the clock face shouldn't select text or zoom either
+document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
 
 /* ═══════════ boot ═══════════ */
 window.addEventListener('online', sync);
