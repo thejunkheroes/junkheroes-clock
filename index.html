@@ -2,6 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- The page is hosted on a public GitHub Pages site, so it is worth saying
+     out loud what it is allowed to do. Everything it needs is in this file or
+     beside it — no CDN, no font service, no analytics — so the only outside
+     address it may talk to is the script that holds the hours. If anything
+     ever did get injected into this page, it could not phone home. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; form-action 'self'; base-uri 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Junk Heroes Time Clock</title>
 <link rel="manifest" href="manifest.json">
@@ -39,6 +45,16 @@ const CONFIG = {
     { name: "2020 Hino 195",     tag: "Truck 2" }
   ],
 
+  /* 6b. Not everybody rides. Anybody not named here is asked which truck, as
+        before. "none" is never asked at all — the clock starts on the first
+        tap. "office" gets the trucks plus a day at the desk. */
+  TRUCK_CHOICE: {
+    Andy:     "none",     // dispatch, never on a truck
+    Henrique: "office",
+    Filipe:   "office"
+  },
+  OFFICE: { name: "Office", tag: "Not on a truck today" },
+
   /* 7. A sandbox for having a look round. No setup code, a fixed passcode, and
         crew-level access only. Nothing it does ever reaches the spreadsheet —
         its punches are kept on the phone and dropped, so a poke about can never
@@ -67,6 +83,76 @@ const CONFIG = {
   --edge:rgba(242,240,247,.15);
   --sunk:rgba(242,240,247,.07);
   --pad:22px;
+
+  /* text that sits ON a fill, rather than on the page */
+  --on-lilac:#1E1826;    /* the punch button, Save, the week switch */
+  --on-solid:#F2F0F7;    /* the red and slate buttons, whatever the theme */
+  --stop-bg:#F2F0F7;     /* the clock-out circle */
+  --stop-fg:#1E1826;
+  --danger:#B4442D;
+  --calm:#3B3448;
+  --warn-text:#F0A07E;   /* overtime, a week down on the last */
+  --good-text:#8FD9B6;
+  --err-text:#E58A76;
+  --dot-warn:#FFB020;
+  --shadow:rgba(20,14,32,.6);
+  --shadow-deep:rgba(20,14,32,.8);
+  --tint:rgba(188,166,242,.16);   /* a lilac wash for pressed states */
+  --tint-soft:rgba(188,166,242,.1);
+  --tint-key:rgba(188,166,242,.26);
+  --tint-pick:rgba(188,166,242,.18);
+  --punch-glow:rgba(188,166,242,.55);
+  --say-glow:rgba(160,120,255,.55);
+  --stop-glow:rgba(242,240,247,.4);
+  --pip-off:rgba(242,240,247,.38);
+  --hit-sel:rgba(242,240,247,.05);
+  --glow-1:rgba(126,182,255,.72);
+  --glow-2:rgba(190,166,248,.68);
+  --glow-3:rgba(150,124,252,.50);
+  --glow-4:rgba(112,196,255,.38);
+}
+
+/* ── light ──
+   The same app in daylight: the state colours become tints rather than
+   darks, and every fill that carried white text now carries dark. */
+html.light{
+  --void:#F3F1F7;
+  --working:#CDE8DA;
+  --onbreak:#F7DFBB;
+  --ink:#1E1826;
+  --haze:rgba(30,24,38,.62);
+  --lilac:#6D4FD1;
+  --edge:rgba(30,24,38,.16);
+  --sunk:rgba(30,24,38,.045);
+
+  --on-lilac:#FFFFFF;
+  --on-solid:#FFFFFF;
+  --stop-bg:#2A2336;
+  --stop-fg:#F7F5FA;
+  --danger:#A5381F;
+  --calm:#4C4463;
+  --warn-text:#9A4A16;
+  --good-text:#16704A;
+  --err-text:#A5381F;
+  --dot-warn:#B87500;
+  --shadow:rgba(30,24,38,.18);
+  --shadow-deep:rgba(30,24,38,.26);
+  --tint:rgba(109,79,209,.12);
+  --tint-soft:rgba(109,79,209,.08);
+  --tint-key:rgba(109,79,209,.16);
+  --tint-pick:rgba(109,79,209,.12);
+  --punch-glow:rgba(109,79,209,.34);
+  --say-glow:rgba(109,79,209,.42);
+  --stop-glow:rgba(30,24,38,.28);
+  --pip-off:rgba(30,24,38,.34);
+  --hit-sel:rgba(30,24,38,.05);
+
+  --s-now:#4a3aa7;       /* stepped for the light surface, same two hues */
+  --s-prev:#1baf7a;
+  --glow-1:rgba(126,182,255,.42);
+  --glow-2:rgba(160,130,235,.38);
+  --glow-3:rgba(150,124,252,.26);
+  --glow-4:rgba(112,196,255,.24);
 }
 /* No zooming at all: pan-x pan-y leaves scrolling alone but rules out both
    pinch-zoom and double-tap-to-zoom. The meta tag above covers Android; iOS has
@@ -122,40 +208,43 @@ body.locked .bg{background:var(--void)}
   font-variant-numeric:tabular-nums;letter-spacing:.005em;white-space:nowrap}
 .sync{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--haze);font-weight:500;padding-top:7px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--lilac);flex:none}
-.dot.warn{background:#FFB020}
-.dot.off{background:rgba(242,240,247,.38)}
+.dot.warn{background:var(--dot-warn)}
+.dot.off{background:var(--pip-off)}
 
 /* ── hero ──
    Not flex:1 any more: it sits its own height at the top and the button group
    below claims the slack, so the clock reads at the top and everything you tap
    is down in thumb reach. */
-.hero{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:34px 0 18px}
+.hero{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:214px;padding:18px 0 0}
 .clock{font-size:clamp(56px,17vw,86px);font-weight:730;letter-spacing:-.045em;
   font-variant-numeric:tabular-nums;line-height:1;color:var(--ink);margin:0}
 body[data-state="in"] .clock,body[data-state="break"] .clock{color:var(--lilac)}
 /* Always two lines tall. The captions vary between one line and two, and now
    that the hero no longer flexes, that difference would shove the whole button
    group up and down as the state changes. */
-.caption{margin:14px 0 0;font-size:16.5px;line-height:1.4;color:var(--haze);text-align:center;max-width:26ch;
-  min-height:2.8em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.caption{margin:13px 0 0;font-size:16.5px;line-height:1.4;color:var(--haze);text-align:center;max-width:26ch;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
 /* ── buttons ── */
 button{font-family:inherit;font-size:inherit;border:0;cursor:pointer;color:inherit}
 /* margin-top:auto drops the whole button group to the bottom of the column —
    the slack sits under the clock instead of under the buttons. The gaps inside
    the group are fixed, so its internal spacing never changes. */
-.stack{display:flex;flex-direction:column;align-items:center;gap:13px;margin-top:auto}
+.stack{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:auto}
+.log-row{display:flex;justify-content:center;align-items:stretch;gap:11px;
+  width:100%;margin-top:auto;padding-top:24px}
 .punch{position:relative;width:min(238px,63vw);aspect-ratio:1;border-radius:50%;
   display:flex;align-items:center;justify-content:center;text-align:center;
-  font-size:27px;font-weight:700;letter-spacing:-.015em;background:var(--lilac);color:#1E1826;
-  box-shadow:0 14px 34px -14px rgba(188,166,242,.55),0 3px 10px -4px rgba(20,14,32,.6);
+  font-size:27px;font-weight:700;letter-spacing:-.015em;background:var(--lilac);color:var(--on-lilac);
+  box-shadow:0 14px 34px -14px var(--punch-glow),0 3px 10px -4px var(--shadow);
   transition:transform .09s ease,filter .09s ease}
-.punch.stop{background:var(--ink);color:#1E1826;
-  box-shadow:0 14px 34px -14px rgba(242,240,247,.4),0 3px 10px -4px rgba(20,14,32,.6)}
+.punch.stop{background:var(--stop-bg);color:var(--stop-fg);
+  box-shadow:0 14px 34px -14px var(--stop-glow),0 3px 10px -4px var(--shadow)}
 .punch:active{transform:scale(.965);filter:brightness(.93)}
-.minor{position:relative;width:min(238px,63vw);min-height:62px;border-radius:999px;
+.minor{position:relative;width:min(238px,63vw);min-height:58px;border-radius:999px;
   display:flex;align-items:center;justify-content:center;gap:10px;
-  font-size:18px;font-weight:600;background:transparent;border:2px solid var(--edge);
+  font-size:17px;font-weight:600;background:transparent;border:2px solid var(--edge);
   transition:transform .09s ease,background-color .09s ease}
 .minor:active{transform:scale(.975);background:var(--sunk)}
 /* Off the clock the break button keeps its slot instead of leaving, so the big
@@ -164,12 +253,49 @@ button{font-family:inherit;font-size:inherit;border:0;cursor:pointer;color:inher
 .ico{width:19px;height:19px;fill:currentColor;flex:none}
 
 /* tracker — third rung of the hierarchy, below the punch group */
-.track{width:min(238px,63vw);min-height:58px;margin:24px auto 0;border-radius:999px;
-  display:flex;align-items:center;justify-content:center;gap:9px;
-  font-size:16.5px;font-weight:600;background:var(--sunk);border:1.5px solid var(--edge);
+.track{flex:1 1 0;max-width:180px;min-height:48px;border-radius:999px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  font-size:15px;font-weight:600;background:var(--sunk);border:1.5px solid var(--edge);
   transition:transform .09s ease,background-color .09s ease}
-.track:active{transform:scale(.975);background:rgba(188,166,242,.16)}
-.track svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;
+.track:active{transform:scale(.975);background:var(--tint)}
+
+/* ── what's next ──
+   Two lines on the clock screen, no more: when and what on the first, where on
+   the second. The pin is its own target, so directions are one tap without
+   opening anything. */
+.next{display:flex;align-items:center;gap:10px;width:min(320px,88vw);margin:20px auto 0;
+  padding:11px 12px 11px 15px;border-radius:15px;text-align:left;
+  background:var(--sunk);border:1px solid var(--edge);
+  transition:transform .09s ease,background-color .09s ease}
+.next:active{transform:scale(.985);background:var(--tint-soft)}
+.next-body{flex:1;min-width:0;display:block}
+.next-top{display:flex;align-items:baseline;gap:8px}
+.next-top em{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--lilac);flex:none}
+.next-top b{font-size:15px;font-weight:650;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.next-where{display:block;margin-top:2px;font-size:13.5px;color:var(--haze);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.next-go{flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+  align-items:center;justify-content:center;background:var(--lilac);
+  transition:transform .09s ease,filter .09s ease}
+.next-go svg{width:20px;height:20px;fill:none;stroke:var(--on-lilac);stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+.next-go:active{transform:scale(.92);filter:brightness(.93)}
+.next-go.off{background:var(--sunk);border:1px solid var(--edge)}
+.next-go.off svg{stroke:var(--haze)}
+
+/* the day's round */
+.job-card{display:flex;align-items:center;gap:12px;margin-bottom:10px;
+  padding:14px 14px 14px 16px;border-radius:14px;
+  background:var(--sunk);border:1px solid var(--edge)}
+.job-card .when{flex:none;width:62px;font-size:13.5px;font-weight:700;color:var(--lilac);
+  font-variant-numeric:tabular-nums}
+.job-card .what{flex:1;min-width:0}
+.job-card .what b{display:block;font-size:15.5px;font-weight:600;line-height:1.3}
+.job-card .what span{display:block;margin-top:2px;font-size:13.5px;color:var(--haze)}
+.job-card.on-now{border-color:var(--lilac)}
+.track svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;
   stroke-linecap:round;stroke-linejoin:round;flex:none}
 [hidden]{display:none!important}   /* display:flex above would otherwise beat it */
 
@@ -185,6 +311,19 @@ button{font-family:inherit;font-size:inherit;border:0;cursor:pointer;color:inher
   100%{opacity:0;transform:scale(1.3)}
 }
 .foot{margin-top:16px;font-size:14.5px;color:var(--haze);text-align:center;min-height:20px}
+
+/* A shorter phone — an SE, an 8 — gets a smaller face and a tighter readout.
+   The clock screen is the one that must never need scrolling: a man arriving
+   at a job should not have to find the button. */
+@media (max-height:720px){
+  .hero{min-height:172px;padding-top:8px}
+  .clock{font-size:clamp(46px,14vw,68px)}
+  .caption{margin-top:10px;font-size:15.5px}
+  .punch{width:min(200px,56vw);font-size:24px}
+  .minor{min-height:52px;font-size:16px}
+  .log-row{padding-top:16px}
+  .track{min-height:44px}
+}
 button:focus-visible,input:focus-visible{outline:3px solid var(--lilac);outline-offset:3px}
 
 /* ── lock screen ── */
@@ -204,7 +343,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--lilac);outline-
   font-size:29px;font-weight:520;font-variant-numeric:tabular-nums;
   display:flex;align-items:center;justify-content:center;
   transition:transform .08s ease,background-color .08s ease}
-.key:active{transform:scale(.93);background:rgba(188,166,242,.26)}
+.key:active{transform:scale(.93);background:var(--tint-key)}
 .key.blank{background:none;border:0;pointer-events:none}
 .key.util{font-size:15px;font-weight:600;background:none;border:0;color:var(--haze);line-height:1.2}
 .key.util:active{background:var(--sunk)}
@@ -239,10 +378,10 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .thanks .glow{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .thanks .glow::before{content:'';position:absolute;inset:-30%;
   background:
-    radial-gradient(46% 40% at 22% 24%, rgba(126,182,255,.72), transparent 68%),
-    radial-gradient(50% 44% at 78% 72%, rgba(190,166,248,.68), transparent 70%),
-    radial-gradient(40% 34% at 58% 12%, rgba(150,124,252,.50), transparent 68%),
-    radial-gradient(36% 32% at 14% 84%, rgba(112,196,255,.38), transparent 70%);
+    radial-gradient(46% 40% at 22% 24%, var(--glow-1), transparent 68%),
+    radial-gradient(50% 44% at 78% 72%, var(--glow-2), transparent 70%),
+    radial-gradient(40% 34% at 58% 12%, var(--glow-3), transparent 68%),
+    radial-gradient(36% 32% at 14% 84%, var(--glow-4), transparent 70%);
   animation:glowDrift 11s ease-in-out infinite alternate}
 @keyframes glowDrift{
   from{opacity:.82;transform:scale(1) translateY(0)}
@@ -265,7 +404,9 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .thanks .pick{margin-top:30px;max-width:290px;text-align:center;animation:riseIn .45s var(--ease) both .38s}
 
 /* ── branding ── */
-.brand{margin:0;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+.brand-mark{width:18px;height:18px;flex:none;opacity:.95}
+.brand{display:flex;align-items:center;justify-content:center;gap:8px;
+  margin:0;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
   color:var(--haze);text-align:center}
 .brand em{font-style:normal;color:var(--lilac)}
 .brand-top{margin-bottom:20px}
@@ -287,7 +428,7 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .wk-opt{padding:11px 8px;border-radius:9px;background:transparent;
   font-size:15px;font-weight:600;color:var(--haze);
   transition:background-color .14s var(--ease),color .14s var(--ease)}
-.wk-opt.on{background:var(--lilac);color:#1E1826}
+.wk-opt.on{background:var(--lilac);color:var(--on-lilac)}
 .wk-range{margin:0 0 20px;font-size:14.5px;color:var(--haze);text-align:center}
 
 .hero-num{text-align:center;margin:0 0 20px}
@@ -300,7 +441,7 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
   border:1px solid var(--edge)}
 .split-part b{display:block;font-size:23px;font-weight:680;font-variant-numeric:tabular-nums}
 .split-part span{display:block;margin-top:3px;font-size:13.5px;color:var(--haze)}
-.split-part.ot b{color:#F0A07E}
+.split-part.ot b{color:var(--warn-text)}
 .split-part.ot.none b{color:var(--haze)}
 
 .chart-card{padding:16px 14px 12px;border-radius:15px;background:var(--sunk);
@@ -317,7 +458,16 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .chart .dayl{fill:var(--haze);font-size:10.5px}
 .chart .dayl.today{fill:var(--ink);font-weight:700}
 .chart .hit{fill:transparent}
-.chart .hit.sel{fill:rgba(242,240,247,.05)}
+.chart .hit.sel{fill:var(--hit-sel)}
+.chart path.now,.chart path.prev{
+  transform-box:fill-box;transform-origin:bottom;
+  animation:growUp .5s cubic-bezier(.2,.75,.3,1) backwards;
+  animation-delay:calc(var(--d,0) * 45ms)}
+@keyframes growUp{from{transform:scaleY(0);opacity:.55}to{transform:scaleY(1);opacity:1}}
+/* the scale and its labels arrive first, so the bars have something to grow against */
+.chart .grid,.chart .axis{animation:fadeIn .3s ease backwards}
+.chart .dayl{animation:fadeIn .4s ease backwards;animation-delay:.18s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .chart-tip{margin:10px 0 0;min-height:19px;font-size:13.5px;color:var(--haze);text-align:center}
 .chart-tip b{color:var(--ink);font-weight:650}
 
@@ -325,8 +475,8 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .stat{padding:14px 15px;border-radius:13px;background:var(--sunk);border:1px solid var(--edge)}
 .stat b{display:block;font-size:20px;font-weight:680;font-variant-numeric:tabular-nums;color:var(--ink)}
 .stat span{display:block;margin-top:3px;font-size:13px;color:var(--haze);line-height:1.35}
-.stat.up b{color:#8FD9B6}
-.stat.down b{color:#F0A07E}
+.stat.up b{color:var(--good-text)}
+.stat.down b{color:var(--warn-text)}
 .hours-older{margin-top:30px}
 
 /* ── truck ── */
@@ -337,11 +487,26 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
   stroke-linecap:round;stroke-linejoin:round;flex:none;opacity:.85}
 .truck-chip em{font-style:normal;color:var(--haze);font-weight:500}
 
+.truck-or{margin:18px 0 12px;text-align:center;font-size:12.5px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--haze)}
+
 .crew-line{margin:22px 0 0;padding:14px 16px;border-radius:13px;
   background:var(--sunk);border:1px solid var(--edge);font-size:15.5px;line-height:1.5}
 .crew-line b{font-weight:650}
 .crew-truck{margin:16px 0 6px;font-size:14px;font-weight:700;letter-spacing:.06em;
   text-transform:uppercase;color:var(--haze)}
+
+/* ── my jobs ── */
+.job-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;
+  padding:14px 0;border-bottom:1px solid var(--edge)}
+.job-who{font-size:16px;font-weight:600;color:var(--ink)}
+.job-sub{margin-top:3px;font-size:13.5px;color:var(--haze);line-height:1.4}
+.job-amt{font-size:17px;font-weight:680;font-variant-numeric:tabular-nums;
+  color:var(--ink);white-space:nowrap}
+.job-tag{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:999px;
+  background:var(--sunk);border:1px solid var(--edge);
+  font-size:11px;font-weight:600;letter-spacing:.03em;color:var(--haze);vertical-align:1px}
+.chart-title{margin:0 0 10px;font-size:13.5px;font-weight:600;color:var(--haze);text-align:center}
 
 /* ── sheets ── */
 .inner{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 26px) var(--pad) calc(env(safe-area-inset-bottom) + 26px)}
@@ -350,33 +515,33 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
    it never lands on the heading. */
 .back{position:absolute;top:calc(env(safe-area-inset-top) + 18px);left:var(--pad);z-index:2;
   display:flex;align-items:center;gap:8px;min-height:46px;padding:0 20px 0 15px;
-  border-radius:999px;background:#3B3448;color:var(--ink);opacity:.6;
+  border-radius:999px;background:var(--calm);color:var(--on-solid);opacity:.6;
   font-size:15.5px;font-weight:600;
   transition:transform .09s ease,opacity .12s ease}
 .back:active{transform:scale(.97);opacity:.85}
 .back svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.1;
   stroke-linecap:round;stroke-linejoin:round;flex:none}
-#enrol .inner,#truckSheet .inner,#crews .inner,#lockScreen.hasback .lock,#setup.hasback .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
-#trackSheet .inner,#confirmOut .inner,#work .inner,#owner .inner{
+#enrol .inner,#truckSheet .inner,#crews .inner,#myjobs .inner,#schedule .inner,#lockScreen.hasback .lock,#setup.hasback .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
+#myjobs .inner,#trackSheet .inner,#reviewSheet .inner,#confirmOut .inner,#work .inner,#owner .inner{
   padding-top:calc(env(safe-area-inset-top) + 88px)}
 h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 .sub{color:var(--haze);margin:0 0 24px;font-size:16px;line-height:1.5}
 .pick{width:100%;min-height:70px;border-radius:13px;background:var(--sunk);border:2px solid var(--edge);
   font-size:20px;font-weight:600;margin-bottom:11px;text-align:left;padding:16px 22px}
-.pick:active{background:rgba(188,166,242,.18)}
+.pick:active{background:var(--tint-pick)}
 .pick small{display:block;font-size:14.5px;font-weight:400;color:var(--haze);margin-top:3px}
 
 /* solid variants — each restates its own background on :active, because the
    plain .pick:active tint would otherwise wash the fill out */
-.pick.safe{background:var(--lilac);color:#1E1826;border:0}
-.pick.safe small{color:rgba(30,24,38,.7)}
+.pick.safe{background:var(--lilac);color:var(--on-lilac);border:0}
+.pick.safe small{color:var(--on-lilac);opacity:.72}
 .pick.safe:active{background:var(--lilac);filter:brightness(.93)}
-.pick.danger{background:#B4442D;color:var(--ink);border:0}
-.pick.danger small{color:rgba(242,240,247,.78)}
-.pick.danger:active{background:#B4442D;filter:brightness(.93)}
-.pick.calm{background:#3B3448;color:var(--ink);border:0}
-.pick.calm small{color:var(--haze)}
-.pick.calm:active{background:#3B3448;filter:brightness(.93)}
+.pick.danger{background:var(--danger);color:var(--on-solid);border:0}
+.pick.danger small{color:var(--on-solid);opacity:.78}
+.pick.danger:active{background:var(--danger);filter:brightness(.93)}
+.pick.calm{background:var(--calm);color:var(--on-solid);border:0}
+.pick.calm small{color:var(--on-solid);opacity:.7}
+.pick.calm:active{background:var(--calm);filter:brightness(.93)}
 
 /* ── the clock-out check: three solid choices, centred in the sheet ── */
 #confirmOut h2{font-size:27px}
@@ -403,8 +568,8 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   font-family:inherit;font-size:17px;line-height:1.35;-webkit-user-select:text;user-select:text;
   transition:border-color .12s ease,background-color .12s ease}
 .field textarea{min-height:96px;resize:none}
-.field input:focus,.field textarea:focus{outline:0;border-color:var(--lilac);background:rgba(188,166,242,.1)}
-.field input.bad,.field textarea.bad{border-color:#B4442D}
+.field input:focus,.field textarea:focus{outline:0;border-color:var(--lilac);background:var(--tint-soft)}
+.field input.bad,.field textarea.bad{border-color:var(--danger)}
 /* .money is a span too, so the label rule above lands on it — undo those margins */
 .field .money{display:block;position:relative;margin:0}
 .money b{position:absolute;left:17px;top:50%;transform:translateY(-50%);
@@ -424,7 +589,24 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   stroke-linecap:round;stroke-linejoin:round;flex:none}
 .say:active{transform:scale(.965)}
 .say.hot{border-style:solid;border-color:var(--lilac);color:var(--lilac);
-  background:rgba(188,166,242,.16)}
+  background:var(--tint)}
+.say::before{content:'';position:absolute;inset:0;border-radius:inherit;
+  box-shadow:0 0 26px 5px var(--say-glow);opacity:.5;pointer-events:none;z-index:-1;
+  animation:sayBreathe 2.8s ease-in-out infinite}
+.say.hot::before{animation-duration:1.1s;box-shadow:0 0 32px 8px var(--say-glow)}
+@keyframes sayBreathe{
+  0%,100%{opacity:.34;transform:scale(.97)}
+  50%    {opacity:.9;transform:scale(1.035)}
+}
+/* The review sheet leads with its form rather than a choice, so its mic is a
+   pill instead of the big circle. Same dashed edge, same hot state. */
+.say.mini{width:min(300px,88%);aspect-ratio:auto;min-height:54px;border-radius:999px;
+  flex-direction:row;gap:10px;margin:2px auto 12px;padding:0 20px;
+  font-size:16px;font-weight:600}
+.say.mini svg{width:21px;height:21px}
+/* the hint under it belongs to it, not to whatever follows */
+#trkForm .say-hint{margin-top:10px;margin-bottom:20px}
+.plat-note{margin:-4px 0 10px 2px}
 .say.hot svg{animation:hear 1.1s ease-in-out infinite}
 @keyframes hear{0%,100%{opacity:.45}50%{opacity:1}}
 .say-hint{max-width:30ch;margin:14px auto 0;font-size:14.5px;line-height:1.5;
@@ -434,6 +616,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   background:var(--sunk);border:1px solid var(--edge)}
 .heard-said{margin:0;font-size:16px;line-height:1.45;color:var(--ink)}
 .heard-miss{margin:7px 0 0;font-size:14px;color:var(--haze)}
+.heard.by-hand{border-style:dashed}
 
 .pays{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 20px}
 .pay{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
@@ -444,18 +627,23 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   stroke-linecap:round;stroke-linejoin:round}
 .pay svg text{stroke:none;fill:currentColor}
 .pay:active{transform:scale(.96)}
-.pay.on{background:var(--lilac);border-color:var(--lilac);color:#1E1826}
-.pays.bad .pay{border-color:#B4442D}
-.err{margin:0 0 16px;color:#E58A76;font-size:15px;font-weight:500}
+.pay.on{background:var(--lilac);border-color:var(--lilac);color:var(--on-lilac)}
+.pays.bad .pay{border-color:var(--danger)}
+.err{margin:0 0 16px;color:var(--err-text);font-size:15px;font-weight:500}
 
 /* saved-confirmation, bottom of the clock screen */
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 26px);transform:translateX(-50%);
   z-index:30;max-width:min(420px,88vw);padding:14px 20px;border-radius:14px;
-  background:var(--lilac);color:#1E1826;font-size:15.5px;font-weight:600;text-align:center;
-  box-shadow:0 12px 30px -12px rgba(20,14,32,.8);opacity:0;pointer-events:none;
+  background:var(--lilac);color:var(--on-lilac);font-size:15.5px;font-weight:600;text-align:center;
+  box-shadow:0 12px 30px -12px var(--shadow-deep);opacity:0;pointer-events:none;
   transition:opacity .2s ease}
 .toast.show{opacity:1}
 /* log out — quiet until it is armed, then unmistakably the red one */
+.theme-row{margin:22px 0 4px}
+.theme-label{margin:0 0 9px 2px;font-size:13px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--haze)}
+.theme-switch{margin-bottom:0}
+
 .logout{display:flex;align-items:center;justify-content:center;gap:9px;
   width:100%;min-height:60px;margin-top:26px;border-radius:13px;
   background:transparent;border:2px solid var(--edge);color:var(--haze);
@@ -464,7 +652,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 .logout:active{transform:scale(.985)}
 .logout svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;
   stroke-linecap:round;stroke-linejoin:round;flex:none}
-.logout.armed{background:#B4442D;border-color:#B4442D;color:var(--ink)}
+.logout.armed{background:var(--danger);border-color:var(--danger);color:var(--on-solid)}
 
 .row{display:flex;justify-content:space-between;gap:14px;padding:15px 0;border-bottom:1px solid var(--edge);font-size:16px}
 .row b{font-weight:650;font-variant-numeric:tabular-nums}
@@ -501,17 +689,17 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 <div class="overlay open" id="lockScreen">
   <button class="back" id="lockBack" hidden>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
-    <span id="lockBackLabel">Go back</span>
+    <span id="lockBackLabel" data-i18n="back">Go back</span>
   </button>
   <div class="lock">
     <div class="lock-top">
       <p class="lock-name" id="lockName">—</p>
-      <p class="lock-hint" id="lockHint">Enter your passcode</p>
+      <p class="lock-hint" id="lockHint" data-i18n="lock.enter">Enter your passcode</p>
       <div class="pips" id="pips"><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i></div>
     </div>
     <div class="keys" id="keys"></div>
-    <button class="reset" id="reset" hidden>Forgot passcode</button>
-    <p class="brand brand-foot">The Junk <em>Heroes</em></p>
+    <button class="reset" id="reset" hidden data-i18n="lock.forgot">Forgot passcode</button>
+    <p class="brand brand-foot"><img class="brand-mark" src="logo.png" alt="" width="18" height="18">The Junk <em>Heroes</em></p>
   </div>
 </div>
 
@@ -530,20 +718,36 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   </div>
   <div class="hero">
     <p class="clock" id="clock">0:00</p>
-    <p class="caption" id="caption">Tap the button when you get to the job.</p>
+    <p class="caption" id="caption" data-i18n="clock.tap">Tap the button when you get to the job.</p>
     <span class="truck-chip" id="truckChip" hidden>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 7.5h11v9h-11z"/><path d="M13.5 11h4l3 3v2.5h-7z"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>
+      <svg id="chipTruck" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 7.5h11v9h-11z"/><path d="M13.5 11h4l3 3v2.5h-7z"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>
+      <svg id="chipDesk" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M3 20V9.5L12 4l9 5.5V20"/><path d="M9 20v-6h6v6"/></svg>
       <span id="truckName">Truck 1</span><em id="truckMates"></em>
     </span>
   </div>
   <div class="stack">
-    <button class="punch" id="main">Clock in</button>
+    <button class="punch" id="main" data-i18n="clock.in">Clock in</button>
     <button class="minor ghost" id="brk">Start break</button>
   </div>
-  <button class="track" id="track">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8a2 2 0 0 1 2 2v13a1 1 0 0 1-1.5.87L12 17.5l-4.5 2.37A1 1 0 0 1 6 19V6a2 2 0 0 1 2-2z"/><path d="M9.5 9h5"/></svg>
-    <span>Track job/quote</span>
+  <button class="next" id="nextJob" hidden>
+    <span class="next-body">
+      <span class="next-top"><em id="nextWhen">—</em><b id="nextTitle"></b></span>
+      <span class="next-where" id="nextWhere"></span>
+    </span>
+    <span class="next-go" id="nextGo" role="link" aria-label="Directions">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.3 7-11.4A7 7 0 0 0 5 9.6C5 14.7 12 21 12 21z"/><circle cx="12" cy="9.6" r="2.6"/></svg>
+    </span>
   </button>
+  <div class="log-row">
+    <button class="track" id="track">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8a2 2 0 0 1 2 2v13a1 1 0 0 1-1.5.87L12 17.5l-4.5 2.37A1 1 0 0 1 6 19V6a2 2 0 0 1 2-2z"/><path d="M9.5 9h5"/></svg>
+      <span data-i18n="btn.job">Job / quote</span>
+    </button>
+    <button class="track" id="review" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l2.7 5.47 6.04.88-4.37 4.26 1.03 6.01L12 17.19l-5.4 2.83 1.03-6.01L3.26 9.75l6.04-.88z"/></svg>
+      <span data-i18n="btn.review">Review</span>
+    </button>
+  </div>
   <p class="foot" id="foot"></p>
 </div>
 
@@ -553,12 +757,12 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 <div class="overlay" id="setup">
   <button class="back" id="setupBack" hidden>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
-    <span id="setupBackLabel">Go back</span>
+    <span id="setupBackLabel" data-i18n="back">Go back</span>
   </button>
   <div class="inner">
-  <p class="brand brand-top">The Junk <em>Heroes</em></p>
-  <h2>Who's on this phone?</h2>
-  <p class="sub">Pick your name once. This phone will remember it.</p>
+  <p class="brand brand-top"><img class="brand-mark" src="logo.png" alt="" width="18" height="18">The Junk <em>Heroes</em></p>
+  <h2 data-i18n="who.title">Who's on this phone?</h2>
+  <p class="sub" data-i18n="who.sub">Pick your name once. This phone will remember it.</p>
   <div id="workerList"></div>
   </div>
 </div>
@@ -567,17 +771,17 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 <div class="overlay hasback" id="enrol">
   <button class="back" id="enrolBackTop">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
-    <span>Go back</span>
+    <span data-i18n="back">Go back</span>
   </button>
   <div class="inner">
-  <h2 id="enrolTitle">Set up this phone</h2>
-  <p class="sub" id="enrolSub">Henrique will give you an 8-character code. It works once, on this phone.</p>
-  <label class="field"><span>Your setup code</span>
+  <h2 id="enrolTitle" data-i18n="enrol.title">Set up this phone</h2>
+  <p class="sub" id="enrolSub" data-i18n="enrol.sub">Henrique will give you an 8-character code. It works once, on this phone.</p>
+  <label class="field"><span data-i18n="enrol.field">Your setup code</span>
     <input id="enrolCode" type="text" inputmode="latin" autocomplete="off"
            autocapitalize="characters" spellcheck="false" maxlength="9" enterkeyhint="done"></label>
   <p class="err" id="enrolErr" hidden></p>
-  <button class="pick safe" id="enrolGo">Set up this phone</button>
-  <p class="note">Nothing works until this phone is set up. Your code is yours —
+  <button class="pick safe" id="enrolGo" data-i18n="enrol.go">Set up this phone</button>
+  <p class="note" data-i18n="enrol.note">Nothing works until this phone is set up. Your code is yours —
     it can't be used on anybody else's phone.</p>
   </div>
 </div>
@@ -586,39 +790,40 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 <div class="overlay" id="confirmOut">
   <button class="back" id="outBackTop">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
-    <span>Go back</span>
+    <span data-i18n="back">Go back</span>
   </button>
   <div class="inner">
-  <h2>Clock out for the day?</h2>
+  <h2 data-i18n="out.title">Clock out for the day?</h2>
   <p class="sub" id="confirmSub"></p>
-  <button class="pick safe" id="cBreak">Start a break instead<small>Pauses the clock. The shift keeps running.</small></button>
-  <button class="pick danger" id="cYes">Yes, clock out<small>Ends the shift for the day</small></button>
-  <button class="pick calm" id="cNo">Never mind</button>
+  <button class="pick safe" id="cBreak" data-i18n-html="out.brkFull">Start a break instead<small>Pauses the clock. The shift keeps running.</small></button>
+  <button class="pick danger" id="cYes" data-i18n-html="out.yesFull">Yes, clock out<small>Ends the shift for the day</small></button>
+  <button class="pick calm" id="cNo" data-i18n="out.no">Never mind</button>
 </div></div>
 
 <!-- ═══ track a job or a quote ═══ -->
 <div class="overlay" id="trackSheet">
   <button class="back" id="trkBackTop">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
-    <span>Go back</span>
+    <span data-i18n="back">Go back</span>
   </button>
   <div class="inner">
 
   <div id="trkPick">
-    <h2>Track a job or quote</h2>
-    <p class="sub">Which one was it?</p>
-    <button class="pick safe" id="trkJobBtn">Completed job<small>Work is done and you collected payment</small></button>
-    <button class="pick" id="trkQuoteBtn">Gave a quote<small>You priced it. No work done yet.</small></button>
-
-    <button class="say" id="trkSay" hidden>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg>
-      <span id="traySayLabel">Say it instead</span>
-    </button>
-    <p class="say-hint" id="trkSayHint" hidden>&ldquo;Finished Anna in Peabody, she paid $500 on Venmo&rdquo;</p>
+    <h2 data-i18n="trk.title">Track a job or quote</h2>
+    <p class="sub" data-i18n="trk.which">Which one was it?</p>
+    <button class="pick safe" id="trkJobBtn" data-i18n-html="trk.jobFull">Completed job<small>Work is done and you collected payment</small></button>
+    <button class="pick" id="trkQuoteBtn" data-i18n-html="trk.quoteFull">Gave a quote<small>You priced it. No work done yet.</small></button>
   </div>
 
   <form id="trkForm" hidden novalidate>
     <h2 id="trkTitle">Completed job</h2>
+    <p class="sub" id="trkSub" data-i18n="trk.fill">Fill it in, or say it.</p>
+
+    <button class="say mini" type="button" id="trkSay" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg>
+      <span id="traySayLabel" data-i18n="say.it">Say it instead</span>
+    </button>
+    <p class="say-hint" id="trkSayHint" hidden>&ldquo;Finished Anna in Peabody, she paid $500 on Venmo&rdquo;</p>
 
     <div class="heard" id="heardBox" hidden>
       <p class="heard-said" id="heardText"></p>
@@ -626,42 +831,95 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
     </div>
 
     <div class="duo">
-      <label class="field"><span>First name</span>
+      <label class="field"><span data-i18n="f.first">First name</span>
         <input id="fFirst" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
-      <label class="field"><span>Last name <i>— optional</i></span>
+      <label class="field"><span data-i18n-html="f.last">Last name <i>— optional</i></span>
         <input id="fLast" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
     </div>
     <div class="duo">
-      <label class="field"><span>Town or city</span>
+      <label class="field"><span data-i18n="f.town">Town or city</span>
         <input id="fTown" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
       <label class="field"><span id="fValueLabel">Job total</span>
         <span class="money"><b>$</b><input id="fValue" type="text" inputmode="decimal" enterkeyhint="done"></span></label>
     </div>
 
     <div id="fPayWrap">
-      <p class="flabel">How did they pay?</p>
+      <p class="flabel" data-i18n="f.pay">How did they pay?</p>
       <div class="pays" id="pays"></div>
     </div>
 
-    <label class="field" id="fNotesWrap" hidden><span>Notes <i>— optional</i></span>
+    <label class="field" id="fNotesWrap" hidden><span data-i18n-html="f.notes">Notes <i>— optional</i></span>
       <textarea id="fNotes" rows="3" autocapitalize="sentences"></textarea></label>
 
     <p class="err" id="trkErr" hidden></p>
-    <button class="pick safe" type="submit" id="trkSave">Save it</button>
-    <button class="pick calm" type="button" id="trkBack">Back</button>
+    <button class="pick safe" type="submit" id="trkSave" data-i18n="trk.saveJob">Save it</button>
+    <button class="pick calm" type="button" id="trkBack" data-i18n="trk.back">Back</button>
   </form>
 
 </div></div>
+
+<!-- ═══ what is on today ═══ -->
+<div class="overlay" id="schedule">
+  <button class="back" id="schedBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+  <h2 id="schedTitle" data-i18n="sched.title">Today's jobs</h2>
+  <p class="sub" id="schedSub"></p>
+  <div id="schedList"></div>
+  </div>
+</div>
+
+<!-- ═══ a review picked up on the job ═══ -->
+<div class="overlay" id="reviewSheet">
+  <button class="back" id="revBackTop">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+  <h2 data-i18n="rev.title">Track a review</h2>
+  <p class="sub" data-i18n="rev.sub">Who left it, and where.</p>
+
+  <button class="say mini" id="revSay" hidden>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg>
+    <span id="revSayLabel" data-i18n="say.it">Say it instead</span>
+  </button>
+  <p class="say-hint" id="revSayHint" hidden>&ldquo;Anna Ramos left us a Google review&rdquo;</p>
+
+  <form id="revForm" novalidate>
+    <div class="heard" id="revHeard" hidden>
+      <p class="heard-said" id="revHeardText"></p>
+      <p class="heard-miss" id="revHeardMiss"></p>
+    </div>
+
+    <div class="duo">
+      <label class="field"><span data-i18n="f.first">First name</span>
+        <input id="rFirst" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
+      <label class="field"><span data-i18n-html="f.last">Last name <i>— optional</i></span>
+        <input id="rLast" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="done"></label>
+    </div>
+
+    <p class="flabel" data-i18n="rev.where">Where did they leave it?</p>
+    <p class="note plat-note" data-i18n="rev.tapAll">Tap every one they used.</p>
+    <div class="pays" id="plats"></div>
+
+    <p class="err" id="revErr" hidden></p>
+    <button class="pick safe" type="submit" id="revSave" data-i18n="rev.save">Save review</button>
+    <button class="pick calm" type="button" id="revCancel" data-i18n="cancel">Cancel</button>
+  </form>
+  </div>
+</div>
 
 <!-- ═══ which truck today ═══ -->
 <div class="overlay" id="truckSheet">
   <button class="back" id="truckBack">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
-    <span>Go back</span>
+    <span data-i18n="back">Go back</span>
   </button>
   <div class="inner">
-    <h2>Which truck today?</h2>
-    <p class="sub">Whoever else picks the same one is your crew for the day.</p>
+    <h2 id="truckHead" data-i18n="truck.which">Which truck today?</h2>
+    <p class="sub" id="truckSub" data-i18n="truck.sub">Whoever else picks the same truck is your crew for the day.</p>
     <div id="truckList"></div>
   </div>
 </div>
@@ -670,12 +928,57 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 <div class="overlay" id="crews">
   <button class="back" id="crewsBack">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
-    <span>Go back</span>
+    <span data-i18n="back">Go back</span>
   </button>
   <div class="inner">
     <h2>Trucks &amp; crews</h2>
-    <p class="sub" id="crewsSub">Loading…</p>
+    <p class="sub" id="crewsSub" data-i18n="loading">Loading…</p>
     <div id="crewsData"></div>
+  </div>
+</div>
+
+<!-- ═══ my jobs ═══ -->
+<div class="overlay" id="myjobs">
+  <button class="back" id="myjobsBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 data-i18n="menu.myJobs">My jobs</h2>
+    <p class="sub" id="mjSub" data-i18n="loading">Loading…</p>
+
+    <div id="mjTop" hidden>
+      <div class="wk-switch">
+        <button class="wk-opt on" id="mjNow" data-i18n="wk.this">This week</button>
+        <button class="wk-opt" id="mjPrev" data-i18n="wk.last">Last week</button>
+      </div>
+      <p class="wk-range" id="mjRange"></p>
+
+      <div class="hero-num"><b id="mjTotal">$0</b><span data-i18n="mj.brought">you helped bring in</span></div>
+
+      <div class="split">
+        <div class="split-part"><b id="mjCount">0</b><span data-i18n="mj.wereOn">jobs you were on</span></div>
+        <div class="split-part"><b id="mjAvg">$0</b><span data-i18n="mj.avg">average job</span></div>
+      </div>
+
+      <div class="chart-card">
+        <p class="chart-title" data-i18n="mj.money">Money each day</p>
+        <div class="legend">
+          <span><i class="now"></i><span id="mjLegNow" data-i18n="wk.this">This week</span></span>
+          <span><i class="prev"></i><span id="mjLegPrev" data-i18n="wk.last">Last week</span></span>
+        </div>
+        <div class="chart" id="mjChartMoney"></div>
+        <p class="chart-tip" id="mjTipMoney" data-i18n="hrs.tapDay">Tap a day for the numbers.</p>
+      </div>
+
+      <div class="chart-card">
+        <p class="chart-title" data-i18n="mj.jobs">Jobs each day</p>
+        <div class="chart" id="mjChartJobs"></div>
+        <p class="chart-tip" id="mjTipJobs" data-i18n="hrs.tapDay">Tap a day for the numbers.</p>
+      </div>
+
+      <div id="mjList"></div>
+    </div>
   </div>
 </div>
 
@@ -687,8 +990,8 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
     <svg class="thanks-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3s-7.4-4.6-7.4-9.6A4.2 4.2 0 0 1 12 8.1a4.2 4.2 0 0 1 7.4 2.6c0 5-7.4 9.6-7.4 9.6z"/></svg>
     <h2 id="thanksLine">Thanks.</h2>
     <p class="thanks-sub" id="thanksSub"></p>
-    <p class="brand">The Junk <em>Heroes</em></p>
-    <button class="pick safe" id="thanksDone">Done for today</button>
+    <p class="brand"><img class="brand-mark" src="logo.png" alt="" width="18" height="18">The Junk <em>Heroes</em></p>
+    <button class="pick safe" id="thanksDone" data-i18n="thanks.done">Done for today</button>
   </div>
 </div>
 
@@ -696,33 +999,48 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 <div class="overlay" id="menu"><div class="inner">
   <h2>Menu</h2>
   <p class="sub" id="menuWho"></p>
-  <button class="pick safe" id="mSync">Go to clock</button>
-  <button class="pick" id="mOwner">My hours</button>
-  <button class="pick" id="mWork" hidden>Jobs &amp; quotes</button>
-  <button class="pick" id="mCrews" hidden>Trucks &amp; crews</button>
+  <button class="pick safe" id="mSync" data-i18n="menu.clock">Go to clock</button>
+  <button class="pick" id="mOwner" data-i18n="menu.myHours">My hours</button>
+  <button class="pick" id="mMine" data-i18n="menu.myJobs">My jobs</button>
+  <button class="pick" id="mWork" hidden data-i18n="menu.work">Jobs &amp; quotes</button>
+  <button class="pick" id="mCrews" hidden data-i18n="menu.crews">Trucks &amp; crews</button>
   <button class="pick" id="mBio" hidden></button>
-  <button class="pick" id="mPin">Change passcode</button>
+  <button class="pick" id="mPin" data-i18n="menu.pin">Change passcode</button>
   <button class="pick with-icon" id="mSwitch">
     <svg class="pico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.9 20a7.1 7.1 0 0 1 14.2 0"/></svg>
-    <span>Switch User</span>
+    <span data-i18n="menu.switch">Switch User</span>
   </button>
+  <div class="theme-row">
+    <p class="theme-label" data-i18n="menu.appear">Appearance</p>
+    <div class="wk-switch theme-switch">
+      <button class="wk-opt" id="thDark" data-i18n="menu.dark">Dark</button>
+      <button class="wk-opt" id="thLight" data-i18n="menu.light">Light</button>
+    </div>
+  </div>
+  <div class="theme-row">
+    <p class="theme-label" data-i18n="menu.lang">Language</p>
+    <div class="wk-switch theme-switch">
+      <button class="wk-opt" id="lgEn">English</button>
+      <button class="wk-opt" id="lgPt">Português</button>
+    </div>
+  </div>
   <p class="note" id="diag"></p>
   <button class="logout" id="mOut">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 20H5.5A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4h4"/><path d="M16 8.5l3.5 3.5-3.5 3.5"/><path d="M9.5 12h10"/></svg>
     <span id="mOutLabel">Log out</span>
   </button>
-  <p class="brand brand-foot">The Junk <em>Heroes</em></p>
+  <p class="brand brand-foot"><img class="brand-mark" src="logo.png" alt="" width="18" height="18">The Junk <em>Heroes</em></p>
 </div></div>
 
 <!-- ═══ jobs & quotes (full admins and job admins) ═══ -->
 <div class="overlay" id="work">
   <button class="back" id="workBack">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
-    <span>Go back</span>
+    <span data-i18n="back">Go back</span>
   </button>
   <div class="inner">
-    <h2>Jobs &amp; quotes</h2>
-    <p class="sub" id="workSub">Loading…</p>
+    <h2 data-i18n="menu.work">Jobs &amp; quotes</h2>
+    <p class="sub" id="workSub" data-i18n="loading">Loading…</p>
     <div id="workData"></div>
   </div>
 </div>
@@ -731,33 +1049,33 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 <div class="overlay" id="owner">
   <button class="back" id="oClose">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
-    <span>Go back</span>
+    <span data-i18n="back">Go back</span>
   </button>
   <div class="inner">
-    <h2 id="ownerTitle">Hours</h2>
-    <p class="sub" id="ownerSub">Loading…</p>
+    <h2 id="ownerTitle" data-i18n="menu.hours">Hours</h2>
+    <p class="sub" id="ownerSub" data-i18n="loading">Loading…</p>
 
     <div id="hoursTop" hidden>
       <div class="wk-switch">
-        <button class="wk-opt on" id="wkNow">This week</button>
-        <button class="wk-opt" id="wkPrev">Last week</button>
+        <button class="wk-opt on" id="wkNow" data-i18n="wk.this">This week</button>
+        <button class="wk-opt" id="wkPrev" data-i18n="wk.last">Last week</button>
       </div>
       <p class="wk-range" id="wkRange"></p>
 
-      <div class="hero-num"><b id="hTotal">0h</b><span id="hTotalLabel">on the clock</span></div>
+      <div class="hero-num"><b id="hTotal">0h</b><span id="hTotalLabel" data-i18n="hrs.onClock">on the clock</span></div>
 
       <div class="split">
-        <div class="split-part"><b id="hReg">0h</b><span>regular, up to 40</span></div>
-        <div class="split-part ot" id="hOtCard"><b id="hOt">None</b><span>overtime, past 40</span></div>
+        <div class="split-part"><b id="hReg">0h</b><span data-i18n="hrs.regular">regular, up to 40</span></div>
+        <div class="split-part ot" id="hOtCard"><b id="hOt">None</b><span data-i18n="hrs.ot">overtime, past 40</span></div>
       </div>
 
       <div class="chart-card">
         <div class="legend">
-          <span><i class="now"></i><span id="legNow">This week</span></span>
-          <span><i class="prev"></i><span id="legPrev">Last week</span></span>
+          <span><i class="now"></i><span id="legNow" data-i18n="wk.this">This week</span></span>
+          <span><i class="prev"></i><span id="legPrev" data-i18n="wk.last">Last week</span></span>
         </div>
         <div class="chart" id="chart"></div>
-        <p class="chart-tip" id="chartTip">Tap a day for the numbers.</p>
+        <p class="chart-tip" id="chartTip" data-i18n="hrs.tapDay">Tap a day for the numbers.</p>
       </div>
 
       <div class="stats" id="stats"></div>
@@ -881,6 +1199,398 @@ async function bioUnlock(){
 /* ═══════════ state ═══════════ */
 let worker  = DB.get('jh.worker', null);
 
+/* ═══════════ light or dark ═══════════
+   A property of the phone, not of the man holding it — a bright cab wants the
+   light one whoever is signed in. Applied before the first paint so nothing
+   flashes the wrong way round. */
+function applyTheme(name){
+  const light = name === 'light';
+  document.documentElement.classList.toggle('light', light);
+  const meta = document.querySelector('meta[name=theme-color]');
+  if (meta) meta.setAttribute('content', light ? '#F3F1F7' : '#221E2B');
+  const dark = $('thDark'), lit = $('thLight');
+  if (dark && lit){
+    dark.classList.toggle('on', !light);
+    lit.classList.toggle('on', light);
+  }
+}
+function setTheme(name){
+  DB.set('jh.theme', name);
+  applyTheme(name);
+}
+applyTheme(DB.get('jh.theme', 'dark'));
+
+
+/* ═══════════ language ═══════════
+   Two entries per key: English, then Brazilian Portuguese. A property of the
+   person rather than the phone — Paulo reads Portuguese wherever he is signed
+   in, and the next man on the same handset gets his own. */
+const STRINGS = {
+  'back':        ['Go back', 'Voltar'],
+  'cancel':      ['Cancel', 'Cancelar'],
+  'loading':     ['Loading…', 'Carregando…'],
+
+  /* lock and setup */
+  'lock.enter':  ['Enter your passcode', 'Digite sua senha'],
+  'lock.again':  ['Enter it once more', 'Digite mais uma vez'],
+  'lock.pick':   ['Pick a 4-digit passcode', 'Escolha uma senha de 4 dígitos'],
+  'lock.wait':   ['Waiting for {0}…', 'Esperando {0}…'],
+  'lock.forgot': ['Forgot passcode', 'Esqueci a senha'],
+  'lock.onNow':  ['On the clock right now', 'Trabalhando agora'],
+  'lock.brkNow': ['On break right now', 'Em pausa agora'],
+  'bio.on':      ['Turn on {0}<small>Skip typing the passcode</small>',
+                  'Ativar {0}<small>Sem precisar digitar a senha</small>'],
+  'bio.off':     ['Turn off {0}<small>Passcode only from then on</small>',
+                  'Desativar {0}<small>Só a senha a partir de então</small>'],
+  'lock.wrong':  ['Wrong passcode', 'Senha errada'],
+  'lock.wrongN': ['Wrong passcode. {0} tries left', 'Senha errada. {0} tentativas restantes'],
+  'lock.noMatch':['Those did not match. Start again', 'As duas não bateram. Comece de novo'],
+  'switch.first':['Clock out first, then switch.', 'Encerre o dia primeiro, depois troque.'],
+  'switch.queued':["{0} of {1}'s punches haven't been sent yet.",
+                  '{0} marcações do {1} ainda não foram enviadas.'],
+  'switch.send': ['Get a bar of signal and tap "Go to clock" to send them, then switch. Otherwise they\u2019d be recorded under the new name.',
+                  'Pegue um pouco de sinal e toque em "Ir para o ponto" para enviar, depois troque. Senão elas entrariam no nome do outro.'],
+  'crews.sub':   ['Newest first. Revenue is the jobs that crew logged that day.',
+                  'Mais recentes primeiro. A receita são os serviços que a dupla registrou no dia.'],
+  'crews.fail':  ["Couldn't load the trucks. Check the connection, then try again.",
+                  'Não consegui carregar os caminhões. Verifique a conexão e tente de novo.'],
+  'hrs.fail':    ["Couldn't load hours. Check the connection, then try again.",
+                  'Não consegui carregar as horas. Verifique a conexão e tente de novo.'],
+  'work.none':   ['Nothing tracked yet.', 'Nada registrado ainda.'],
+  'work.sub':    ['{0} and {1}, newest first.', '{0} e {1}, mais recentes primeiro.'],
+  'lock.delete': ['Delete', 'Apagar'],
+  'who.title':   ["Who's on this phone?", 'Quem está neste celular?'],
+  'who.sub':     ['Pick your name once. This phone will remember it.',
+                  'Escolha seu nome uma vez. Este celular vai lembrar.'],
+  'who.test':    ['A look round. Nothing is recorded.', 'Só para dar uma olhada. Nada é registrado.'],
+  'enrol.title': ['Set up this phone', 'Configurar este celular'],
+  'enrol.titleN':['Set up {0}’s phone', 'Configurar o celular de {0}'],
+  'enrol.sub':   ['Henrique will give you an 8-character code. It works once, on this phone.',
+                  'O Henrique vai te dar um código de 8 caracteres. Ele funciona uma vez só, neste celular.'],
+  'enrol.field': ['Your setup code', 'Seu código de configuração'],
+  'enrol.go':    ['Set up this phone', 'Configurar este celular'],
+  'enrol.check': ['Checking…', 'Verificando…'],
+  'enrol.note':  ['Nothing works until this phone is set up. Your code is yours — it can’t be used on anybody else’s phone.',
+                  'Nada funciona até este celular ser configurado. Seu código é seu — não dá para usar no celular de outra pessoa.'],
+  'enrol.typeit':['Type the code you were given.', 'Digite o código que te deram.'],
+  'enrol.nocfg': ['This app has not been pointed at the spreadsheet yet. Tell Henrique.',
+                  'O app ainda não foi ligado à planilha. Avise o Henrique.'],
+
+  /* the clock */
+  'clock.in':    ['Clock in', 'Entrada'],
+  'clock.out':   ['Clock out', 'Saída'],
+  'clock.tap':   ['Tap the button when you get to the job.', 'Toque no botão quando chegar no serviço.'],
+  'clock.on':    ['On the clock', 'Trabalhando'],
+  'clock.onbrk': ['On the clock, {0} of breaks so far', 'Trabalhando, {0} de pausa até agora'],
+  'clock.brk':   ['On break. The clock is paused.', 'Em pausa. O relógio está parado.'],
+  'brk.start':   ['Start break', 'Iniciar pausa'],
+  'brk.end':     ['Back to work', 'Voltar ao trabalho'],
+  'foot.last':   ['Last shift: {0}.', 'Último turno: {0}.'],
+  'foot.brk1':   ['{0} break today.', '{0} pausa hoje.'],
+  'foot.brkN':   ['{0} breaks today.', '{0} pausas hoje.'],
+  'sync.sent':   ['Sent', 'Enviado'],
+  'sync.off':    ['Offline', 'Sem conexão'],
+  'sync.queue':  ['{0} waiting to send', '{0} esperando envio'],
+  'btn.job':     ['Job / quote', 'Serviço'],
+  'btn.review':  ['Review', 'Avaliação'],
+
+  /* trucks */
+  'truck.which': ['Which truck today?', 'Qual caminhão hoje?'],
+  'truck.where': ['Where are you today?', 'Onde você está hoje?'],
+  'truck.sub':   ['Whoever else picks the same truck is your crew for the day.',
+                  'Quem escolher o mesmo caminhão é sua dupla no dia.'],
+  'truck.sub2':  ['Whoever else picks the same one is your crew for the day.',
+                  'Quem escolher o mesmo é sua dupla no dia.'],
+  'truck.or':    ['or', 'ou'],
+  'truck.with':  ['  with {0}', '  com {0}'],
+  'next.label':  ['Next', 'Próximo'],
+  'next.now':    ['On now', 'Agora'],
+  'next.tomorrow':['Tomorrow', 'Amanhã'],
+  'next.maps':   ['Directions', 'Como chegar'],
+  'next.noAddr': ['No address on this one', 'Sem endereço neste'],
+  'sched.title': ["Today's jobs", 'Serviços de hoje'],
+  'sched.ahead': ['Coming up', 'A seguir'],
+  'sched.all':   ['Every truck', 'Todos os caminhões'],
+  'sched.none':  ['Nothing booked in the next couple of days.',
+                  'Nada agendado nos próximos dias.'],
+  'sched.off':   ['The calendar is not set up yet. Ask Henrique.',
+                  'A agenda ainda não foi configurada. Fale com o Henrique.'],
+  'sched.fail':  ["Couldn't load the schedule. Check the connection.",
+                  'Não consegui carregar a agenda. Verifique a conexão.'],
+  'and':         ['and', 'e'],
+
+  /* clocking out */
+  'out.title':   ['Clock out for the day?', 'Encerrar o dia?'],
+  'out.brk':     ['Start a break instead', 'Fazer uma pausa'],
+  'out.brkSub':  ['Pauses the clock. The shift keeps running.', 'Pausa o relógio. O turno continua.'],
+  'out.yes':     ['Yes, clock out', 'Sim, encerrar'],
+  'out.yesSub':  ['Ends the shift for the day', 'Encerra o turno do dia'],
+  'out.no':      ['Never mind', 'Deixa pra lá'],
+  'out.brkFull': ['Start a break instead<small>Pauses the clock. The shift keeps running.</small>',
+                  'Fazer uma pausa<small>Pausa o relógio. O turno continua.</small>'],
+  'out.yesFull': ['Yes, clock out<small>Ends the shift for the day</small>',
+                  'Sim, encerrar<small>Encerra o turno do dia</small>'],
+  'out.noIn':    ['Never mind<small>Going back in {0}s</small>',
+                  'Deixa pra lá<small>Voltando em {0}s</small>'],
+  'out.sub':     ['{0} on the clock so far today.', '{0} trabalhados hoje até agora.'],
+  'out.subBrk':  ['On break. {0} on the clock so far today.', 'Em pausa. {0} trabalhados hoje até agora.'],
+
+  /* tracking work */
+  'trk.title':   ['Track a job or quote', 'Registrar serviço ou orçamento'],
+  'trk.which':   ['Which one was it?', 'Qual foi?'],
+  'trk.job':     ['Completed job', 'Serviço concluído'],
+  'trk.jobSub':  ['Work is done and you collected payment', 'Trabalho feito e pagamento recebido'],
+  'trk.quote':   ['Gave a quote', 'Orçamento passado'],
+  'trk.quoteSub':['You priced it. No work done yet.', 'Você passou o preço. Sem trabalho feito ainda.'],
+  'trk.quoteT':  ['Quote given', 'Orçamento passado'],
+  'trk.jobFull': ['Completed job<small>Work is done and you collected payment</small>',
+                  'Serviço concluído<small>Trabalho feito e pagamento recebido</small>'],
+  'trk.quoteFull':['Gave a quote<small>You priced it. No work done yet.</small>',
+                  'Orçamento passado<small>Você passou o preço. Sem trabalho feito ainda.</small>'],
+  'trk.fill':    ['Fill it in, or say it.', 'Preencha, ou fale.'],
+  'f.first':     ['First name', 'Nome'],
+  'f.last':      ['Last name <i>— optional</i>', 'Sobrenome <i>— opcional</i>'],
+  'f.town':      ['Town or city', 'Cidade'],
+  'f.jobTotal':  ['Job total', 'Valor do serviço'],
+  'f.quoteTotal':['Quote total', 'Valor do orçamento'],
+  'f.pay':       ['How did they pay?', 'Como pagou?'],
+  'f.notes':     ['Notes <i>— optional</i>', 'Observações <i>— opcional</i>'],
+  'trk.saveJob': ['Save job', 'Salvar serviço'],
+  'trk.saveQt':  ['Save quote', 'Salvar orçamento'],
+  'trk.back':    ['Back', 'Voltar'],
+  'err.first':   ['A first name is needed.', 'Falta o nome.'],
+  'err.town':    ['Which town or city was this in?', 'Em qual cidade foi?'],
+  'err.jobAmt':  ['How much was the job?', 'Quanto foi o serviço?'],
+  'err.qtAmt':   ['How much did you quote?', 'Quanto você orçou?'],
+  'err.pay':     ['Tap how they paid.', 'Toque em como pagou.'],
+  'saved.job':   ['Job saved for {0}.', 'Serviço salvo: {0}.'],
+  'saved.quote': ['Quote saved for {0}.', 'Orçamento salvo: {0}.'],
+  'pay.card':    ['Card', 'Cartão'],
+  'pay.cash':    ['Cash', 'Dinheiro'],
+  'pay.check':   ['Check', 'Cheque'],
+
+  /* reviews */
+  'rev.title':   ['Track a review', 'Registrar avaliação'],
+  'rev.sub':     ['Who left it, and where.', 'Quem deixou, e onde.'],
+  'rev.where':   ['Where did they leave it?', 'Onde deixaram?'],
+  'rev.tapAll':  ['Tap every one they used.', 'Toque em todas que usaram.'],
+  'rev.save':    ['Save review', 'Salvar avaliação'],
+  'err.revWhere':['Tap where they left it.', 'Toque em onde deixaram.'],
+  'saved.rev':   ['Review saved for {0}.', 'Avaliação salva: {0}.'],
+
+  /* the microphone */
+  'say.it':      ['Say it instead', 'Falar em vez de digitar'],
+  'say.hear':    ['Listening…', 'Ouvindo…'],
+  'say.tapEnd':  ['Tap again when you’ve finished.', 'Toque de novo quando terminar.'],
+  'say.moment':  ['One moment…', 'Um momento…'],
+  'say.reading': ['Reading it…', 'Lendo…'],
+  'say.missed':  ["Didn't catch that. Tap and try again.", 'Não entendi. Toque e tente de novo.'],
+  'say.noRead':  ["Couldn't read that one. Type it in instead.", 'Não consegui ler. Digite.'],
+  'say.noMic':   ['This phone cannot listen. Type it in instead.', 'Este celular não consegue ouvir. Digite.'],
+  'say.blocked': ['The microphone is blocked. Allow it in your phone settings, or type it in.',
+                  'O microfone está bloqueado. Libere nas configurações do celular, ou digite.'],
+  'say.silent':  ["Didn't hear anything. Tap and try again.", 'Não ouvi nada. Toque e tente de novo.'],
+  'say.noNet':   ['No signal for listening. Type it in instead.', 'Sem sinal para ouvir. Digite.'],
+  'say.failed':  ["That didn't work. Type it in instead.", 'Não funcionou. Digite.'],
+  'say.noStart': ["Couldn't start listening. Try again.", 'Não consegui começar a ouvir. Tente de novo.'],
+  'say.egJob':   ['“Finished Anna in Peabody, she paid $500 on Venmo”',
+                  '“Terminei a Anna em Peabody, ela pagou 500 no Venmo”'],
+  'say.egQuote': ['“Quoted Anna in Peabody four hundred dollars”',
+                  '“Orcei a Anna em Peabody em quatrocentos”'],
+  'say.egRev':   ['“Anna Ramos left us a Google review”',
+                  '“Anna Ramos deixou uma avaliação no Google”'],
+  'heard.ok':    ['Check it over, then save.', 'Confira e salve.'],
+  'heard.miss':  ['Still needs {0}. Check the rest before saving.',
+                  'Ainda falta {0}. Confira o resto antes de salvar.'],
+  'miss.name':   ['a name', 'o nome'],
+  'miss.town':   ['a town', 'a cidade'],
+  'miss.amount': ['an amount', 'o valor'],
+  'miss.pay':    ['how they paid', 'como pagou'],
+  'miss.where':  ['where they left it', 'onde deixaram'],
+
+  /* menu */
+  'menu':        ['Menu', 'Menu'],
+  'menu.as':     ['Signed in as {0}.', 'Conectado como {0}.'],
+  'menu.clock':  ['Go to clock', 'Ir para o ponto'],
+  'menu.myHours':['My hours', 'Minhas horas'],
+  'menu.hours':  ['Hours', 'Horas'],
+  'menu.myJobs': ['My jobs', 'Meus serviços'],
+  'menu.work':   ['Jobs & quotes', 'Serviços e orçamentos'],
+  'menu.crews':  ['Trucks & crews', 'Caminhões e duplas'],
+  'menu.pin':    ['Change passcode', 'Mudar senha'],
+  'menu.switch': ['Switch User', 'Trocar de usuário'],
+  'menu.appear': ['Appearance', 'Aparência'],
+  'menu.dark':   ['Dark', 'Escuro'],
+  'menu.light':  ['Light', 'Claro'],
+  'menu.lang':   ['Language', 'Idioma'],
+  'menu.out':    ['Log out', 'Sair da conta'],
+  'menu.outAgain':['Tap again to log out', 'Toque de novo para sair'],
+
+  /* hours and jobs */
+  'wk.this':     ['This week', 'Esta semana'],
+  'wk.last':     ['Last week', 'Semana passada'],
+  'wk.that':     ['That week', 'Aquela semana'],
+  'wk.before':   ['The week before', 'A semana anterior'],
+  'work.fail':   ["Couldn't load jobs and quotes. Check the connection, then try again.",
+                  'Não consegui carregar os serviços e orçamentos. Verifique a conexão e tente de novo.'],
+  'hrs.onClock': ['on the clock', 'no serviço'],
+  'hrs.regular': ['regular, up to 40', 'normais, até 40'],
+  'hrs.ot':      ['overtime, past 40', 'extras, acima de 40'],
+  'hrs.none':    ['None', 'Nenhuma'],
+  'hrs.tapDay':  ['Tap a day for the numbers.', 'Toque num dia para ver os números.'],
+  'hrs.worked':  ['Worked', 'Trabalhou'],
+  'hrs.open':    [' (still clocked in)', ' (ainda no serviço)'],
+  'hrs.hrs':     ['hrs', 'h'],
+  'hrs.none2':   ['Nothing recorded for you yet. Hours show up here once a shift is finished and sent.',
+                  'Nada registrado ainda. As horas aparecem aqui quando um turno termina e é enviado.'],
+  'mj.money':    ['Money each day', 'Dinheiro por dia'],
+  'mj.jobs':     ['Jobs each day', 'Serviços por dia'],
+  'mj.brought':  ['you helped bring in', 'que você ajudou a trazer'],
+  'mj.wereOn':   ['jobs you were on', 'serviços que você fez'],
+  'mj.avg':      ['average job', 'média por serviço'],
+  'mj.sub':      ['Jobs your truck did, and what they came to. Wednesday to Tuesday.',
+                  'Serviços do seu caminhão, e quanto renderam. De quarta a terça.'],
+  'mj.none':     ['No jobs on the board for you this week yet.',
+                  'Nenhum serviço no seu nome nesta semana ainda.'],
+  'mj.jobs1':    ['{0} job, newest first', '{0} serviço, mais novo primeiro'],
+  'mj.jobsN':    ['{0} jobs, newest first', '{0} serviços, mais novo primeiro'],
+  'mj.customer': ['Customer', 'Cliente'],
+
+  /* the end of the day */
+  'thanks.done': ['Done for today', 'Fim do dia'],
+  'friend':      ['friend', 'amigo'],
+
+  'diag.waiting':['{0} punch(es) still on this phone.', '{0} marcação(ões) ainda neste celular.'],
+  'diag.clear':  ['Everything has been sent.', 'Tudo foi enviado.'],
+  'diag.last':   ['Last sent {0}.', 'Último envio {0}.'],
+  'diag.problem':['Last problem: {0}.', 'Último problema: {0}.'],
+  'reset.ask':   ['Ask Henrique for a new setup code, then set this phone up again.',
+                  'Peça um novo código de configuração ao Henrique e configure este celular de novo.'],
+  'reset.safe':  ['Any punches still waiting to send are safe.',
+                  'As marcações que ainda não foram enviadas estão seguras.'],
+  'bio.ask':     ['Use {0} to unlock this app instead of typing your passcode?',
+                  'Usar {0} para abrir o app em vez de digitar a senha?'],
+  'bio.onNow':   ['{0} is on. Your passcode still works as a backup.',
+                  '{0} ativado. Sua senha continua funcionando como reserva.'],
+  'bio.failed':  ["{0} didn't turn on. You can try again from the menu.",
+                  'Não deu para ativar {0}. Você pode tentar de novo pelo menu.'],
+  'out.onBrk':   ['You’re on break — clocking out ends the break and the shift. {0} on the clock so far.',
+                  'Você está em pausa — encerrar o dia termina a pausa e o turno. {0} trabalhados até agora.'],
+  'out.onNow':   ['You’ve been on the clock {0}. Clocking out ends the shift for the day.',
+                  'Você trabalhou {0}. Encerrar agora fecha o turno do dia.'],
+  'pin.ask':     ['Change your passcode?', 'Mudar sua senha?'],
+  'pin.askSub':  ['You’ll pick a new 4-digit code, and the old one stops working.',
+                  'Você vai escolher um novo código de 4 dígitos, e o antigo para de funcionar.'],
+  'enrol.bad':   ["That code didn't work. Check it with Henrique.",
+                  'Esse código não funcionou. Confira com o Henrique.'],
+  'enrol.expired':['That code has expired. Ask Henrique for a new one.',
+                  'Esse código expirou. Peça outro ao Henrique.'],
+  'enrol.tries': ['Too many tries. Wait half an hour, then try again.',
+                  'Muitas tentativas. Espere meia hora e tente de novo.'],
+  'enrol.noNet': ["Couldn't reach the office. Check your signal and try again.",
+                  'Não consegui falar com o escritório. Verifique o sinal e tente de novo.'],
+  'hrs.week':    ['The work week runs Wednesday to Tuesday.',
+                  'A semana de trabalho vai de quarta a terça.'],
+  'hrs.weekAll': ['The whole crew. The work week runs Wednesday to Tuesday.',
+                  'A equipe toda. A semana de trabalho vai de quarta a terça.'],
+  'hrs.noneAll': ['No punches recorded yet.', 'Nenhuma marcação registrada ainda.'],
+  'net.fail':    ["Couldn't load that. Check the connection, then try again.",
+                  'Não consegui carregar. Verifique a conexão e tente de novo.']
+};
+
+/* Wednesday first, matching the work week. */
+const DAYS_SHORT = { en:['W','T','F','S','S','M','T'],
+                     pt:['qua','qui','sex','sáb','dom','seg','ter'] };
+const DAYS_LONG  = { en:['Wednesday','Thursday','Friday','Saturday','Sunday','Monday','Tuesday'],
+                     pt:['Quarta','Quinta','Sexta','Sábado','Domingo','Segunda','Terça'] };
+const LOCALES = { en:'en-US', pt:'pt-BR' };
+const SPEECH  = { en:'en-US', pt:'pt-BR' };
+
+let lang = 'en';
+
+/* t('key') for a plain string, t('key', x) to fill {0}. Anything missing falls
+   back to English rather than showing a key. */
+function t(key, a, b){
+  const row = STRINGS[key];
+  if (!row) return key;
+  let out = (lang === 'pt' ? row[1] : row[0]) || row[0];
+  if (a !== undefined) out = out.split('{0}').join(a);
+  if (b !== undefined) out = out.split('{1}').join(b);
+  return out;
+}
+function langOf(){ return lang; }
+function locale(){ return LOCALES[lang] || 'en-US'; }
+
+function fmtTime(ms){
+  try { return new Date(ms).toLocaleTimeString(locale(), { hour:'numeric', minute:'2-digit' }); }
+  catch(e){ return ''; }
+}
+function fmtDay(ms){
+  try { return new Date(ms).toLocaleDateString(locale(), { weekday:'short', month:'short', day:'numeric' }); }
+  catch(e){ return ''; }
+}
+function fmtDayLong(ms){
+  try { return new Date(ms).toLocaleDateString(locale(), { weekday:'long', month:'short', day:'numeric' }); }
+  catch(e){ return ''; }
+}
+/* 'yyyy-MM-dd' as the day it names, at local midnight */
+function dayMs(iso){
+  const p = String(iso || '').split('-').map(Number);
+  if (p.length !== 3 || !p[0]) return NaN;
+  return new Date(p[0], p[1] - 1, p[2]).getTime();
+}
+/* A work week, Wednesday to Tuesday. setDate rather than adding six days of
+   milliseconds, so the week the clocks change is still seven days long. */
+function weekLabel(startIso){
+  const a = dayMs(startIso);
+  if (isNaN(a)) return '';
+  const b = new Date(a); b.setDate(b.getDate() + 6);
+  return fmtDay(a) + ' – ' + fmtDay(b.getTime());
+}
+
+/* Everything written into the markup carries its key, so a switch is one pass
+   over the document. Anything the script writes goes through t() instead. */
+function applyLang(next){
+  lang = (next === 'pt') ? 'pt' : 'en';
+  document.documentElement.lang = LOCALES[lang];
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  // a handful carry their own <i> or <em>; these are our own constants, never
+  // anything a person typed
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el){
+    el.innerHTML = t(el.getAttribute('data-i18n-html'));
+  });
+  const en = $('lgEn'), pt = $('lgPt');
+  if (en && pt){
+    en.classList.toggle('on', lang === 'en');
+    pt.classList.toggle('on', lang === 'pt');
+  }
+}
+/* The markup is handled by the pass above; these are the few labels the script
+   writes for itself and would otherwise leave in the old language. */
+function relabel(){
+  if (worker && unlocked) paint();
+  if (worker) $('menuWho').textContent = t('menu.as', worker);
+  $('mOwner').textContent = t(isOwner() ? 'menu.hours' : 'menu.myHours');
+  $('mOutLabel').textContent = t('menu.out');
+}
+
+/* His own setting, read back whenever the signed-in man changes. Cheap enough
+   to call on every paint — it only touches the document if it actually differs. */
+function loadLang(){
+  const want = acctGet('lang', 'en');
+  if (want !== lang){ applyLang(want); relabel(); }
+}
+function setLang(name){
+  acctSet({ lang: name });
+  applyLang(name);
+  relabel();
+}
+
+/* once at startup, so the switch shows the right side even in English */
+applyLang(acctGet('lang', 'en'));
+
 /* ═══════════ accounts ═══════════
    One phone, several people. Credentials are filed under each name instead of
    one flat set, so switching back to somebody who has used this phone before
@@ -957,6 +1667,7 @@ function punch(type, extra){
 }
 function clockIn(truck){
   st = { status:'in', shiftStart:Date.now(), breakStart:null, breakMs:0, breaks:0, truck: truck || '' };
+  loadSchedule();                   // his truck decides which calendar he reads
   punch('in', truck ? { truck: truck } : null);
   buzz(35);
   loadCrew();                       // find out who else picked this truck
@@ -978,6 +1689,14 @@ function endBreak(){
 /* ═══════════ trucks and crews ═══════════ */
 /* Nobody pairs anybody. Pick a truck, and whoever else picked it that day is
    your crew — the grouping does the pairing. */
+/* What this man is asked when he clocks in: nothing at all, the trucks, or the
+   trucks with the office alongside them. */
+function truckMode(name){
+  const m = (CONFIG.TRUCK_CHOICE || {})[name];
+  return (m === 'none' || m === 'office') ? m : 'trucks';
+}
+function officeName(){ return (CONFIG.OFFICE && CONFIG.OFFICE.name) || 'Office'; }
+
 function buildTrucks(){
   const box = $('truckList'); box.innerHTML = '';
   (CONFIG.TRUCKS || []).forEach(function(t){
@@ -1001,8 +1720,36 @@ function buildTrucks(){
     };
     box.appendChild(b);
   });
+
+  // a desk day, for the two who have one
+  if (truckMode(worker) === 'office'){
+    const or = document.createElement('p');
+    or.className = 'truck-or'; or.textContent = t('truck.or');
+    box.appendChild(or);
+
+    const o = document.createElement('button');
+    o.className = 'pick';
+    const line = document.createElement('span');
+    line.textContent = officeName();
+    o.appendChild(line);
+    const tag = CONFIG.OFFICE && CONFIG.OFFICE.tag;
+    if (tag){
+      const sm = document.createElement('small');
+      sm.textContent = tag;
+      o.appendChild(sm);
+    }
+    o.onclick = function(){
+      $('truckSheet').classList.remove('open');
+      clockIn(officeName());
+      paint();
+    };
+    box.appendChild(o);
+  }
 }
 function askTruck(){
+  const office = truckMode(worker) === 'office';
+  $('truckHead').textContent = t(office ? 'truck.where' : 'truck.which');
+  $('truckSub').textContent  = t(office ? 'truck.sub2' : 'truck.sub');
   buildTrucks();
   $('truckSheet').classList.add('open');
 }
@@ -1030,10 +1777,10 @@ function renderCrews(days){
     box.innerHTML = '<p class="note">Nobody has picked a truck yet.</p>';
     return;
   }
-  $('crewsSub').textContent = 'Newest first. Revenue is the jobs that crew logged that day.';
+  $('crewsSub').textContent = t('crews.sub');
   days.forEach(function(d){
     const h = document.createElement('p');
-    h.className = 'wk'; h.textContent = d.label;
+    h.className = 'wk'; h.textContent = fmtDayLong(dayMs(d.date)) || d.label;
     box.appendChild(h);
     d.trucks.forEach(function(t){
       const el = document.createElement('div'); el.className = 'row';
@@ -1053,40 +1800,170 @@ $('truckBack').onclick = closeTruck;
 $('crewsBack').onclick = function(){ $('crews').classList.remove('open'); };
 $('mCrews').onclick = async function(){
   $('menu').classList.remove('open');
-  $('crewsData').innerHTML = ''; $('crewsSub').textContent = 'Loading…';
+  $('crewsData').innerHTML = ''; $('crewsSub').textContent = t('loading');
   $('crews').classList.add('open');
   try {
     const d = await ask({ action:'crews', days:14 });
     if (!d.ok) throw new Error(d.error || 'failed');
     renderCrews(d.days || []);
-  } catch(e){ $('crewsSub').textContent = "Couldn't load the trucks. Check the connection, then try again."; }
+  } catch(e){ $('crewsSub').textContent = t('crews.fail'); }
+};
+
+/* ═══════════ what's next ═══════════
+   The round comes off the company calendar by way of the script — no phone ever
+   signs in to Google. Silent when there is nothing booked or no signal: an empty
+   clock screen is better than an error a man can do nothing about. */
+let schedule = { jobs: [], today: true, at: 0 };
+
+function mapsHref(where){
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(where);
+}
+
+/* Google Maps opens its own app when it is installed and the browser otherwise,
+   which is the behaviour a man wants without being asked which he prefers. */
+function openMaps(where){
+  if (!where) return;
+  window.open(mapsHref(where), '_blank', 'noopener');
+}
+
+function whenLabel(j){
+  if (j.allDay) return t('next.label');
+  const now = Date.now();
+  if (j.startMs <= now && j.endMs > now) return t('next.now');
+  if (!schedule.today) return t('next.tomorrow');
+  return fmtTime(j.startMs) || j.when;
+}
+
+function paintNext(){
+  const card = $('nextJob');
+  const j = schedule.jobs[0];
+  if (!j || isTest()){ card.hidden = true; return; }
+  card.hidden = false;
+  $('nextWhen').textContent = whenLabel(j);
+  $('nextTitle').textContent = j.title;
+  $('nextWhere').textContent = j.where || t('next.noAddr');
+  const go = $('nextGo');
+  go.classList.toggle('off', !j.where);
+  go.setAttribute('aria-disabled', j.where ? 'false' : 'true');
+}
+
+async function loadSchedule(){
+  if (isTest() || !worker) return;
+  try {
+    const d = await ask({ action:'schedule', truck: st.truck || '' });
+    if (!d || !d.ok) return;                 // no calendar set up: say nothing
+    schedule = { jobs: d.jobs || [], today: d.today !== false,
+                 merged: !!d.merged, truck: d.truck || '', at: Date.now() };
+    paintNext();
+  } catch(e){ /* no signal; whatever was last known stays on screen */ }
+}
+
+function renderSchedule(){
+  const box = $('schedList'); box.innerHTML = '';
+  $('schedTitle').textContent = t(schedule.today ? 'sched.title' : 'sched.ahead');
+  if (!schedule.jobs.length){
+    $('schedSub').textContent = '';
+    const p = document.createElement('p'); p.className = 'note';
+    p.textContent = t('sched.none');
+    box.appendChild(p);
+    return;
+  }
+  const dayText = fmtDay(schedule.jobs[0].startMs) || schedule.jobs[0].day || '';
+  $('schedSub').textContent = schedule.merged
+    ? dayText + '  ·  ' + t('sched.all')
+    : (schedule.truck ? dayText + '  ·  ' + schedule.truck : dayText);
+  const now = Date.now();
+  schedule.jobs.forEach(function(j){
+    const row = document.createElement('div');
+    row.className = 'job-card' + (j.startMs <= now && j.endMs > now ? ' on-now' : '');
+
+    const when = document.createElement('div');
+    when.className = 'when';
+    when.textContent = j.allDay ? '—'
+      : (j.startMs <= now && j.endMs > now ? t('next.now') : (fmtTime(j.startMs) || j.when));
+
+    const what = document.createElement('div');
+    what.className = 'what';
+    const b = document.createElement('b'); b.textContent = j.title;
+    const sp = document.createElement('span');
+    sp.textContent = (schedule.merged && j.truck ? j.truck + '  ·  ' : '') +
+                     (j.where || t('next.noAddr'));
+    what.appendChild(b); what.appendChild(sp);
+
+    row.appendChild(when); row.appendChild(what);
+
+    if (j.where){
+      const go = document.createElement('button');
+      go.type = 'button'; go.className = 'next-go';
+      go.setAttribute('aria-label', t('next.maps'));
+      go.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.3 7-11.4A7 7 0 0 0 5 9.6C5 14.7 12 21 12 21z"/><circle cx="12" cy="9.6" r="2.6"/></svg>';
+      go.onclick = function(e){ e.stopPropagation(); openMaps(j.where); buzz(12); };
+      row.appendChild(go);
+    }
+    box.appendChild(row);
+  });
+}
+
+function openSchedule(){ renderSchedule(); $('schedule').classList.add('open'); }
+function closeSchedule(){ $('schedule').classList.remove('open'); }
+
+$('schedBack').onclick = closeSchedule;
+$('nextJob').onclick = function(e){
+  // the pin is its own action; the rest of the card opens the day
+  if ($('nextGo').contains(e.target)){
+    const j = schedule.jobs[0];
+    if (j && j.where){ openMaps(j.where); buzz(12); }
+    return;
+  }
+  openSchedule();
 };
 
 /* ═══════════ the thank-you ═══════════ */
 /* Said differently each time so it doesn't wear thin by Wednesday. It changes
    nothing and clears nothing — the shift is already recorded by the time this
    appears, and the man is still signed in behind it. */
-const THANKS_LINES = [
-  'Thanks, {name}.',
-  'Good work today, {name}.',
-  "That's the day done, {name}.",
-  'Nice work out there, {name}.',
-  'Appreciate you, {name}.',
-  'Thanks for today, {name}.'
-];
-const THANKS_SUBS = [
-  '{h} on the clock. Get home safe.',
-  '{h} today. Go put your feet up.',
-  '{h} in the books. Enjoy your evening.',
-  '{h} done. Rest up.',
-  '{h} today, and every minute of it counted.'
-];
+const THANKS_LINES = {
+  en: [
+    'Thanks, {name}.',
+    'Good work today, {name}.',
+    "That's the day done, {name}.",
+    'Nice work out there, {name}.',
+    'Appreciate you, {name}.',
+    'Thanks for today, {name}.'
+  ],
+  pt: [
+    'Valeu, {name}.',
+    'Bom trabalho hoje, {name}.',
+    'Dia encerrado, {name}.',
+    'Mandou bem hoje, {name}.',
+    'Obrigado por tudo, {name}.',
+    'Valeu pelo dia, {name}.'
+  ]
+};
+const THANKS_SUBS = {
+  en: [
+    '{h} on the clock. Get home safe.',
+    '{h} today. Go put your feet up.',
+    '{h} in the books. Enjoy your evening.',
+    '{h} done. Rest up.',
+    '{h} today, and every minute of it counted.'
+  ],
+  pt: [
+    '{h} de serviço. Chegue bem em casa.',
+    '{h} hoje. Vá descansar.',
+    '{h} registradas. Boa noite.',
+    '{h} feitas. Descanse.',
+    '{h} hoje, e cada minuto valeu.'
+  ]
+};
 let thanksTimer = null;
 
 function showThanks(ms){
   const pick = function(a){ return a[Math.floor(Math.random() * a.length)]; };
-  $('thanksLine').textContent = pick(THANKS_LINES).split('{name}').join(worker || 'friend');
-  $('thanksSub').textContent  = pick(THANKS_SUBS).split('{h}').join(human(ms || 0));
+  const L = THANKS_LINES[langOf()] || THANKS_LINES.en;
+  const S = THANKS_SUBS[langOf()]  || THANKS_SUBS.en;
+  $('thanksLine').textContent = pick(L).split('{name}').join(worker || t('friend'));
+  $('thanksSub').textContent  = pick(S).split('{h}').join(human(ms || 0));
   $('thanks').classList.add('open');
   clearTimeout(thanksTimer);
   thanksTimer = setTimeout(closeThanks, 14000);   // it lets itself out
@@ -1140,9 +2017,9 @@ function setBack(overlayId, btnId, label, on){
 }
 
 function statusLine(){
-  if (st.status === 'in')    return 'On the clock right now';
-  if (st.status === 'break') return 'On break right now';
-  return 'Enter your passcode';
+  if (st.status === 'in')    return t('lock.onNow');
+  if (st.status === 'break') return t('lock.brkNow');
+  return t('lock.enter');
 }
 
 function buildKeys(){
@@ -1155,7 +2032,7 @@ function buildKeys(){
         b.onclick = tryBio;
       } else { b.className = 'key blank'; b.disabled = true; }
     } else if (k === 'B'){
-      b.className = 'key util'; b.textContent = 'Delete';
+      b.className = 'key util'; b.textContent = t('lock.delete');
       b.onclick = function(){ if (entry){ entry = entry.slice(0,-1); pips(); buzz(12); } };
     } else {
       b.className = 'key'; b.textContent = k;
@@ -1184,11 +2061,11 @@ async function tap(d){
 
   if (pinMode === 'new'){
     firstEntry = code; entry = ''; pips();
-    $('lockHint').textContent = 'Enter it once more';
+    $('lockHint').textContent = t('lock.again');
     pinMode = 'confirm'; return;
   }
   if (pinMode === 'confirm'){
-    if (code !== firstEntry){ pinMode = 'new'; firstEntry = ''; reject('Those did not match. Start again'); return; }
+    if (code !== firstEntry){ pinMode = 'new'; firstEntry = ''; reject(t('lock.noMatch')); return; }
     await setPin(code);
     pinMode = null; entry = ''; pinChanging = false;
     unlock();
@@ -1198,7 +2075,7 @@ async function tap(d){
   if (await checkPin(code)){ fails = 0; $('reset').hidden = true; unlock(); }
   else {
     fails++;
-    reject(fails >= 3 ? 'Wrong passcode. ' + (5 - fails > 0 ? (5 - fails) + ' tries left' : '') : 'Wrong passcode');
+    reject(fails >= 3 && 5 - fails > 0 ? t('lock.wrongN', 5 - fails) : t('lock.wrong'));
     if (fails >= 5) $('reset').hidden = false;
   }
 }
@@ -1208,8 +2085,7 @@ async function tap(d){
    those is a master key sitting in the page source for anyone to read.
    Unsent punches survive the reset and upload once the phone is set up. */
 $('reset').onclick = function(){
-  if (!confirm('Ask Henrique for a new setup code, then set this phone up again.\n\n' +
-               'Any punches still waiting to send are safe.')) return;
+  if (!confirm(t('reset.ask') + '\n\n' + t('reset.safe'))) return;
   acctDel(worker);
   fails = 0; $('reset').hidden = true;
   $('lockScreen').classList.remove('open');
@@ -1217,18 +2093,20 @@ $('reset').onclick = function(){
 };
 
 async function tryBio(){
-  $('lockHint').textContent = 'Waiting for ' + BIO + '…';
+  $('lockHint').textContent = t('lock.wait', BIO);
   try { await bioUnlock(); unlock(); }
-  catch(e){ $('lockHint').textContent = 'Enter your passcode'; }
+  catch(e){ $('lockHint').textContent = t('lock.enter'); }
 }
 
 /* skipBio: a deliberate log out must not immediately offer Face ID and let the
    same person straight back in. Auto-locking still does. */
 function lock(skipBio){
   if (!worker) return;
+  loadLang();                      // his language, not whoever was here before
   unlocked = false; entry = ''; pinMode = null; pinChanging = false;
-  setBack('lockScreen', 'lockBack', 'Go back', true);
-  closeOut(); closeTrack(); closeThanks(); closeTruck();   // no sheet over the lock screen
+  setBack('lockScreen', 'lockBack', t('back'), true);
+  closeOut(); closeTrack(); closeThanks(); closeTruck(); closeReview(); closeSchedule();   // no sheet over the lock screen
+  $('myjobs').classList.remove('open');
   document.body.classList.add('locked'); mirrorRoot();
   $('lockName').textContent = worker;
   $('lockHint').textContent = statusLine();
@@ -1237,13 +2115,14 @@ function lock(skipBio){
   if (!skipBio && bioReady && acctGet('bio', null)) setTimeout(tryBio, 260);
 }
 function askNewPin(changing){
+  loadLang();
   unlocked = false; entry = ''; firstEntry = ''; pinMode = 'new';
   pinChanging = !!changing;
-  setBack('lockScreen', 'lockBack', 'Cancel', pinChanging);
+  setBack('lockScreen', 'lockBack', t('cancel'), pinChanging);
   $('reset').hidden = true;
   document.body.classList.add('locked'); mirrorRoot();
   $('lockName').textContent = worker;
-  $('lockHint').textContent = 'Pick a 4-digit passcode';
+  $('lockHint').textContent = t('lock.pick');
   $('lockScreen').classList.add('open');
   pips(); buildKeys();
 }
@@ -1253,12 +2132,12 @@ function unlock(){
   DB.set('jh.loggedOut', false);      // whatever made us lock, it's answered now
   document.body.classList.remove('locked'); mirrorRoot();
   $('lockScreen').classList.remove('open');
-  paint(); sync();
+  paint(); sync(); loadSchedule();
 }
 async function offerBio(){
-  if (!confirm('Use ' + BIO + ' to unlock this app instead of typing your passcode?')) return;
-  try { await bioEnroll(); alert(BIO + ' is on. Your passcode still works as a backup.'); }
-  catch(e){ alert(BIO + " didn't turn on. You can try again from the menu."); }
+  if (!confirm(t('bio.ask', BIO))) return;
+  try { await bioEnroll(); alert(t('bio.onNow', BIO)); }
+  catch(e){ alert(t('bio.failed', BIO)); }
 }
 
 /* ═══════════ render ═══════════ */
@@ -1282,6 +2161,7 @@ sheets.forEach(function(s){
 syncSheets();
 function paint(){
   if (!worker || !unlocked) return;
+  loadLang();
   document.body.dataset.state = st.status;
   mirrorRoot();
   $('whoName').textContent = worker;
@@ -1291,39 +2171,48 @@ function paint(){
 
   const main = $('main'), brk = $('brk');
   if (st.status === 'out'){
-    main.textContent = 'Clock in'; main.classList.remove('stop');
+    main.textContent = t('clock.in'); main.classList.remove('stop');
     brk.classList.add('ghost');
-    $('caption').textContent = 'Tap the button when you get to the job.';
+    $('caption').textContent = t('clock.tap');
   } else {
-    main.textContent = 'Clock out'; main.classList.add('stop');
+    main.textContent = t('clock.out'); main.classList.add('stop');
     brk.classList.remove('ghost');
     brk.innerHTML = st.status === 'break'
-      ? ICON_PLAY  + '<span>Back to work</span>'
-      : ICON_PAUSE + '<span>Start break</span>';
+      ? ICON_PLAY  + '<span>' + t('brk.end') + '</span>'
+      : ICON_PAUSE + '<span>' + t('brk.start') + '</span>';
     $('caption').textContent = st.status === 'break'
-      ? 'On break. The clock is paused.'
-      : 'On the clock' + (st.breaks ? ', ' + human(st.breakMs) + ' of breaks so far' : '');
+      ? t('clock.brk')
+      : (st.breaks ? t('clock.onbrk', human(st.breakMs)) : t('clock.on'));
   }
 
   const chip = $('truckChip');
   if (st.status !== 'out' && st.truck){
     chip.hidden = false;
+    const desk = st.truck === officeName();
+    // an svg has no .hidden property of its own — set the attribute
+    $('chipTruck').toggleAttribute('hidden', desk);
+    $('chipDesk').toggleAttribute('hidden', !desk);
     $('truckName').textContent = st.truck;
     const mates = st.mates || [];
     $('truckMates').textContent = mates.length
-      ? '  with ' + (mates.length > 1
-          ? mates.slice(0, -1).join(', ') + ' and ' + mates[mates.length - 1]
+      ? t('truck.with', mates.length > 1
+          ? mates.slice(0, -1).join(', ') + ' ' + t('and') + ' ' + mates[mates.length - 1]
           : mates[0])
       : '';
   } else chip.hidden = true;
 
-  const dot = $('dot'), txt = $('syncTxt');
-  if (queue.length){ dot.className = 'dot warn'; txt.textContent = queue.length + ' waiting to send'; }
-  else if (!navigator.onLine){ dot.className = 'dot off'; txt.textContent = 'Offline'; }
-  else { dot.className = 'dot'; txt.textContent = 'Sent'; }
+  // Reviews are gathered on the doorstep, so this is the crew's button. Andy
+  // is not on a job, and the two owners have the whole sheet in front of them.
+  $('review').hidden = isOwner() || isJobAdmin();
+  paintNext();
 
-  if (st.status === 'out' && st.last) $('foot').textContent = 'Last shift: ' + human(st.last) + '.';
-  else if (st.status !== 'out' && st.breaks) $('foot').textContent = st.breaks + (st.breaks===1?' break':' breaks') + ' today.';
+  const dot = $('dot'), txt = $('syncTxt');
+  if (queue.length){ dot.className = 'dot warn'; txt.textContent = t('sync.queue', queue.length); }
+  else if (!navigator.onLine){ dot.className = 'dot off'; txt.textContent = t('sync.off'); }
+  else { dot.className = 'dot'; txt.textContent = t('sync.sent'); }
+
+  if (st.status === 'out' && st.last) $('foot').textContent = t('foot.last', human(st.last));
+  else if (st.status !== 'out' && st.breaks) $('foot').textContent = t(st.breaks === 1 ? 'foot.brk1' : 'foot.brkN', st.breaks);
   else $('foot').textContent = '';
 
   stamp();
@@ -1333,8 +2222,8 @@ function paint(){
 function stamp(){
   const d = new Date();
   $('now').textContent =
-    d.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' }) + ' · ' +
-    d.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+    d.toLocaleDateString(LOCALES[langOf()], { weekday:'short', month:'short', day:'numeric' }) + ' · ' +
+    d.toLocaleTimeString(LOCALES[langOf()], { hour:'numeric', minute:'2-digit' });
 }
 function tick(){
   if (st.status === 'out'){ $('clock').textContent = st.last ? human(st.last) : '0:00'; return; }
@@ -1360,20 +2249,18 @@ let outTimer = null;
 function closeOut(){
   clearInterval(outTimer); outTimer = null;
   $('confirmOut').classList.remove('open');
-  $('cNo').textContent = 'Never mind';
+  $('cNo').textContent = t('out.no');
 }
 function askClockOut(){
   const worked = Date.now() - st.shiftStart - st.breakMs -
                  (st.status === 'break' ? Date.now() - st.breakStart : 0);
-  $('confirmSub').textContent = st.status === 'break'
-    ? "You're on break — clocking out ends the break and the shift. " + human(worked) + ' on the clock so far.'
-    : "You've been on the clock " + human(worked) + '. Clocking out ends the shift for the day.';
+  $('confirmSub').textContent = t(st.status === 'break' ? 'out.onBrk' : 'out.onNow', human(worked));
   $('cBreak').hidden = st.status === 'break';
   $('confirmOut').classList.add('open');
 
   let left = OUT_SECONDS;
   const draw = function(){
-    $('cNo').innerHTML = 'Never mind<small>Going back in ' + left + 's</small>';
+    $('cNo').innerHTML = t('out.noIn', left);
   };
   draw();
   clearInterval(outTimer);
@@ -1384,8 +2271,9 @@ function askClockOut(){
 }
 $('main').onclick = function(){
   if (st.status === 'out'){
-    // pick the truck first; clockIn happens once one is chosen
-    if (CONFIG.TRUCKS && CONFIG.TRUCKS.length) askTruck();
+    // pick the truck first; clockIn happens once one is chosen. Andy is never
+    // on one, so his tap starts the clock straight away.
+    if (truckMode(worker) !== 'none' && CONFIG.TRUCKS && CONFIG.TRUCKS.length) askTruck();
     else { clockIn(); paint(); }
   }
   else askClockOut();
@@ -1402,24 +2290,25 @@ $('cBreak').onclick = function(){ closeOut(); startBreak(); paint(); };
 
 $('who').onclick = function(){
   disarmLogout();
-  $('menuWho').textContent = 'Signed in as ' + worker + '.';
+  applyTheme(DB.get('jh.theme', 'dark'));
+  loadLang();
+  $('menuWho').textContent = t('menu.as', worker);
   const bioBtn = $('mBio');
   if (bioReady){
     bioBtn.hidden = false;
     bioBtn.innerHTML = acctGet('bio', null)
-      ? 'Turn off ' + BIO + '<small>Passcode only from then on</small>'
-      : 'Turn on ' + BIO + '<small>Skip typing the passcode</small>';
+      ? t('bio.off', BIO) : t('bio.on', BIO);
   } else bioBtn.hidden = true;
   // Everybody can see their own hours; only a full admin sees the crew's.
-  $('mOwner').textContent = isOwner() ? 'Hours' : 'My hours';
+  $('mOwner').textContent = t(isOwner() ? 'menu.hours' : 'menu.myHours');
   $('mWork').hidden  = !isOwner() && !isJobAdmin();
   $('mCrews').hidden = !isOwner() && !isJobAdmin();
 
   const err = DB.get('jh.err', null), last = DB.get('jh.lastSync', null);
   $('diag').textContent =
-    (queue.length ? queue.length + ' punch(es) still on this phone. ' : 'Everything has been sent. ') +
-    (last ? 'Last sent ' + new Date(last).toLocaleString() + '. ' : '') +
-    (err ? 'Last problem: ' + err + '.' : '');
+    (queue.length ? t('diag.waiting', queue.length) : t('diag.clear')) + ' ' +
+    (last ? t('diag.last', new Date(last).toLocaleString(LOCALES[langOf()])) + ' ' : '') +
+    (err ? t('diag.problem', err) : '');
   $('menu').classList.add('open');
 };
 /* This was two buttons that both shut the menu. Merged — going back to the
@@ -1431,9 +2320,14 @@ $('mBio').onclick   = async function(){
   if (acctGet('bio', null)){ acctSet({ bio: null }); alert(BIO + ' is off. Use your passcode from now on.'); }
   else await offerBio();
 };
+$('lgEn').onclick = function(){ setLang('en'); buzz(12); };
+$('lgPt').onclick = function(){ setLang('pt'); buzz(12); };
+
+$('thDark').onclick  = function(){ setTheme('dark'); buzz(12); };
+$('thLight').onclick = function(){ setTheme('light'); buzz(12); };
+
 $('mPin').onclick = function(){
-  if (!confirm('Change your passcode?\n\n' +
-               "You'll pick a new 4-digit code, and the old one stops working.")) return;
+  if (!confirm(t('pin.ask') + '\n\n' + t('pin.askSub'))) return;
   $('menu').classList.remove('open');
   askNewPin(true);
 };
@@ -1457,7 +2351,7 @@ $('setupBack').onclick = function(){
   if (!pickerReturn) return;
   worker = pickerReturn; DB.set('jh.worker', worker);
   pickerReturn = null;
-  setBack('setup', 'setupBack', 'Go back', false);
+  setBack('setup', 'setupBack', t('back'), false);
   $('setup').classList.remove('open');
   unlock();
 };
@@ -1469,12 +2363,12 @@ let logoutArmed = null;
 function disarmLogout(){
   clearTimeout(logoutArmed); logoutArmed = null;
   $('mOut').classList.remove('armed');
-  $('mOutLabel').textContent = 'Log out';
+  $('mOutLabel').textContent = t('menu.out');
 }
 $('mOut').onclick = function(){
   if (!logoutArmed){
     this.classList.add('armed');
-    $('mOutLabel').textContent = 'Tap again to log out';
+    $('mOutLabel').textContent = t('menu.outAgain');
     buzz(12);
     logoutArmed = setTimeout(disarmLogout, 5000);
     return;
@@ -1487,13 +2381,11 @@ $('mOut').onclick = function(){
   lock(true);           // straight to the passcode, no Face ID shortcut
 };
 $('mSwitch').onclick = function(){
-  if (st.status !== 'out'){ alert('Clock out first, then switch.'); return; }
+  if (st.status !== 'out'){ alert(t('switch.first')); return; }
   /* Punches upload under whoever's token sends them, so anything still queued
      would land on the next man's timesheet. Send them first. */
   if (queue.length){
-    alert(queue.length + " of " + worker + "'s punches haven't been sent yet.\n\n" +
-          'Get a bar of signal and tap "Go to clock" to send them, then switch. ' +
-          "Otherwise they'd be recorded under the new name.");
+    alert(t('switch.queued', queue.length, worker) + '\n\n' + t('switch.send'));
     sync();
     return;
   }
@@ -1536,7 +2428,7 @@ function buildSetup(){
       b.onclick = function(){
         worker = n; DB.set('jh.worker', n);
         pickerReturn = null;
-        setBack('setup', 'setupBack', 'Go back', false);
+        setBack('setup', 'setupBack', t('back'), false);
         $('setup').classList.remove('open');
         /* Somebody who has used this phone before just needs his passcode.
            The setup code is only for a name that has never been on it. */
@@ -1548,8 +2440,8 @@ function buildSetup(){
       row.appendChild(b);
     });
   });
-  const t = CONFIG.TEST_USER;
-  if (t && t.name){
+  const tester = CONFIG.TEST_USER;
+  if (tester && tester.name){
     const sep = document.createElement('div');
     sep.className = 'test-sep';
     box.appendChild(sep);
@@ -1557,24 +2449,24 @@ function buildSetup(){
     const b = document.createElement('button');
     b.className = 'pick test-user';
     const line = document.createElement('span');
-    line.textContent = t.name;
+    line.textContent = tester.name;
     const sm = document.createElement('small');
-    sm.textContent = 'A look round. Nothing is recorded.';
+    sm.textContent = t('who.test');
     b.appendChild(line); b.appendChild(sm);
     b.onclick = async function(){
-      worker = t.name; DB.set('jh.worker', t.name);
+      worker = tester.name; DB.set('jh.worker', tester.name);
       pickerReturn = null;
-      setBack('setup', 'setupBack', 'Go back', false);
+      setBack('setup', 'setupBack', t('back'), false);
       // no code to type for: it sets itself up, crew level, and stays local
       acctSet({ token: 'local-sandbox', role: 'crew', test: true });
-      await setPin(t.pin);          // re-asserted every time, so it never drifts
+      await setPin(tester.pin);     // re-asserted every time, so it never drifts
       $('setup').classList.remove('open');
       lock();
     };
     box.appendChild(b);
   }
 
-  setBack('setup', 'setupBack', 'Go back', !!pickerReturn && unlocked);
+  setBack('setup', 'setupBack', t('back'), !!pickerReturn && unlocked);
   $('setup').classList.add('open');
   $('lockScreen').classList.remove('open');
 }
@@ -1587,7 +2479,7 @@ function needsEnrol(){
   unlocked = false;
   document.body.classList.add('locked'); mirrorRoot();
   $('lockScreen').classList.remove('open');
-  $('enrolTitle').textContent = worker ? 'Set up ' + worker + "'s phone" : 'Set up this phone';
+  $('enrolTitle').textContent = worker ? t('enrol.titleN', worker) : t('enrol.title');
   $('enrolCode').value = '';
   $('enrolCode').classList.remove('bad');
   $('enrolErr').hidden = true;
@@ -1604,16 +2496,16 @@ $('enrolGo').onclick = async function(){
   const code = $('enrolCode').value.trim();
   $('enrolCode').classList.remove('bad');
   if (!code){
-    $('enrolErr').textContent = 'Type the code you were given.';
+    $('enrolErr').textContent = t('enrol.typeit');
     $('enrolErr').hidden = false; $('enrolCode').classList.add('bad'); $('enrolCode').focus();
     return;
   }
   if (!CONFIG.ENDPOINT || CONFIG.ENDPOINT.indexOf('PASTE') === 0){
-    $('enrolErr').textContent = 'This app has not been pointed at the spreadsheet yet. Tell Henrique.';
+    $('enrolErr').textContent = t('enrol.nocfg');
     $('enrolErr').hidden = false; return;
   }
 
-  this.disabled = true; this.textContent = 'Checking…';
+  this.disabled = true; this.textContent = t('enrol.check');
   try {
     const r = await fetch(CONFIG.ENDPOINT, {
       method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
@@ -1630,14 +2522,14 @@ $('enrolGo').onclick = async function(){
   } catch(e){
     const msg = String(e.message || e);
     $('enrolErr').textContent =
-      msg === 'bad code'  ? "That code didn't work. Check it with Henrique." :
-      /expired/.test(msg) ? 'That code has expired. Ask Henrique for a new one.' :
-      /too many/.test(msg)? 'Too many tries. Wait half an hour, then try again.' :
-                            "Couldn't reach the office. Check your signal and try again.";
+      msg === 'bad code'  ? t('enrol.bad') :
+      /expired/.test(msg) ? t('enrol.expired') :
+      /too many/.test(msg)? t('enrol.tries') :
+                            t('enrol.noNet');
     $('enrolErr').hidden = false;
     $('enrolCode').classList.add('bad');
   }
-  this.disabled = false; this.textContent = 'Set up this phone';
+  this.disabled = false; this.textContent = t('enrol.go');
 };
 
 /* ═══════════ speech ═══════════ */
@@ -1751,15 +2643,24 @@ function payMark(ch){
          '<text x="12" y="16.4" text-anchor="middle" font-size="11" font-weight="700">' + ch + '</text>';
 }
 const PAYMENTS = [
-  { id:'card',    label:'Card',     icon:'<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/>' },
-  { id:'cash',    label:'Cash',     icon:'<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.7"/>' },
-  { id:'check',   label:'Check',    icon:'<rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M6 10.5h8M6 14h5"/>' },
+  { id:'card',    label:'pay.card', icon:'<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/>' },
+  { id:'cash',    label:'pay.cash', icon:'<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.7"/>' },
+  { id:'check',   label:'pay.check', icon:'<rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M6 10.5h8M6 14h5"/>' },
   { id:'venmo',   label:'Venmo',    icon:payMark('V') },
   { id:'zelle',   label:'Zelle',    icon:payMark('Z') },
   { id:'cashapp', label:'Cash App', icon:payMark('$') }
 ];
 
+/* Where a review can land. More than one is normal — a happy customer often
+   leaves the same words in two places. */
+const PLATFORMS = [
+  { id:'google',   label:'Google',   icon:payMark('G') },
+  { id:'yelp',     label:'Yelp',     icon:payMark('Y') },
+  { id:'facebook', label:'Facebook', icon:payMark('f') }
+];
+
 let trkKind = null, trkPay = null, toastTimer = null;
+let revPlats = [];
 
 function toast(msg){
   const t = $('toast');
@@ -1775,7 +2676,8 @@ function buildPays(){
     b.type = 'button'; b.className = 'pay';
     b.setAttribute('data-pay', p.id);
     b.setAttribute('aria-pressed', 'false');
-    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + p.icon + '</svg><span>' + p.label + '</span>';
+    const label = STRINGS[p.label] ? t(p.label) : p.label;   // brands keep their names
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + p.icon + '</svg><span>' + label + '</span>';
     b.onclick = function(){
       trkPay = p.id;
       box.classList.remove('bad');
@@ -1790,11 +2692,49 @@ function buildPays(){
   });
 }
 
+/* Unlike paying, which happens one way, a review can be in two places at once —
+   so these toggle rather than replace one another. */
+function buildPlats(){
+  const box = $('plats'); box.innerHTML = ''; revPlats = [];
+  PLATFORMS.forEach(function(p){
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'pay';
+    b.setAttribute('data-plat', p.id);
+    b.setAttribute('aria-pressed', 'false');
+    const label = STRINGS[p.label] ? t(p.label) : p.label;   // brands keep their names
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + p.icon + '</svg><span>' + label + '</span>';
+    b.onclick = function(){
+      const at = revPlats.indexOf(p.id);
+      if (at === -1) revPlats.push(p.id); else revPlats.splice(at, 1);
+      const on = at === -1;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      $('plats').classList.remove('bad');
+      buzz(12);
+    };
+    box.appendChild(b);
+  });
+}
+
+function openReview(){
+  micStop();
+  micTarget = MIC_TARGETS.review;
+  const canHear = micSupported();
+  $('revSay').toggleAttribute('hidden', !canHear);
+  $('revSayHint').toggleAttribute('hidden', !canHear);
+  micIdle();
+  ['rFirst','rLast'].forEach(function(id){ $(id).value = ''; $(id).classList.remove('bad'); });
+  buildPlats();
+  $('revHeard').hidden = true;
+  $('revErr').hidden = true;
+  $('reviewSheet').classList.add('open');
+  $('reviewSheet').scrollTop = 0;
+}
+function closeReview(){ micStop(); $('reviewSheet').classList.remove('open'); }
+
 function openTrack(){
   micStop();
-  const canHear = micSupported();
-  $('trkSay').toggleAttribute('hidden', !canHear);
-  $('trkSayHint').toggleAttribute('hidden', !canHear);   // the caption goes with it
+  micTarget = MIC_TARGETS.track;
   $('trkForm').hidden = true;
   $('trkPick').hidden = false;
   $('trackSheet').classList.add('open');
@@ -1804,9 +2744,16 @@ function closeTrack(){ micStop(); $('trackSheet').classList.remove('open'); }
 function startTrack(kind){
   trkKind = kind;
   const job = kind === 'job';
-  $('trkTitle').textContent = job ? 'Completed job' : 'Quote given';
-  $('fValueLabel').textContent = job ? 'Job total' : 'Quote total';
-  $('trkSave').textContent = job ? 'Save job' : 'Save quote';
+  $('trkTitle').textContent = t(job ? 'trk.job' : 'trk.quoteT');
+  $('fValueLabel').textContent = t(job ? 'f.jobTotal' : 'f.quoteTotal');
+  $('trkSave').textContent = t(job ? 'trk.saveJob' : 'trk.saveQt');
+  // The mic lives on the form now, so by the time it is tapped the kind is
+  // already chosen — there is nothing left for it to get wrong.
+  const canHear = micSupported();
+  $('trkSay').toggleAttribute('hidden', !canHear);
+  $('trkSayHint').toggleAttribute('hidden', !canHear);
+  micTarget = MIC_TARGETS.track;
+  micIdle();
   $('fPayWrap').hidden   = !job;
   $('fNotesWrap').hidden = job;
   ['fFirst','fLast','fTown','fValue','fNotes'].forEach(function(id){
@@ -1826,6 +2773,36 @@ function trkFail(msg, el){
   if (el){ el.classList.add('bad'); el.focus(); }
 }
 
+$('review').onclick     = openReview;
+$('revBackTop').onclick = closeReview;
+$('revCancel').onclick  = closeReview;
+
+$('revForm').onsubmit = function(e){
+  e.preventDefault();
+  const first = $('rFirst').value.trim();
+  $('rFirst').classList.remove('bad');
+  $('plats').classList.remove('bad');
+
+  if (!first){
+    $('revErr').textContent = t('err.first');
+    $('revErr').hidden = false;
+    $('rFirst').classList.add('bad'); $('rFirst').focus();
+    return;
+  }
+  if (!revPlats.length){
+    $('revErr').textContent = t('err.revWhere');
+    $('revErr').hidden = false;
+    $('plats').classList.add('bad');
+    $('plats').scrollIntoView({ block:'center' });
+    return;
+  }
+
+  punch('review', { first: first, last: $('rLast').value.trim(), platforms: revPlats.slice() });
+  buzz(35);
+  closeReview();
+  toast(t('saved.rev', first));
+};
+
 $('track').onclick      = openTrack;
 $('trkBackTop').onclick = closeTrack;   // straight out to the clock from either step
 $('trkJobBtn').onclick  = function(){ startTrack('job'); };
@@ -1843,12 +2820,12 @@ $('trkForm').onsubmit = function(e){
   $('pays').classList.remove('bad');
   const job = trkKind === 'job';
 
-  if (!first) return trkFail('A first name is needed.', $('fFirst'));
-  if (!town)  return trkFail('Which town or city was this in?', $('fTown'));
+  if (!first) return trkFail(t('err.first'), $('fFirst'));
+  if (!town)  return trkFail(t('err.town'), $('fTown'));
   if (!raw || isNaN(amount) || amount <= 0)
-    return trkFail(job ? 'How much was the job?' : 'How much did you quote?', $('fValue'));
+    return trkFail(t(job ? 'err.jobAmt' : 'err.qtAmt'), $('fValue'));
   if (job && !trkPay){
-    $('trkErr').textContent = 'Tap how they paid.';
+    $('trkErr').textContent = t('err.pay');
     $('trkErr').hidden = false;
     $('pays').classList.add('bad');
     $('pays').scrollIntoView({ block:'center' });
@@ -1863,7 +2840,7 @@ $('trkForm').onsubmit = function(e){
   punch(trkKind, rec);
   buzz(35);
   closeTrack();
-  toast((job ? 'Job saved for ' : 'Quote saved for ') + first + '.');
+  toast(t(job ? 'saved.job' : 'saved.quote', first));
 };
 
 /* MIC-START */
@@ -1884,11 +2861,28 @@ function micSupported(){
   return !!SR && window.isSecureContext;
 }
 
+/* Which sheet is listening. The speech itself is the same either way — only the
+   button that lights up and what happens to the words afterwards change. Keeping
+   one copy of this matters: it took three goes to get the stop-versus-abort
+   behaviour right, and a second copy would drift from it. */
+const MIC_TARGETS = {
+  track: { btn:'trkSay', label:'traySayLabel', hint:'trkSayHint',
+           example: function(){ return t(trkKind === 'quote' ? 'say.egQuote' : 'say.egJob'); },
+           use: function(said){ readIt(said); } },
+  review:{ btn:'revSay', label:'revSayLabel', hint:'revSayHint',
+           example: function(){ return t('say.egRev'); },
+           use: function(said){ readReview(said); } }
+};
+let micTarget = MIC_TARGETS.track;
+function micBtn(){   return $(micTarget.btn); }
+function micLabel(){ return $(micTarget.label); }
+function micHint(){  return $(micTarget.hint); }
+
 function micIdle(){
   listening = false;
-  $('trkSay').classList.remove('hot');
-  $('traySayLabel').textContent = 'Say it instead';
-  $('trkSayHint').textContent = '“Finished Anna in Peabody, she paid $500 on Venmo”';
+  micBtn().classList.remove('hot');
+  micLabel().textContent = t('say.it');
+  micHint().textContent = micTarget.example();
 }
 
 /* Walk away from it: whatever was said is dropped. Used when a sheet closes. */
@@ -1905,7 +2899,7 @@ function micStop(){
 
 function micFail(msg){
   micStop();
-  $('trkSayHint').textContent = msg;
+  micHint().textContent = msg;
 }
 
 /* Use what was heard. Guarded so the browser calling back late can't run it a
@@ -1916,8 +2910,72 @@ function useHeard(){
   const said = String(heard || '').trim();
   listener = null;
   micIdle();
-  if (!said){ $('trkSayHint').textContent = "Didn't catch that. Tap and try again."; return; }
-  applySpoken(parseSpoken(said));
+  if (!said){ micHint().textContent = t('say.missed'); return; }
+  micTarget.use(said);
+}
+
+/* Claude reads the sentence when there is signal and a key is set up; the
+   pattern matching in this file reads it when there isn't. Either way the form
+   gets filled in and shown for a look — the fallback means a basement with no
+   bars still works, just a little more literally. */
+async function readIt(said){
+  micLabel().textContent = t('say.reading');
+  micHint().textContent = '“' + said + '”';
+  let picked = null;
+  if (!isTest()){
+    try {
+      const d = await ask({ action:'parse', said: said, kind: trkKind, lang: langOf() });
+      if (d && d.ok) picked = d;
+    } catch(e){ /* no signal, or the office is down: our own reading will do */ }
+  }
+  micIdle();
+  if (!picked && langOf() !== 'en'){ micHint().textContent = t('say.noRead'); return; }
+  applySpoken(picked || parseSpoken(said), !!picked);
+}
+
+/* A review is two names and a place or three, so there is no pattern-matching
+   fallback worth having here — without a reading, the form simply waits to be
+   typed, which is two taps and a name. */
+async function readReview(said){
+  micLabel().textContent = t('say.reading');
+  micHint().textContent = '“' + said + '”';
+  let got = null;
+  if (!isTest()){
+    try {
+      const d = await ask({ action:'parsereview', said: said, lang: langOf() });
+      if (d && d.ok) got = d;
+    } catch(e){ /* no signal: he types it */ }
+  }
+  micIdle();
+  if (!got){
+    micHint().textContent = t('say.noRead');
+    return;
+  }
+  applyReview(got, said);
+}
+
+/* Fill the review in and leave it on screen for a look, exactly as a job is —
+   nothing is saved off the back of a microphone. */
+function applyReview(p, said){
+  $('rFirst').value = p.first || '';
+  $('rLast').value  = p.last  || '';
+  buildPlats();
+  (p.platforms || []).forEach(function(id){
+    const b = [].filter.call($('plats').children, function(c){
+      return c.getAttribute('data-plat') === id;
+    })[0];
+    if (b) b.click();
+  });
+
+  $('revHeardText').textContent = '“' + (p.heard || said || '') + '”';
+  const missing = [];
+  if (!p.first) missing.push(t('miss.name'));
+  if (!revPlats.length) missing.push(t('miss.where'));
+  $('revHeardMiss').textContent = missing.length
+    ? t('heard.miss', missing.join(' ' + t('and') + ' '))
+    : t('heard.ok');
+  $('revHeard').hidden = false;
+  buzz(35);
 }
 
 /* The second tap: stop() finalises and hands the words over. abort() would
@@ -1925,8 +2983,8 @@ function useHeard(){
 function finishListening(){
   if (!listening) return;
   listening = false;
-  $('trkSay').classList.remove('hot');
-  $('traySayLabel').textContent = 'One moment…';
+  micBtn().classList.remove('hot');
+  micLabel().textContent = t('say.moment');
   if (listener){
     try { listener.stop(); } catch(e){ useHeard(); return; }
   } else { useHeard(); return; }
@@ -1936,20 +2994,21 @@ function finishListening(){
 
 function startListening(){
   if (listening){ finishListening(); return; }
-  if (!micSupported()){ micFail('This phone cannot listen. Type it in instead.'); return; }
+  if (!micSupported()){ micFail(t('say.noMic')); return; }
 
   try { listener = new SR(); }
-  catch(e){ micFail('This phone cannot listen. Type it in instead.'); return; }
+  catch(e){ micFail(t('say.noMic')); return; }
 
-  listener.lang = 'en-US';
+  // it has to listen in the language he is speaking
+  listener.lang = SPEECH[langOf()] || 'en-US';
   listener.interimResults = true;    // keep the words as they arrive
   listener.continuous = true;        // it stops when tapped, not when it feels like it
   listener.maxAlternatives = 1;
 
   listening = true; heard = ''; handled = false;
-  $('trkSay').classList.add('hot');
-  $('traySayLabel').textContent = 'Listening…';
-  $('trkSayHint').textContent = 'Tap again when you’ve finished.';
+  micBtn().classList.add('hot');
+  micLabel().textContent = t('say.hear');
+  micHint().textContent = t('say.tapEnd');
   buzz(12);
 
   listener.onresult = function(ev){
@@ -1957,62 +3016,69 @@ function startListening(){
     for (let i = 0; i < ev.results.length; i++) txt += ev.results[i][0].transcript;
     heard = txt;
     // show it back live, so it is obvious the phone is hearing him
-    if (listening) $('trkSayHint').textContent = txt.trim()
+    if (listening) micHint().textContent = txt.trim()
       ? '“' + txt.trim() + '”'
-      : 'Tap again when you’ve finished.';
+      : t('say.tapEnd');
   };
 
   listener.onerror = function(ev){
     const e = ev && ev.error;
     if (e === 'no-speech' && String(heard).trim()){ useHeard(); return; }
     handled = true;
-    micFail(e === 'not-allowed' || e === 'service-not-allowed'
-              ? 'The microphone is blocked. Allow it in your phone settings, or type it in.'
-          : e === 'no-speech' ? "Didn't hear anything. Tap and try again."
-          : e === 'network'   ? 'No signal for listening. Type it in instead.'
-          : "That didn't work. Type it in instead.");
+    micFail(t(e === 'not-allowed' || e === 'service-not-allowed' ? 'say.blocked'
+          : e === 'no-speech' ? 'say.silent'
+          : e === 'network'   ? 'say.noNet'
+          : 'say.failed'));
   };
 
   // the browser ending on its own must not lose the words either
   listener.onend = function(){ listening = false; useHeard(); };
 
   try { listener.start(); }
-  catch(e){ handled = true; micFail("Couldn't start listening. Try again."); }
+  catch(e){ handled = true; micFail(t('say.noStart')); }
 }
 
 /* Fill the form from what was heard and show it. Whatever the parser could not
    work out is simply left blank, and the raw words sit above the fields so the
    man can see what it thought it heard. */
-function applySpoken(p){
-  startTrack(p.kind);
+/* The form is already open on the kind he chose, so this fills it rather than
+   starting it over — and whatever the parser thought the kind was is ignored.
+   He said which one it was by tapping; that settles it. */
+function applySpoken(p, byClaude){
   $('fFirst').value = p.first || '';
   $('fLast').value  = p.last  || '';
   $('fTown').value  = p.town  || '';
   $('fValue').value = p.amount == null ? '' : String(p.amount);
+  ['fFirst','fTown','fValue'].forEach(function(id){ $(id).classList.remove('bad'); });
+  $('trkErr').hidden = true;
+  buildPays();                     // clears anything picked before
+  $('pays').classList.remove('bad');
 
-  if (p.kind === 'job' && p.method){
+  if (trkKind === 'job' && p.method){
     const btn = [].filter.call($('pays').children, function(b){
       return b.getAttribute('data-pay') === p.method;
     })[0];
     if (btn) btn.click();
   }
 
-  $('heardText').textContent = '“' + p.heard + '”';
+  $('heardText').textContent = '“' + (p.heard || '') + '”';
   $('heardBox').hidden = false;
 
   const missing = [];
-  if (!p.first) missing.push('a name');
-  if (!p.town) missing.push('a town');
-  if (p.amount == null) missing.push('an amount');
-  if (p.kind === 'job' && !p.method) missing.push('how they paid');
+  if (!p.first) missing.push(t('miss.name'));
+  if (!p.town) missing.push(t('miss.town'));
+  if (p.amount == null) missing.push(t('miss.amount'));
+  if (trkKind === 'job' && !p.method) missing.push(t('miss.pay'));
   $('heardMiss').textContent = missing.length
-    ? 'Still needs ' + missing.join(', ') + '. Check the rest before saving.'
-    : 'Check it over, then save.';
+    ? t('heard.miss', missing.join(', '))
+    : t('heard.ok');
+  $('heardBox').classList.toggle('by-hand', !byClaude);
   buzz(35);
 }
 /* MIC-END */
 
 $('trkSay').onclick = function(){ pulse(this); startListening(); };
+$('revSay').onclick = function(){ pulse(this); startListening(); };
 $('thanksDone').onclick = closeThanks;
 
 /* ═══════════ who can see what ═══════════ */
@@ -2041,13 +3107,13 @@ function ask(payload){
 $('workBack').onclick = function(){ $('work').classList.remove('open'); };
 $('mWork').onclick = async function(){
   $('menu').classList.remove('open');
-  $('workData').innerHTML = ''; $('workSub').textContent = 'Loading…';
+  $('workData').innerHTML = ''; $('workSub').textContent = t('loading');
   $('work').classList.add('open');
   try {
     const d = await ask({ action:'work', limit:60 });
     if (!d.ok) throw new Error(d.error || 'failed');
     renderWork(d.work || []);
-  } catch(e){ $('workSub').textContent = "Couldn't load jobs and quotes. Check the connection, then try again."; }
+  } catch(e){ $('workSub').textContent = t('work.fail'); }
 };
 
 function renderWork(items){
@@ -2083,8 +3149,8 @@ function renderWork(items){
 /* ═══════════ hours ═══════════ */
 $('mOwner').onclick = async function(){
   $('menu').classList.remove('open');
-  $('ownerTitle').textContent = isOwner() ? 'Hours' : 'My hours';
-  $('ownerData').innerHTML = ''; $('ownerSub').textContent = 'Loading…';
+  $('ownerTitle').textContent = t(isOwner() ? 'menu.hours' : 'menu.myHours');
+  $('ownerData').innerHTML = ''; $('ownerSub').textContent = t('loading');
   $('hoursTop').hidden = true;
   hoursData.sel = 0; $('wkNow').classList.add('on'); $('wkPrev').classList.remove('on');
   $('owner').classList.add('open');
@@ -2093,9 +3159,9 @@ $('mOwner').onclick = async function(){
     if (!d.ok) throw new Error(d.error || 'failed');
     // The server decides the scope from the role on the sheet, so trust its
     // answer over anything this phone thinks it is.
-    $('ownerTitle').textContent = d.scope === 'all' ? 'Hours' : 'My hours';
+    $('ownerTitle').textContent = t(d.scope === 'all' ? 'menu.hours' : 'menu.myHours');
     render(d.summary, d.scope === 'all');
-  } catch(e){ $('ownerSub').textContent = "Couldn't load hours. Check the connection, then try again."; }
+  } catch(e){ $('ownerSub').textContent = t('hrs.fail'); }
 };
 $('oClose').onclick = function(){ $('owner').classList.remove('open'); };
 $('wkNow').onclick  = function(){ hoursData.sel = 0; this.classList.add('on');
@@ -2104,9 +3170,7 @@ $('wkPrev').onclick = function(){ hoursData.sel = 1; this.classList.add('on');
   $('wkNow').classList.remove('on'); paintHours(); };
 
 function render(weeks, everyone){
-  $('ownerSub').textContent = everyone
-    ? 'The whole crew. The work week runs Wednesday to Tuesday.'
-    : 'The work week runs Wednesday to Tuesday.';
+  $('ownerSub').textContent = t(everyone ? 'hrs.weekAll' : 'hrs.week');
 
   const list = weeks || [];
   const find = function(iso){
@@ -2121,28 +3185,30 @@ function render(weeks, everyone){
   hoursData.now       = foldWeek(wNow);
   hoursData.prev      = foldWeek(wPrev);
   hoursData.older     = foldWeek(find(backISO));
-  hoursData.nowLabel  = wNow ? wNow.label : 'This week';
-  hoursData.prevLabel = wPrev ? wPrev.label : 'Last week';
+  hoursData.nowLabel  = wNow ? wNow.label : t('wk.this');
+  hoursData.prevLabel = wPrev ? wPrev.label : t('wk.last');
   $('hTotalLabel').textContent = everyone ? 'crew hours on the clock' : 'on the clock';
   $('hoursTop').hidden = false;
   paintHours();
 
   const box = $('ownerData'); box.innerHTML = '';
   if (!list.length){
-    box.innerHTML = everyone
-      ? '<p class="note">No punches recorded yet.</p>'
-      : '<p class="note">Nothing recorded for you yet. Hours show up here once a shift is finished and sent.</p>';
+    const note = document.createElement('p');
+    note.className = 'note';
+    note.textContent = t(everyone ? 'hrs.noneAll' : 'hrs.none2');
+    box.appendChild(note);
     return;
   }
   list.forEach(function(w){
-    const h = document.createElement('p'); h.className = 'wk'; h.textContent = w.label; box.appendChild(h);
+    const h = document.createElement('p'); h.className = 'wk';
+    h.textContent = weekLabel(w.start) || w.label; box.appendChild(h);
     w.rows.forEach(function(rw){
       const el = document.createElement('div'); el.className = 'row';
       el.innerHTML = '<span></span><b></b>';
-      el.firstChild.textContent = (everyone ? rw.worker : 'Worked') +
+      el.firstChild.textContent = (everyone ? rw.worker : t('hrs.worked')) +
         (rw.overtime > 0 ? ' · ' + rw.overtime.toFixed(2) + ' OT' : '') +
-        (rw.open ? ' (still clocked in)' : '');
-      el.lastChild.textContent = rw.hours.toFixed(2) + ' hrs';
+        (rw.open ? t('hrs.open') : '');
+      el.lastChild.textContent = rw.hours.toFixed(2) + ' ' + t('hrs.hrs');
       box.appendChild(el);
     });
   });
@@ -2150,8 +3216,8 @@ function render(weeks, everyone){
 
 /* HOURS-START */
 /* The work week runs Wednesday to Tuesday, matching the backend. */
-const DAY_LETTERS = ['W', 'T', 'F', 'S', 'S', 'M', 'T'];
-const DAY_NAMES = ['Wednesday','Thursday','Friday','Saturday','Sunday','Monday','Tuesday'];
+function dayLetters(){ return DAYS_SHORT[langOf()] || DAYS_SHORT.en; }
+function dayNames(){ return DAYS_LONG[langOf()] || DAYS_LONG.en; }
 
 function weekStartISO(d){
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -2193,11 +3259,22 @@ function foldWeek(week){
 let hoursData = { now:null, prev:null, everyone:false, sel:0 };
 
 /* ── the chart: seven days, two weeks, grouped bars ── */
-function drawChart(now, prev, todayIdx){
-  const W = 320, H = 158, padL = 26, padR = 6, padT = 8, padB = 26;
+/* A round number at or above the peak: 1, 2 or 5 times a power of ten, so the
+   axis reads 40 or 500 rather than 37 or 462. */
+function niceTop(peak, floor){
+  const p = Math.max(peak, floor || 1);
+  const mag = Math.pow(10, Math.floor(Math.log(p) / Math.LN10));
+  const step = p / mag <= 1 ? 1 : p / mag <= 2 ? 2 : p / mag <= 5 ? 5 : 10;
+  return step * mag;
+}
+
+function drawChart(now, prev, todayIdx, opts){
+  const o = opts || {};
+  const fmt = o.fmt || function(v){ return String(v); };
+  const W = 320, H = 158, padL = o.padL || 26, padR = 6, padT = 8, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB;
-  const peak = Math.max.apply(null, now.days.concat(prev.days).concat([4]));
-  const top = Math.ceil(peak / 2) * 2;                 // even number, never zero
+  const peak = Math.max.apply(null, now.days.concat(prev.days).concat([0]));
+  const top = niceTop(peak, o.floor || 4);
   const y = function(v){ return padT + plotH - (v / top) * plotH; };
 
   const groupW = plotW / 7;
@@ -2209,13 +3286,15 @@ function drawChart(now, prev, todayIdx){
   // recessive gridlines, labelled at top and middle only
   [0, top / 2, top].forEach(function(v){
     svg.push('<line class="grid" x1="' + padL + '" y1="' + y(v) + '" x2="' + (W - padR) + '" y2="' + y(v) + '"/>');
-    svg.push('<text class="axis" x="' + (padL - 6) + '" y="' + (y(v) + 3.5) + '" text-anchor="end">' + v + '</text>');
+    svg.push('<text class="axis" x="' + (padL - 6) + '" y="' + (y(v) + 3.5) + '" text-anchor="end">' + fmt(v) + '</text>');
   });
 
-  function bar(x, v, cls){
+  function bar(x, v, cls, i){
     if (v <= 0) return '';
     const yy = y(v), h = padT + plotH - yy, r = Math.min(4, barW / 2, h);
-    return '<path class="' + cls + '" fill="' + (cls === 'now' ? 'var(--s-now)' : 'var(--s-prev)') + '" d="' +
+    // the day's place in the week is the stagger — Wednesday first, Tuesday last
+    return '<path class="' + cls + '" style="--d:' + i + '" fill="' +
+      (cls === 'now' ? 'var(--s-now)' : 'var(--s-prev)') + '" d="' +
       'M' + x + ',' + (yy + h) + ' L' + x + ',' + (yy + r) +
       ' Q' + x + ',' + yy + ' ' + (x + r) + ',' + yy +
       ' L' + (x + barW - r) + ',' + yy +
@@ -2227,10 +3306,10 @@ function drawChart(now, prev, todayIdx){
     const gx = padL + i * groupW;
     const pairW = barW * 2 + 2;                        // 2px surface gap between the two
     const x0 = gx + (groupW - pairW) / 2;
-    svg.push(bar(x0, now.days[i], 'now'));                 // legend order, left to right
-    svg.push(bar(x0 + barW + 2, prev.days[i], 'prev'));
+    svg.push(bar(x0, now.days[i], 'now', i));              // legend order, left to right
+    svg.push(bar(x0 + barW + 2, prev.days[i], 'prev', i));  // the pair rises together
     svg.push('<text class="dayl' + (i === todayIdx ? ' today' : '') + '" x="' + (gx + groupW / 2) +
-             '" y="' + (H - 8) + '" text-anchor="middle">' + DAY_LETTERS[i] + '</text>');
+             '" y="' + (H - 8) + '" text-anchor="middle">' + dayLetters()[i] + '</text>');
     svg.push('<rect class="hit" data-day="' + i + '" x="' + gx + '" y="' + padT +
              '" width="' + groupW + '" height="' + plotH + '"/>');
   }
@@ -2242,7 +3321,7 @@ function chartTip(i){
   const n = hoursData.now.days[i], p = hoursData.prev.days[i];
   $('chartTip').innerHTML = '';
   const b = document.createElement('b');
-  b.textContent = DAY_NAMES[i];
+  b.textContent = dayNames()[i];
   $('chartTip').appendChild(b);
   $('chartTip').appendChild(document.createTextNode(
     ' — ' + (n > 0 ? hrsText(n) : 'nothing') + ' this week, ' +
@@ -2302,9 +3381,9 @@ function paintHours(){
   [].forEach.call(document.querySelectorAll('#chart .hit'), function(el){
     el.onclick = function(){ chartTip(Number(this.getAttribute('data-day'))); };
   });
-  $('chartTip').textContent = 'Tap a day for the numbers.';
-  $('legNow').textContent  = hoursData.sel === 0 ? 'This week' : 'That week';
-  $('legPrev').textContent = hoursData.sel === 0 ? 'Last week' : 'The week before';
+  $('chartTip').textContent = t('hrs.tapDay');
+  $('legNow').textContent  = hoursData.sel === 0 ? t('wk.this') : t('wk.that');
+  $('legPrev').textContent = hoursData.sel === 0 ? t('wk.last') : t('wk.before');
 
   drawStats(cur, other);
 }
@@ -2324,6 +3403,123 @@ document.addEventListener('touchmove', function (e) {
 // a stray double-tap on the clock face shouldn't select text or zoom either
 document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
 
+/* ═══════════ my jobs ═══════════ */
+/* A job counts for a man if he logged it, or if he was on that truck that day —
+   the crew did the work between them, so the money is theirs between them. */
+let mjData = { now:null, prev:null, older:null, sel:0 };
+const money = function(v){
+  const n = Number(v) || 0;
+  return '$' + (n >= 1000 ? Math.round(n).toLocaleString() : n.toFixed(n % 1 ? 2 : 0));
+};
+const emptyWeek = { total:0, count:0, revenue:[0,0,0,0,0,0,0], counts:[0,0,0,0,0,0,0], jobs:[], label:'' };
+
+function mjTipFor(which, i){
+  const cur = mjData.sel === 0 ? mjData.now : mjData.prev;
+  const oth = mjData.sel === 0 ? mjData.prev : mjData.older;
+  const isMoney = which === 'Money';
+  const a = isMoney ? cur.revenue[i] : cur.counts[i];
+  const b = isMoney ? oth.revenue[i] : oth.counts[i];
+  const say = function(v){ return isMoney ? money(v) : (v + (v === 1 ? ' job' : ' jobs')); };
+  const el = $('mjTip' + which);
+  el.innerHTML = '';
+  const bold = document.createElement('b');
+  bold.textContent = dayNames()[i];
+  el.appendChild(bold);
+  el.appendChild(document.createTextNode(' — ' + say(a) + ' this week, ' + say(b) + ' last'));
+  [].forEach.call(document.querySelectorAll('#mjChart' + which + ' .hit'), function(h){
+    h.classList.toggle('sel', Number(h.getAttribute('data-day')) === i);
+  });
+}
+
+function drawMj(which, nowDays, prevDays, opts){
+  const box = $('mjChart' + which);
+  box.innerHTML = drawChart({ days: nowDays }, { days: prevDays },
+    mjData.sel === 0 ? (new Date().getDay() + 4) % 7 : -1, opts);
+  [].forEach.call(box.querySelectorAll('.hit'), function(h){
+    h.onclick = function(){ mjTipFor(which, Number(this.getAttribute('data-day'))); };
+  });
+  $('mjTip' + which).textContent = t('hrs.tapDay');
+}
+
+function paintMyJobs(){
+  const cur = mjData.sel === 0 ? mjData.now : mjData.prev;
+  const oth = mjData.sel === 0 ? mjData.prev : mjData.older;
+
+  $('mjRange').textContent = weekLabel(cur.start) || cur.label || t(mjData.sel === 0 ? 'wk.this' : 'wk.last');
+  $('mjTotal').textContent = money(cur.total);
+  $('mjCount').textContent = String(cur.count);
+  $('mjAvg').textContent = cur.count ? money(cur.total / cur.count) : '—';
+  $('mjLegNow').textContent  = mjData.sel === 0 ? t('wk.this') : t('wk.that');
+  $('mjLegPrev').textContent = mjData.sel === 0 ? t('wk.last') : t('wk.before');
+
+  drawMj('Money', cur.revenue, oth.revenue, { fmt: money, floor: 200, padL: 40 });
+  drawMj('Jobs',  cur.counts,  oth.counts,  { fmt: function(v){ return String(v); }, floor: 2 });
+
+  const box = $('mjList'); box.innerHTML = '';
+  if (!cur.jobs.length){
+    const none = document.createElement('p');
+    none.className = 'note';
+    none.textContent = t('mj.none');
+    box.appendChild(none);
+    return;
+  }
+  const head = document.createElement('p');
+  head.className = 'wk';
+  head.textContent = cur.count + (cur.count === 1 ? ' job' : ' jobs') + ', newest first';
+  box.appendChild(head);
+
+  cur.jobs.forEach(function(j){
+    const row = document.createElement('div'); row.className = 'job-row';
+    const left = document.createElement('div');
+    const who = document.createElement('div'); who.className = 'job-who';
+    who.textContent = (j.first || 'Customer') + (j.last ? ' ' + j.last : '');
+    if (!j.mine){
+      const tag = document.createElement('span');
+      tag.className = 'job-tag'; tag.textContent = j.by;   // whose phone logged it
+      who.appendChild(tag);
+    }
+    const sub = document.createElement('div'); sub.className = 'job-sub';
+    sub.textContent = (fmtDay(j.whenMs) || j.day) +
+      (j.town ? '  ·  ' + j.town : '') + (j.method ? '  ·  ' + j.method : '');
+    left.appendChild(who); left.appendChild(sub);
+    const amt = document.createElement('div'); amt.className = 'job-amt';
+    amt.textContent = money(j.amount);
+    row.appendChild(left); row.appendChild(amt);
+    box.appendChild(row);
+  });
+}
+
+$('myjobsBack').onclick = function(){ $('myjobs').classList.remove('open'); };
+$('mjNow').onclick  = function(){ mjData.sel = 0; this.classList.add('on');
+  $('mjPrev').classList.remove('on'); paintMyJobs(); };
+$('mjPrev').onclick = function(){ mjData.sel = 1; this.classList.add('on');
+  $('mjNow').classList.remove('on'); paintMyJobs(); };
+
+$('mMine').onclick = async function(){
+  $('menu').classList.remove('open');
+  $('mjTop').hidden = true;
+  $('mjSub').textContent = t('loading');
+  mjData.sel = 0; $('mjNow').classList.add('on'); $('mjPrev').classList.remove('on');
+  $('myjobs').classList.add('open');
+  try {
+    const d = await ask({ action:'myjobs', weeks:4 });
+    if (!d.ok) throw new Error(d.error || 'failed');
+    const list = d.weeks || [];
+    const at = function(i){ return list[i] ? Object.assign({}, emptyWeek, list[i]) : emptyWeek; };
+    const nowISO = weekStartISO(new Date());
+    const find = function(iso){
+      const hit = list.filter(function(w){ return w.start === iso; })[0];
+      return hit ? Object.assign({}, emptyWeek, hit) : Object.assign({}, emptyWeek);
+    };
+    mjData.now   = find(nowISO);
+    mjData.prev  = find(shiftWeekISO(nowISO, 1));
+    mjData.older = find(shiftWeekISO(nowISO, 2));
+    $('mjSub').textContent = t('mj.sub');
+    $('mjTop').hidden = false;
+    paintMyJobs();
+  } catch(e){ $('mjSub').textContent = "Couldn't load your jobs. Check the connection, then try again."; }
+};
+
 /* ═══════════ boot ═══════════ */
 window.addEventListener('online', sync);
 document.addEventListener('visibilitychange', function(){
@@ -2334,7 +3530,7 @@ document.addEventListener('visibilitychange', function(){
   const mins = CONFIG.LOCK_AFTER_MINUTES;
   const gap = Date.now() - DB.get('jh.awayAt', Date.now());
   if (mins > 0 && gap > mins * 60000) lock();
-  else { paint(); sync(); loadCrew(); }
+  else { paint(); sync(); loadCrew(); loadSchedule(); }
 });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
 
