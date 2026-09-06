@@ -62,7 +62,14 @@ const CONFIG = {
   TEST_USER: { name: "Test", pin: "0608" },
 
   // Optional
-  RECORD_LOCATION: false,     // true = stamp each punch with GPS
+  /* Which punches record where they were made. The crew is told this in the
+     app, and the phone asks for permission the first time either way — iOS
+     shows a prompt and then an indicator whenever it is used, so there is no
+     version of this the crew does not see.
+
+     [] records nothing. ["break_start","break_end"] is breaks only.
+     ["in","out","break_start","break_end"] stamps the whole shift. */
+  RECORD_LOCATION: ["break_start", "break_end"],
   /* Minutes the app can sit closed before it asks for the passcode again.
      0 = never ask on its own. The passcode is then only wanted when the phone
      is first set up and after somebody taps Log out — a man arriving at a job
@@ -486,6 +493,66 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .truck-chip svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;
   stroke-linecap:round;stroke-linejoin:round;flex:none;opacity:.85}
 .truck-chip em{font-style:normal;color:var(--haze);font-weight:500}
+.truck-chip{cursor:pointer;transition:transform .09s ease,background-color .09s ease}
+.truck-chip:active{transform:scale(.97);background:var(--tint)}
+.chip-more{width:13px!important;height:13px!important;opacity:.5}
+
+/* ── a job on the day's board ── */
+.job-card.done{opacity:.5}
+.job-card.done .what b{text-decoration:line-through}
+.job-card.done .when{color:var(--good-text)}
+.tick{flex:none;width:34px;height:34px;border-radius:50%;
+  border:2px solid var(--edge);background:transparent;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .09s ease,background-color .12s ease,border-color .12s ease}
+.tick svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.6;
+  stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .12s ease}
+.tick:active{transform:scale(.9)}
+.job-card.done .tick{background:var(--good-text);border-color:var(--good-text);color:var(--void)}
+.job-card.done .tick svg{opacity:1}
+.job-actions{display:flex;gap:9px;margin:-2px 0 14px}
+.job-actions button{flex:1;min-height:50px;border-radius:12px;font-size:15px;font-weight:600;
+  transition:transform .09s ease,filter .09s ease}
+.job-actions button:active{transform:scale(.975)}
+.job-actions .fin{background:var(--lilac);color:var(--on-lilac)}
+.job-actions .tickall{background:var(--sunk);border:1.5px solid var(--edge);color:var(--ink)}
+.done-by{margin:-4px 0 12px 2px;font-size:13px;color:var(--haze)}
+
+/* a quiet way out of a sheet, for the thing most people will never need */
+.join-label{margin:26px 0 6px;font-size:13px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--haze);text-align:center}
+.join-number{margin:0 0 18px;text-align:center;font-size:46px;font-weight:730;
+  letter-spacing:.14em;font-variant-numeric:tabular-nums;color:var(--lilac)}
+#joinState{text-align:center}
+
+.wait-row{margin-bottom:12px;padding:15px 16px;border-radius:13px;
+  background:var(--sunk);border:1.5px solid var(--edge)}
+.wait-who{display:flex;align-items:baseline;gap:10px}
+.wait-who b{font-size:17px;font-weight:650}
+.wait-who span{font-size:13px;color:var(--haze)}
+.wait-num{margin:6px 0 12px;font-size:30px;font-weight:730;letter-spacing:.12em;
+  font-variant-numeric:tabular-nums;color:var(--lilac)}
+.wait-acts{display:flex;gap:9px}
+.wait-acts button{flex:1;min-height:48px;border-radius:11px;font-size:15px;font-weight:600}
+.wait-acts .yes{background:var(--lilac);color:var(--on-lilac)}
+.wait-acts .no{background:transparent;border:1.5px solid var(--edge);color:var(--haze)}
+
+.minor-link{display:block;width:100%;margin:16px auto 0;padding:12px;
+  background:transparent;border:0;font-size:14.5px;font-weight:600;
+  color:var(--haze);text-decoration:underline;text-underline-offset:3px}
+.minor-link:active{color:var(--lilac)}
+
+.rec-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  margin-bottom:10px;padding:14px 15px;border-radius:13px;
+  background:var(--sunk);border:1.5px solid var(--edge);
+  transition:transform .09s ease,background-color .09s ease}
+.rec-row:active{transform:scale(.985);background:var(--tint)}
+.rec-kind{flex:none;width:66px;font-size:11.5px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--lilac)}
+.rec-what{flex:1;min-width:0}
+.rec-what b{display:block;font-size:15.5px;font-weight:600}
+.rec-what span{display:block;margin-top:2px;font-size:13px;color:var(--haze)}
+.rec-amt{flex:none;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
 
 .truck-or{margin:18px 0 12px;text-align:center;font-size:12.5px;font-weight:700;
   letter-spacing:.08em;text-transform:uppercase;color:var(--haze)}
@@ -522,7 +589,8 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .back svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.1;
   stroke-linecap:round;stroke-linejoin:round;flex:none}
 #enrol .inner,#truckSheet .inner,#crews .inner,#myjobs .inner,#schedule .inner,#lockScreen.hasback .lock,#setup.hasback .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
-#myjobs .inner,#trackSheet .inner,#reviewSheet .inner,#confirmOut .inner,#work .inner,#owner .inner{
+#myjobs .inner,#trackSheet .inner,#reviewSheet .inner,#confirmOut .inner,#work .inner,#owner .inner,
+#join .inner,#waitList .inner,#recent .inner{
   padding-top:calc(env(safe-area-inset-top) + 88px)}
 h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 .sub{color:var(--haze);margin:0 0 24px;font-size:16px;line-height:1.5}
@@ -617,6 +685,10 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 .heard-said{margin:0;font-size:16px;line-height:1.45;color:var(--ink)}
 .heard-miss{margin:7px 0 0;font-size:14px;color:var(--haze)}
 .heard.by-hand{border-style:dashed}
+.heard-src{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:5px;
+  font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  background:var(--tint-key);color:var(--lilac)}
+.heard.by-hand .heard-src{background:var(--sunk);color:var(--haze)}
 
 .pays{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 20px}
 .pay{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
@@ -719,11 +791,12 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <div class="hero">
     <p class="clock" id="clock">0:00</p>
     <p class="caption" id="caption" data-i18n="clock.tap">Tap the button when you get to the job.</p>
-    <span class="truck-chip" id="truckChip" hidden>
+    <button type="button" class="truck-chip" id="truckChip" hidden>
       <svg id="chipTruck" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 7.5h11v9h-11z"/><path d="M13.5 11h4l3 3v2.5h-7z"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>
       <svg id="chipDesk" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M3 20V9.5L12 4l9 5.5V20"/><path d="M9 20v-6h6v6"/></svg>
       <span id="truckName">Truck 1</span><em id="truckMates"></em>
-    </span>
+      <svg class="chip-more" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5L15 12l-6.5 6.5"/></svg>
+    </button>
   </div>
   <div class="stack">
     <button class="punch" id="main" data-i18n="clock.in">Clock in</button>
@@ -786,6 +859,38 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   </div>
 </div>
 
+<!-- ═══ a phone asking to be let in ═══ -->
+<div class="overlay" id="join">
+  <button class="back" id="joinBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+  <h2 id="joinTitle">Setting up</h2>
+  <p class="sub" data-i18n="join.sub"></p>
+
+  <p class="join-label" data-i18n="join.number">Show them this number</p>
+  <p class="join-number" id="joinNumber">— — — —</p>
+  <p class="note" id="joinState" data-i18n="join.waiting">Waiting…</p>
+
+  <button class="pick safe" id="joinAgain" hidden data-i18n="join.again">Ask again</button>
+  <button class="minor-link" type="button" id="joinCode" data-i18n="join.hasCode">I was given a setup code</button>
+  </div>
+</div>
+
+<!-- ═══ phones waiting, for an owner ═══ -->
+<div class="overlay" id="waitList">
+  <button class="back" id="waitBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+  <h2 data-i18n="wait.title">Phones waiting</h2>
+  <p class="sub" id="waitSub" data-i18n="wait.sub"></p>
+  <div id="waitBox"></div>
+  </div>
+</div>
+
 <!-- ═══ clock-out check ═══ -->
 <div class="overlay" id="confirmOut">
   <button class="back" id="outBackTop">
@@ -813,6 +918,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
     <p class="sub" data-i18n="trk.which">Which one was it?</p>
     <button class="pick safe" id="trkJobBtn" data-i18n-html="trk.jobFull">Completed job<small>Work is done and you collected payment</small></button>
     <button class="pick" id="trkQuoteBtn" data-i18n-html="trk.quoteFull">Gave a quote<small>You priced it. No work done yet.</small></button>
+    <button class="minor-link" type="button" id="trkFix" data-i18n="edit.recent">Fix a recent one</button>
   </div>
 
   <form id="trkForm" hidden novalidate>
@@ -867,6 +973,10 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <div class="inner">
   <h2 id="schedTitle" data-i18n="sched.title">Today's jobs</h2>
   <p class="sub" id="schedSub"></p>
+  <div class="wk-switch" id="schedDays" hidden>
+    <button class="wk-opt" id="sdToday" data-i18n="sched.today">Today</button>
+    <button class="wk-opt on" id="sdNext" data-i18n="sched.nextDay">Next day</button>
+  </div>
   <div id="schedList"></div>
   </div>
 </div>
@@ -907,7 +1017,21 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
     <p class="err" id="revErr" hidden></p>
     <button class="pick safe" type="submit" id="revSave" data-i18n="rev.save">Save review</button>
     <button class="pick calm" type="button" id="revCancel" data-i18n="cancel">Cancel</button>
+    <button class="minor-link" type="button" id="revFix" data-i18n="edit.recent">Fix a recent one</button>
   </form>
+  </div>
+</div>
+
+<!-- ═══ a recent entry, to put right ═══ -->
+<div class="overlay" id="recent">
+  <button class="back" id="recBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+  <h2 data-i18n="edit.title">Fix a recent entry</h2>
+  <p class="sub" id="recSub" data-i18n="edit.sub"></p>
+  <div id="recList"></div>
   </div>
 </div>
 
@@ -1004,6 +1128,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <button class="pick" id="mMine" data-i18n="menu.myJobs">My jobs</button>
   <button class="pick" id="mWork" hidden data-i18n="menu.work">Jobs &amp; quotes</button>
   <button class="pick" id="mCrews" hidden data-i18n="menu.crews">Trucks &amp; crews</button>
+  <button class="pick" id="mWait" hidden><span data-i18n="wait.menu">Phones waiting</span><small id="mWaitN"></small></button>
   <button class="pick" id="mBio" hidden></button>
   <button class="pick" id="mPin" data-i18n="menu.pin">Change passcode</button>
   <button class="pick with-icon" id="mSwitch">
@@ -1025,6 +1150,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
     </div>
   </div>
   <p class="note" id="diag"></p>
+  <p class="note" id="locNote" data-i18n="loc.note" hidden></p>
   <button class="logout" id="mOut">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 20H5.5A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4h4"/><path d="M16 8.5l3.5 3.5-3.5 3.5"/><path d="M9.5 12h10"/></svg>
     <span id="mOutLabel">Log out</span>
@@ -1240,16 +1366,16 @@ const STRINGS = {
   'lock.brkNow': ['On break right now', 'Em pausa agora'],
   'bio.on':      ['Turn on {0}<small>Skip typing the passcode</small>',
                   'Ativar {0}<small>Sem precisar digitar a senha</small>'],
+  'bio.gone':    ['{0} is off. Use your passcode from now on.',
+                  '{0} desligado. Use sua senha de agora em diante.'],
   'bio.off':     ['Turn off {0}<small>Passcode only from then on</small>',
                   'Desativar {0}<small>Só a senha a partir de então</small>'],
   'lock.wrong':  ['Wrong passcode', 'Senha errada'],
   'lock.wrongN': ['Wrong passcode. {0} tries left', 'Senha errada. {0} tentativas restantes'],
   'lock.noMatch':['Those did not match. Start again', 'As duas não bateram. Comece de novo'],
   'switch.first':['Clock out first, then switch.', 'Encerre o dia primeiro, depois troque.'],
-  'switch.queued':["{0} of {1}'s punches haven't been sent yet.",
-                  '{0} marcações do {1} ainda não foram enviadas.'],
-  'switch.send': ['Get a bar of signal and tap "Go to clock" to send them, then switch. Otherwise they\u2019d be recorded under the new name.',
-                  'Pegue um pouco de sinal e toque em "Ir para o ponto" para enviar, depois troque. Senão elas entrariam no nome do outro.'],
+  'switch.queued':["{0} of {1}'s punches will send under {1}.",
+                  '{0} marcações do {1} serão enviadas no nome do {1}.'],
   'crews.sub':   ['Newest first. Revenue is the jobs that crew logged that day.',
                   'Mais recentes primeiro. A receita são os serviços que a dupla registrou no dia.'],
   'crews.fail':  ["Couldn't load the trucks. Check the connection, then try again.",
@@ -1263,6 +1389,30 @@ const STRINGS = {
   'who.sub':     ['Pick your name once. This phone will remember it.',
                   'Escolha seu nome uma vez. Este celular vai lembrar.'],
   'who.test':    ['A look round. Nothing is recorded.', 'Só para dar uma olhada. Nada é registrado.'],
+  'join.title':  ['Setting up {0}’s phone', 'Configurando o celular de {0}'],
+  'join.sub':    ['Henrique or Filipe taps Approve on their own phone. Nothing to type.',
+                  'Henrique ou Filipe toca em Aprovar no celular deles. Nada para digitar.'],
+  'join.number': ['Show them this number', 'Mostre este número a eles'],
+  'join.waiting':['Waiting…', 'Aguardando…'],
+  'join.refused':['That was turned down. Have a word with Henrique.',
+                  'Foi recusado. Fale com o Henrique.'],
+  'join.stale':  ['That took too long. Tap to ask again.',
+                  'Demorou demais. Toque para pedir de novo.'],
+  'join.again':  ['Ask again', 'Pedir de novo'],
+  'join.hasCode':['I was given a setup code', 'Recebi um código de configuração'],
+  'join.failed': ['Could not ask just now. Check the signal and try again.',
+                  'Não consegui pedir agora. Verifique o sinal e tente de novo.'],
+  'join.denied': ['Ask an owner to put you on the crew list first.',
+                  'Peça a um dono para colocar você na lista primeiro.'],
+  'wait.title':  ['Phones waiting', 'Celulares aguardando'],
+  'wait.sub':    ['Check the number matches what is on their screen, then approve.',
+                  'Confira se o número bate com o da tela deles e aprove.'],
+  'wait.none':   ['No phone is waiting.', 'Nenhum celular aguardando.'],
+  'wait.menu':   ['Phones waiting', 'Celulares aguardando'],
+  'wait.yes':    ['Approve', 'Aprovar'],
+  'wait.no':     ['Refuse', 'Recusar'],
+  'wait.done':   ['{0} is in.', '{0} entrou.'],
+  'wait.refused':['Turned down.', 'Recusado.'],
   'enrol.title': ['Set up this phone', 'Configurar este celular'],
   'enrol.titleN':['Set up {0}’s phone', 'Configurar o celular de {0}'],
   'enrol.sub':   ['Henrique will give you an 8-character code. It works once, on this phone.',
@@ -1311,6 +1461,31 @@ const STRINGS = {
   'sched.title': ["Today's jobs", 'Serviços de hoje'],
   'sched.ahead': ['Coming up', 'A seguir'],
   'sched.all':   ['Every truck', 'Todos os caminhões'],
+  'sched.done':  ['Done', 'Feito'],
+  'sched.doneBy':['Done by {0}', 'Feito por {0}'],
+  'sched.finish':['Complete job', 'Concluir serviço'],
+  'sched.tick':  ['Just mark it done', 'Só marcar como feito'],
+  'sched.undo':  ['Not done after all', 'Não foi feito ainda'],
+  'sched.allDone':['Everything on the board is done. Nice one.',
+                  'Tudo do quadro está feito. Muito bem.'],
+  'sched.saving':['Saving…', 'Salvando…'],
+  'sched.today': ['Today', 'Hoje'],
+  'sched.nextDay':['Next day', 'Próximo dia'],
+  'say.more':    ['Tap again to add what you left out.',
+                  'Toque de novo para acrescentar o que faltou.'],
+  'edit.recent': ['Fix a recent one', 'Corrigir um recente'],
+  'edit.title':  ['Fix a recent entry', 'Corrigir um registro recente'],
+  'edit.sub':    ['Yours from the last few days. Tap one to put it right.',
+                  'Os seus dos últimos dias. Toque em um para corrigir.'],
+  'edit.none':   ['Nothing logged yet.', 'Nada registrado ainda.'],
+  'edit.saved':  ['Put right.', 'Corrigido.'],
+  'edit.save':   ['Save the fix', 'Salvar correção'],
+  'edit.job':    ['Job', 'Serviço'],
+  'edit.quote':  ['Quote', 'Orçamento'],
+  'edit.review': ['Review', 'Avaliação'],
+  'heard.byAi':  ['Read by Claude', 'Lido pela IA'],
+  'heard.byPhone':['Read on this phone — Claude wasn’t reachable',
+                  'Lido no celular — não deu para falar com a IA'],
   'sched.none':  ['Nothing booked in the next couple of days.',
                   'Nada agendado nos próximos dias.'],
   'sched.off':   ['The calendar is not set up yet. Ask Henrique.',
@@ -1464,6 +1639,11 @@ const STRINGS = {
   'diag.clear':  ['Everything has been sent.', 'Tudo foi enviado.'],
   'diag.last':   ['Last sent {0}.', 'Último envio {0}.'],
   'diag.problem':['Last problem: {0}.', 'Último problema: {0}.'],
+  'loc.note':    ['Where you are is recorded when a break starts and ends. Nowhere else.',
+                  'O local é registrado quando a pausa começa e termina. Em nenhum outro momento.'],
+  'err.setup':   ['this phone needs setting up again', 'este celular precisa ser configurado de novo'],
+  'err.rejected':['rejected', 'recusado'],
+  'err.nonet':   ['no connection', 'sem conexão'],
   'reset.ask':   ['Ask Henrique for a new setup code, then set this phone up again.',
                   'Peça um novo código de configuração ao Henrique e configure este celular de novo.'],
   'reset.safe':  ['Any punches still waiting to send are safe.',
@@ -1569,11 +1749,41 @@ function applyLang(next){
 }
 /* The markup is handled by the pass above; these are the few labels the script
    writes for itself and would otherwise leave in the old language. */
+/* Everything in the menu the script writes by hand. Anything carried by a
+   data-i18n attribute is handled by applyLang and does not belong here. */
+function paintMenu(){
+  if (worker) $('menuWho').textContent = t('menu.as', worker);
+
+  const bioBtn = $('mBio');
+  if (bioReady){
+    bioBtn.hidden = false;
+    bioBtn.innerHTML = acctGet('bio', null) ? t('bio.off', BIO) : t('bio.on', BIO);
+  } else bioBtn.hidden = true;
+
+  // Everybody can see their own hours; only a full admin sees the crew's.
+  $('mOwner').textContent = t(isOwner() ? 'menu.hours' : 'menu.myHours');
+  $('mWork').hidden  = !isOwner() && !isJobAdmin();
+  $('mCrews').hidden = !isOwner() && !isJobAdmin();
+  $('mOutLabel').textContent = t('menu.out');
+
+  /* Say it where they will see it. The phone is going to ask for permission
+     regardless, and a prompt with no explanation gets refused. */
+  const wants = CONFIG.RECORD_LOCATION;
+  $('locNote').hidden = !(wants === true || (Array.isArray(wants) && wants.length));
+
+  $('mWait').hidden = !isOwner() || !waitingNow.length;
+  if (isOwner()) loadWaiting(true);
+
+  const err = DB.get('jh.err', null), last = DB.get('jh.lastSync', null);
+  $('diag').textContent =
+    (queue.length ? t('diag.waiting', queue.length) : t('diag.clear')) + ' ' +
+    (last ? t('diag.last', new Date(last).toLocaleString(LOCALES[langOf()])) + ' ' : '') +
+    (err ? t('diag.problem', /^err./.test(err) ? t(err) : err) : '');
+}
+
 function relabel(){
   if (worker && unlocked) paint();
-  if (worker) $('menuWho').textContent = t('menu.as', worker);
-  $('mOwner').textContent = t(isOwner() ? 'menu.hours' : 'menu.myHours');
-  $('mOutLabel').textContent = t('menu.out');
+  paintMenu();
 }
 
 /* His own setting, read back whenever the signed-in man changes. Cheap enough
@@ -1658,11 +1868,23 @@ function punch(type, extra){
   if (extra) Object.keys(extra).forEach(function(k){ ev[k] = extra[k]; });
   queue.push(ev); save(); paint(); sync();
 
-  if (CONFIG.RECORD_LOCATION && navigator.geolocation){
+  /* The punch is already queued and sent by this point. The position arrives
+     afterwards and is added to the row it belongs to — so a phone that refuses
+     the prompt, or is in a basement, still records the break itself. Time is
+     never held up waiting on a satellite. */
+  const wants = CONFIG.RECORD_LOCATION;
+  const stamp = wants === true ||
+                (Array.isArray(wants) && wants.indexOf(type) !== -1);
+  if (stamp && navigator.geolocation){
     navigator.geolocation.getCurrentPosition(function(p){
       const q = queue.find(function(x){ return x.id === ev.id; });
-      if (q){ q.lat = +p.coords.latitude.toFixed(6); q.lng = +p.coords.longitude.toFixed(6); save(); sync(); }
-    }, function(){}, { timeout:8000, maximumAge:60000 });
+      if (q){
+        q.lat = +p.coords.latitude.toFixed(6);
+        q.lng = +p.coords.longitude.toFixed(6);
+        q.acc = Math.round(p.coords.accuracy);   // how much to trust the pin
+        save(); sync();
+      }
+    }, function(){}, { timeout:8000, maximumAge:60000, enableHighAccuracy:true });
   }
 }
 function clockIn(truck){
@@ -1826,17 +2048,62 @@ function openMaps(where){
   window.open(mapsHref(where), '_blank', 'noopener');
 }
 
-function whenLabel(j){
+/* What goes in the left-hand column of a job: that it is finished, the time it
+   was booked for, or that it is the one in hand. The end of a slot means
+   nothing here — Emily booked for ten and reached at half twelve is still the
+   job you are on, because nobody has said otherwise. */
+function slotLabel(j){
+  if (j.done) return t('sched.done');
   if (j.allDay) return t('next.label');
-  const now = Date.now();
-  if (j.startMs <= now && j.endMs > now) return t('next.now');
-  if (!schedule.today) return t('next.tomorrow');
+  if (schedule.today && j.startMs <= Date.now()) return t('next.now');
   return fmtTime(j.startMs) || j.when;
+}
+
+function whenLabel(j){
+  if (!j.done && !schedule.today) return t('next.tomorrow');
+  return slotLabel(j);
+}
+
+/* "9 Ocean Ave, Salem MA" → "Salem". Read from the back, skipping the state and
+   the postcode, so the form starts with the town already in it. */
+function townFromAddress(where){
+  const parts = String(where || '').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+  for (let i = parts.length - 1; i >= 0; i--){
+    let p = parts[i].replace(/\b[A-Z]{2}\b\s*\d{0,5}(-\d{4})?$/, '').trim();
+    p = p.replace(/\s*\d{5}(-\d{4})?$/, '').trim();
+    if (p && !/^\d/.test(p) && !/^(USA|United States)$/i.test(p)) return p;
+  }
+  return '';
+}
+
+/* Ticking a job off. The board is updated at once so it feels immediate, and
+   the sheet is told after — a tick that fails to send is put back. */
+async function markDone(j, done){
+  const was = j.done;
+  j.done = done;
+  renderSchedule(); paintNext(); buzz(done ? 35 : 12);
+  try {
+    const d = await ask({ action:'finish', eventId: j.id, date: j.date || schedule.date,
+                          title: j.title, truck: j.truck || st.truck || '', done: done });
+    if (!d || !d.ok) throw new Error('refused');
+  } catch(e){
+    j.done = was;                       // it never reached the sheet
+    renderSchedule(); paintNext();
+    toast(t('net.fail'));
+  }
+}
+
+/* The one the crew is on. Time does not decide this — a job is current until
+   somebody says it is finished, because jobs run long and that is normal. */
+function currentJob(){
+  const list = schedule.jobs || [];
+  for (let i = 0; i < list.length; i++) if (!list[i].done) return list[i];
+  return null;
 }
 
 function paintNext(){
   const card = $('nextJob');
-  const j = schedule.jobs[0];
+  const j = currentJob();
   if (!j || isTest()){ card.hidden = true; return; }
   card.hidden = false;
   $('nextWhen').textContent = whenLabel(j);
@@ -1853,34 +2120,50 @@ async function loadSchedule(){
     const d = await ask({ action:'schedule', truck: st.truck || '' });
     if (!d || !d.ok) return;                 // no calendar set up: say nothing
     schedule = { jobs: d.jobs || [], today: d.today !== false,
-                 merged: !!d.merged, truck: d.truck || '', at: Date.now() };
+                 merged: !!d.merged, truck: d.truck || '',
+                 date: d.date || '', allDone: !!d.allDone,
+                 alsoToday: d.alsoToday || [], todayDate: d.todayDate || '',
+                 at: Date.now() };
     paintNext();
   } catch(e){ /* no signal; whatever was last known stays on screen */ }
 }
 
 function renderSchedule(){
   const box = $('schedList'); box.innerHTML = '';
-  $('schedTitle').textContent = t(schedule.today ? 'sched.title' : 'sched.ahead');
-  if (!schedule.jobs.length){
+
+  /* Once the last job of today is ticked the board moves on, which would leave
+     a tick made by mistake somewhere you cannot reach. The switch puts today
+     back within one tap. */
+  const back = (schedule.alsoToday || []).length > 0;
+  $('schedDays').hidden = !back;
+  if (back){
+    $('sdToday').classList.toggle('on', schedView === 'today');
+    $('sdNext').classList.toggle('on', schedView !== 'today');
+  }
+  const showing = (back && schedView === 'today') ? schedule.alsoToday : schedule.jobs;
+  const isToday = (back && schedView === 'today') ? true : schedule.today;
+
+  $('schedTitle').textContent = t(isToday ? 'sched.title' : 'sched.ahead');
+  if (!showing.length){
     $('schedSub').textContent = '';
     const p = document.createElement('p'); p.className = 'note';
     p.textContent = t('sched.none');
     box.appendChild(p);
     return;
   }
-  const dayText = fmtDay(schedule.jobs[0].startMs) || schedule.jobs[0].day || '';
+  const dayText = fmtDay(showing[0].startMs) || showing[0].day || '';
   $('schedSub').textContent = schedule.merged
     ? dayText + '  ·  ' + t('sched.all')
     : (schedule.truck ? dayText + '  ·  ' + schedule.truck : dayText);
-  const now = Date.now();
-  schedule.jobs.forEach(function(j){
+  const cur = currentJob();
+  showing.forEach(function(j){
+    const isCur = j === cur;
     const row = document.createElement('div');
-    row.className = 'job-card' + (j.startMs <= now && j.endMs > now ? ' on-now' : '');
+    row.className = 'job-card' + (j.done ? ' done' : '') + (isCur ? ' on-now' : '');
 
     const when = document.createElement('div');
     when.className = 'when';
-    when.textContent = j.allDay ? '—'
-      : (j.startMs <= now && j.endMs > now ? t('next.now') : (fmtTime(j.startMs) || j.when));
+    when.textContent = slotLabel(j);
 
     const what = document.createElement('div');
     what.className = 'what';
@@ -1900,13 +2183,68 @@ function renderSchedule(){
       go.onclick = function(e){ e.stopPropagation(); openMaps(j.where); buzz(12); };
       row.appendChild(go);
     }
+
+    // the tick, on every row, so a job done out of order can be marked too
+    const tick = document.createElement('button');
+    tick.type = 'button'; tick.className = 'tick';
+    tick.setAttribute('aria-label', j.done ? t('sched.undo') : t('sched.tick'));
+    tick.setAttribute('aria-pressed', j.done ? 'true' : 'false');
+    tick.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+    tick.onclick = function(e){ e.stopPropagation(); markDone(j, !j.done); };
+    row.appendChild(tick);
+
     box.appendChild(row);
+
+    if (j.done && j.doneBy && j.doneBy !== worker){
+      const by = document.createElement('p');
+      by.className = 'done-by'; by.textContent = t('sched.doneBy', j.doneBy);
+      box.appendChild(by);
+    }
+
+    /* The job in hand gets its two ways out: log what it was worth, or just
+       tick it off. Only one card carries these, so the board stays readable. */
+    if (isCur){
+      const acts = document.createElement('div');
+      acts.className = 'job-actions';
+
+      const fin = document.createElement('button');
+      fin.type = 'button'; fin.className = 'fin';
+      fin.textContent = t('sched.finish');
+      fin.onclick = function(){ completeJob(j); };
+
+      const only = document.createElement('button');
+      only.type = 'button'; only.className = 'tickall';
+      only.textContent = t('sched.tick');
+      only.onclick = function(){ markDone(j, true); };
+
+      acts.appendChild(fin); acts.appendChild(only);
+      box.appendChild(acts);
+    }
   });
+
+  if (schedule.allDone){
+    const p = document.createElement('p');
+    p.className = 'note'; p.textContent = t('sched.allDone');
+    box.appendChild(p);
+  }
 }
 
-function openSchedule(){ renderSchedule(); $('schedule').classList.add('open'); }
+/* Straight from the board into the same form the crew already knows — the town
+   filled in from the address, and the job ticked off when it saves. */
+function completeJob(j){
+  closeSchedule();
+  openTrack();                      // clears any previous link
+  startTrack('job');
+  trkJob = j;                       // ...so this comes after it
+  $('fTown').value = townFromAddress(j.where);
+}
+
+function openSchedule(){ schedView = 'day'; renderSchedule(); $('schedule').classList.add('open'); }
 function closeSchedule(){ $('schedule').classList.remove('open'); }
 
+$('sdToday').onclick = function(){ schedView = 'today'; renderSchedule(); buzz(12); };
+$('sdNext').onclick  = function(){ schedView = 'day';   renderSchedule(); buzz(12); };
+$('truckChip').onclick = function(){ openSchedule(); buzz(12); };
 $('schedBack').onclick = closeSchedule;
 $('nextJob').onclick = function(e){
   // the pin is its own action; the rest of the card opens the day
@@ -1917,6 +2255,91 @@ $('nextJob').onclick = function(e){
   }
   openSchedule();
 };
+
+/* ═══════════ putting a wrong entry right ═══════════
+   A figure typed in a hurry at the kerbside is going to be wrong sometimes.
+   This lists what this man logged himself — never anybody else's — and loads
+   the one he picks back into the same form, so the fix lands on the original
+   row instead of making a second one. */
+async function openRecent(){
+  $('recList').innerHTML = '';
+  $('recSub').textContent = t('loading');
+  $('recent').classList.add('open');
+  try {
+    const d = await ask({ action:'mine', limit: 12 });
+    recent = (d && d.ok && d.entries) ? d.entries : [];
+  } catch(e){ recent = []; }
+  renderRecent();
+}
+function closeRecent(){ $('recent').classList.remove('open'); }
+
+function renderRecent(){
+  const box = $('recList'); box.innerHTML = '';
+  $('recSub').textContent = recent.length ? t('edit.sub') : t('edit.none');
+  recent.forEach(function(e){
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'rec-row';
+
+    const k = document.createElement('div');
+    k.className = 'rec-kind';
+    k.textContent = t(e.kind === 'quote' ? 'edit.quote' : e.kind === 'review' ? 'edit.review' : 'edit.job');
+
+    const w = document.createElement('div'); w.className = 'rec-what';
+    const nm = document.createElement('b');
+    nm.textContent = ((e.first || '') + (e.last ? ' ' + e.last : '')).trim() || t('mj.customer');
+    const sub = document.createElement('span');
+    sub.textContent = [fmtDay(e.whenMs), e.town, e.method,
+                       (e.platforms || []).join(', ')].filter(Boolean).join('  ·  ');
+    w.appendChild(nm); w.appendChild(sub);
+
+    b.appendChild(k); b.appendChild(w);
+    if (e.amount != null){
+      const a = document.createElement('div');
+      a.className = 'rec-amt'; a.textContent = money(e.amount);
+      b.appendChild(a);
+    }
+    b.onclick = function(){ loadForFix(e); };
+    box.appendChild(b);
+  });
+}
+
+function loadForFix(e){
+  closeRecent();
+  if (e.kind === 'review'){
+    openReview();
+    $('rFirst').value = e.first || '';
+    $('rLast').value  = e.last  || '';
+    (e.platforms || []).forEach(function(id){
+      const b = [].filter.call($('plats').children, function(c){
+        return c.getAttribute('data-plat') === id;
+      })[0];
+      if (b && revPlats.indexOf(id) === -1) b.click();
+    });
+    revEdit = e.id;
+    $('revSave').textContent = t('edit.save');
+    return;
+  }
+  closeTrack();
+  openTrack();
+  startTrack(e.kind === 'quote' ? 'quote' : 'job');
+  $('fFirst').value = e.first || '';
+  $('fLast').value  = e.last  || '';
+  $('fTown').value  = e.town  || '';
+  $('fValue').value = e.amount == null ? '' : String(e.amount);
+  if (e.notes) $('fNotes').value = e.notes;
+  if (e.method){
+    const btn = [].filter.call($('pays').children, function(b){
+      return b.getAttribute('data-pay') === e.method;
+    })[0];
+    if (btn) btn.click();
+  }
+  trkEdit = e.id;
+  $('trkSave').textContent = t('edit.save');
+}
+
+$('trkFix').onclick  = openRecent;
+$('revFix').onclick  = openRecent;
+$('recBack').onclick = closeRecent;
 
 /* ═══════════ the thank-you ═══════════ */
 /* Said differently each time so it doesn't wear thin by Wednesday. It changes
@@ -1979,32 +2402,49 @@ async function sync(){
   if (!navigator.onLine){ paint(); return; }
   if (!CONFIG.ENDPOINT || CONFIG.ENDPOINT.indexOf('PASTE') === 0){ paint(); return; }
   if (isTest()){
-    // let it look like it sent, then forget it — this is a sandbox
-    queue = []; save(); paint(); return;
+    /* A sandbox punch is dropped rather than sent — but only the sandbox's own.
+       Anything a real account left in the queue stays there for its owner. */
+    queue = queue.filter(function(e){ return e.worker !== worker; });
+    save(); paint(); return;
   }
-  if (!acctGet('token', null)){ paint(); return; }   // not set up yet — punches keep queueing
+
+  /* Send under the token of whoever made these punches. The oldest sendable
+     account goes first; the rest follow on the next pass. */
+  const all = accounts();
+  const first = queue.filter(function(e){
+    return e.worker && all[e.worker] && all[e.worker].token;
+  })[0];
+  if (!first){ paint(); return; }        // nobody here can send anything yet
+  const owner = first.worker, ownerTok = all[owner].token;
+
   syncing = true; paint();
-  const batch = queue.slice(0, 60);
+  const batch = queue.filter(function(e){ return e.worker === owner; }).slice(0, 60);
   try {
     const r = await fetch(CONFIG.ENDPOINT, {
       method:'POST',
       headers:{ 'Content-Type':'text/plain;charset=utf-8' },   // avoids CORS preflight
-      body: JSON.stringify({ who:worker, token:acctGet('token', null), events:batch })
+      body: JSON.stringify({ who:owner, token:ownerTok, events:batch })
     });
     const d = await r.json();
     if (d && !d.ok && d.error === 'unauthorized'){
-      // Revoked from the spreadsheet, or the phone was wiped and restored.
-      // The queue is untouched; it uploads once the phone is set up again.
-      acctSet({ token: null }); DB.set('jh.err', 'this phone needs setting up again');
-      syncing = false; paint(); needsEnrol(); return;
+      /* Revoked from the spreadsheet, or the phone was wiped and restored.
+         Only that account's token goes; his punches wait for him to set up
+         again, and everybody else on this handset carries on. */
+      const acc = accounts();
+      if (acc[owner]){ acc[owner].token = null; DB.set('jh.accounts', acc); }
+      DB.set('jh.err', 'err.setup');
+      syncing = false; paint();
+      if (owner === worker) needsEnrol();
+      else setTimeout(sync, 400);        // move on to the next man's punches
+      return;
     }
     if (d && d.ok){
       const done = {};
       batch.forEach(function(e){ done[e.id] = true; });
       queue = queue.filter(function(e){ return !done[e.id]; });
       DB.set('jh.lastSync', Date.now()); DB.set('jh.err', null); save();
-    } else DB.set('jh.err', (d && d.error) || 'rejected');
-  } catch(e){ DB.set('jh.err', 'no connection'); }
+    } else DB.set('jh.err', (d && d.error) || 'err.rejected');
+  } catch(e){ DB.set('jh.err', 'err.nonet'); }
   syncing = false; paint();
   if (queue.length) setTimeout(sync, 20000);
 }
@@ -2292,23 +2732,7 @@ $('who').onclick = function(){
   disarmLogout();
   applyTheme(DB.get('jh.theme', 'dark'));
   loadLang();
-  $('menuWho').textContent = t('menu.as', worker);
-  const bioBtn = $('mBio');
-  if (bioReady){
-    bioBtn.hidden = false;
-    bioBtn.innerHTML = acctGet('bio', null)
-      ? t('bio.off', BIO) : t('bio.on', BIO);
-  } else bioBtn.hidden = true;
-  // Everybody can see their own hours; only a full admin sees the crew's.
-  $('mOwner').textContent = t(isOwner() ? 'menu.hours' : 'menu.myHours');
-  $('mWork').hidden  = !isOwner() && !isJobAdmin();
-  $('mCrews').hidden = !isOwner() && !isJobAdmin();
-
-  const err = DB.get('jh.err', null), last = DB.get('jh.lastSync', null);
-  $('diag').textContent =
-    (queue.length ? t('diag.waiting', queue.length) : t('diag.clear')) + ' ' +
-    (last ? t('diag.last', new Date(last).toLocaleString(LOCALES[langOf()])) + ' ' : '') +
-    (err ? t('diag.problem', err) : '');
+  paintMenu();
   $('menu').classList.add('open');
 };
 /* This was two buttons that both shut the menu. Merged — going back to the
@@ -2317,7 +2741,7 @@ $('who').onclick = function(){
 $('mSync').onclick = function(){ $('menu').classList.remove('open'); sync(); };
 $('mBio').onclick   = async function(){
   $('menu').classList.remove('open');
-  if (acctGet('bio', null)){ acctSet({ bio: null }); alert(BIO + ' is off. Use your passcode from now on.'); }
+  if (acctGet('bio', null)){ acctSet({ bio: null }); alert(t('bio.gone', BIO)); }
   else await offerBio();
 };
 $('lgEn').onclick = function(){ setLang('en'); buzz(12); };
@@ -2381,14 +2805,17 @@ $('mOut').onclick = function(){
   lock(true);           // straight to the passcode, no Face ID shortcut
 };
 $('mSwitch').onclick = function(){
-  if (st.status !== 'out'){ alert(t('switch.first')); return; }
-  /* Punches upload under whoever's token sends them, so anything still queued
-     would land on the next man's timesheet. Send them first. */
-  if (queue.length){
-    alert(t('switch.queued', queue.length, worker) + '\n\n' + t('switch.send'));
-    sync();
+  /* Still on the clock: say so and stay put. A toast rather than alert(), which
+     a home-screen app does not always put on screen — and a warning nobody sees
+     is indistinguishable from a button that does nothing. */
+  if (st.status !== 'out'){
+    $('menu').classList.remove('open');
+    toast(t('switch.first'));
     return;
   }
+  /* Anything still waiting goes up under its own owner's token now, so there is
+     no longer any reason to stop a man handing the phone over. */
+  if (queue.length) toast(t('switch.queued', queue.length, worker));
   pickerReturn = worker;                     // so it can be undone
   worker = null; DB.set('jh.worker', null);   // the account stays on this phone
   $('menu').classList.remove('open'); buildSetup();
@@ -2435,7 +2862,7 @@ function buildSetup(){
         const a = acct(n);
         if (a && a.token && a.pin) lock();
         else if (a && a.token)     askNewPin();
-        else                       needsEnrol();
+        else                       askToJoin();
       };
       row.appendChild(b);
     });
@@ -2470,6 +2897,166 @@ function buildSetup(){
   $('setup').classList.add('open');
   $('lockScreen').classList.remove('open');
 }
+
+/* ═══════════ being let in by an owner ═══════════
+   The phone invents a secret, asks, and shows a number. An owner sees the same
+   number on his own phone and taps Approve. Nothing is read out, nothing is
+   typed, and the decision still belongs to an owner. */
+let joinId = null, joinSecret = null, joinTimer = null;
+
+function newSecret(){
+  const a = new Uint8Array(24);
+  crypto.getRandomValues(a);
+  return Array.from(a).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+}
+
+function closeJoin(){
+  clearTimeout(joinTimer); joinTimer = null;
+  $('join').classList.remove('open');
+}
+
+async function askToJoin(){
+  unlocked = false;
+  document.body.classList.add('locked'); mirrorRoot();
+  $('lockScreen').classList.remove('open');
+  $('setup').classList.remove('open');
+  $('enrol').classList.remove('open');
+  $('joinTitle').textContent = t('join.title', worker);
+  $('joinNumber').textContent = '— — — —';
+  $('joinState').textContent = t('join.waiting');
+  $('joinAgain').hidden = true;
+  $('join').classList.add('open');
+
+  joinSecret = newSecret();
+  let d = null;
+  try {
+    d = await ask({ action:'join', who: worker, device: deviceName(), secret: joinSecret });
+  } catch(e){ /* handled below */ }
+
+  if (!d || !d.ok){
+    $('joinState').textContent = (d && /crew list|add you/.test(String(d.error)))
+      ? t('join.denied') : t('join.failed');
+    $('joinAgain').hidden = false;
+    return;
+  }
+  joinId = d.id;
+  $('joinNumber').textContent = String(d.number).split('').join(' ');
+  pollJoin();
+}
+
+/* A short poll rather than anything clever. It only runs while this screen is
+   open, and it stops the moment there is an answer. */
+async function pollJoin(){
+  if (!joinId || !$('join').classList.contains('open')) return;
+  let d = null;
+  try { d = await ask({ action:'joined', id: joinId, secret: joinSecret }); } catch(e){}
+
+  if (d && d.ok && d.state === 'approved'){
+    closeJoin();
+    acctSet({ token: d.token, role: d.role || 'crew' });
+    DB.set('jh.err', null);
+    askNewPin();                       // straight to picking a passcode
+    return;
+  }
+  if (d && d.ok && d.state === 'refused'){
+    $('joinState').textContent = t('join.refused');
+    $('joinAgain').hidden = false;
+    return;
+  }
+  if (d && !d.ok){
+    $('joinState').textContent = t('join.stale');
+    $('joinAgain').hidden = false;
+    return;
+  }
+  joinTimer = setTimeout(pollJoin, 3000);
+}
+
+/* Something an owner will recognise on his own screen. */
+function deviceName(){
+  const ua = navigator.userAgent || '';
+  if (/iPad/.test(ua)) return 'iPad';
+  if (/iPhone/.test(ua)) return 'iPhone';
+  if (/Android/.test(ua)) return 'Android';
+  return 'Phone';
+}
+
+$('joinAgain').onclick = function(){ askToJoin(); };
+$('joinCode').onclick  = function(){ closeJoin(); needsEnrol(); };
+$('joinBack').onclick  = function(){
+  closeJoin();
+  worker = null; DB.set('jh.worker', null);
+  buildSetup();
+};
+
+/* ═══════════ what an owner sees ═══════════ */
+let waitingNow = [];
+
+async function loadWaiting(quiet){
+  if (!isOwner()) return;
+  try {
+    const d = await ask({ action:'waiting' });
+    waitingNow = (d && d.ok && d.waiting) ? d.waiting : [];
+  } catch(e){ waitingNow = []; }
+  const n = waitingNow.length;
+  $('mWait').hidden = !n;
+  $('mWaitN').textContent = n ? (n === 1 ? '1' : String(n)) : '';
+  if (!quiet) renderWaiting();
+}
+
+function renderWaiting(){
+  const box = $('waitBox'); box.innerHTML = '';
+  if (!waitingNow.length){
+    $('waitSub').textContent = '';
+    const p = document.createElement('p');
+    p.className = 'note'; p.textContent = t('wait.none');
+    box.appendChild(p);
+    return;
+  }
+  $('waitSub').textContent = t('wait.sub');
+  waitingNow.forEach(function(w){
+    const row = document.createElement('div'); row.className = 'wait-row';
+
+    const who = document.createElement('div'); who.className = 'wait-who';
+    const b = document.createElement('b'); b.textContent = w.name;
+    const sp = document.createElement('span');
+    sp.textContent = [w.device, fmtTime(w.askedMs)].filter(Boolean).join('  ·  ');
+    who.appendChild(b); who.appendChild(sp);
+
+    const num = document.createElement('p');
+    num.className = 'wait-num';
+    num.textContent = String(w.number).split('').join(' ');
+
+    const acts = document.createElement('div'); acts.className = 'wait-acts';
+    const yes = document.createElement('button');
+    yes.type = 'button'; yes.className = 'yes'; yes.textContent = t('wait.yes');
+    yes.onclick = function(){ answerJoin(w, true); };
+    const no = document.createElement('button');
+    no.type = 'button'; no.className = 'no'; no.textContent = t('wait.no');
+    no.onclick = function(){ answerJoin(w, false); };
+    acts.appendChild(yes); acts.appendChild(no);
+
+    row.appendChild(who); row.appendChild(num); row.appendChild(acts);
+    box.appendChild(row);
+  });
+}
+
+async function answerJoin(w, yes){
+  buzz(yes ? 35 : 12);
+  try {
+    const d = await ask({ action:'decide', id: w.id, yes: yes });
+    if (!d || !d.ok) throw new Error('refused');
+    toast(yes ? t('wait.done', w.name) : t('wait.refused'));
+  } catch(e){ toast(t('net.fail')); }
+  await loadWaiting();
+}
+
+$('mWait').onclick = function(){
+  $('menu').classList.remove('open');
+  $('waitList').classList.add('open');
+  renderWaiting();
+  loadWaiting();
+};
+$('waitBack').onclick = function(){ $('waitList').classList.remove('open'); };
 
 /* ═══════════ enrolment ═══════════ */
 /* A phone is useless until an admin hands its owner a one-time code. What comes
@@ -2660,6 +3247,15 @@ const PLATFORMS = [
 ];
 
 let trkKind = null, trkPay = null, toastTimer = null;
+/* Which day the board is showing, when there is a choice. */
+let schedView = 'day';
+/* The id of the entry being corrected, if this form was opened to fix one. */
+let trkEdit = null, revEdit = null;
+let recent = [];
+/* Set when the form was opened from the day's board, so saving ticks that job
+   off as well as recording it. Cleared whenever the form is opened any other
+   way, or a save would tick off whatever was last looked at. */
+let trkJob = null;
 let revPlats = [];
 
 function toast(msg){
@@ -2719,6 +3315,9 @@ function buildPlats(){
 function openReview(){
   micStop();
   micTarget = MIC_TARGETS.review;
+  saidSoFar = '';
+  revEdit = null;
+  $('revSave').textContent = t('rev.save');
   const canHear = micSupported();
   $('revSay').toggleAttribute('hidden', !canHear);
   $('revSayHint').toggleAttribute('hidden', !canHear);
@@ -2730,19 +3329,23 @@ function openReview(){
   $('reviewSheet').classList.add('open');
   $('reviewSheet').scrollTop = 0;
 }
-function closeReview(){ micStop(); $('reviewSheet').classList.remove('open'); }
+function closeReview(){ micStop(); revEdit = null; $('reviewSheet').classList.remove('open'); }
 
 function openTrack(){
   micStop();
   micTarget = MIC_TARGETS.track;
+  saidSoFar = '';                   // a fresh form has heard nothing yet
+  trkEdit = null;
+  trkJob = null;                    // a plain open is not tied to any booking
   $('trkForm').hidden = true;
   $('trkPick').hidden = false;
   $('trackSheet').classList.add('open');
 }
-function closeTrack(){ micStop(); $('trackSheet').classList.remove('open'); }
+function closeTrack(){ micStop(); trkJob = null; trkEdit = null; $('trackSheet').classList.remove('open'); }
 
 function startTrack(kind){
   trkKind = kind;
+  saidSoFar = '';                   // choosing job or quote starts the listening over
   const job = kind === 'job';
   $('trkTitle').textContent = t(job ? 'trk.job' : 'trk.quoteT');
   $('fValueLabel').textContent = t(job ? 'f.jobTotal' : 'f.quoteTotal');
@@ -2797,10 +3400,13 @@ $('revForm').onsubmit = function(e){
     return;
   }
 
-  punch('review', { first: first, last: $('rLast').value.trim(), platforms: revPlats.slice() });
+  const rec = { first: first, last: $('rLast').value.trim(), platforms: revPlats.slice() };
+  if (revEdit){ rec.id = revEdit; rec.edit = true; }
+  const fixing = !!revEdit;
+  punch('review', rec);
   buzz(35);
   closeReview();
-  toast(t('saved.rev', first));
+  toast(fixing ? t('edit.saved') : t('saved.rev', first));
 };
 
 $('track').onclick      = openTrack;
@@ -2837,10 +3443,14 @@ $('trkForm').onsubmit = function(e){
   if (job) rec.method = trkPay;
   else     rec.notes  = $('fNotes').value.trim();
 
+  if (trkEdit){ rec.id = trkEdit; rec.edit = true; }   // land on the original row
+  const fixing = !!trkEdit;
   punch(trkKind, rec);
   buzz(35);
+  const booked = trkJob;            // closeTrack clears it
   closeTrack();
-  toast(t(job ? 'saved.job' : 'saved.quote', first));
+  toast(fixing ? t('edit.saved') : t(job ? 'saved.job' : 'saved.quote', first));
+  if (booked && job) markDone(booked, true);   // logged, so it is finished
 };
 
 /* MIC-START */
@@ -2855,6 +3465,8 @@ $('trkForm').onsubmit = function(e){
    ever gets round to calling the result final. */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let listener = null, listening = false, heard = '', handled = true;
+/* Everything said into the form that is open, across however many goes. */
+let saidSoFar = '';
 
 function micSupported(){
   // needs the API and a secure context; a file:// page has neither
@@ -2868,10 +3480,10 @@ function micSupported(){
 const MIC_TARGETS = {
   track: { btn:'trkSay', label:'traySayLabel', hint:'trkSayHint',
            example: function(){ return t(trkKind === 'quote' ? 'say.egQuote' : 'say.egJob'); },
-           use: function(said){ readIt(said); } },
+           use: function(said, more){ readIt(said, more); } },
   review:{ btn:'revSay', label:'revSayLabel', hint:'revSayHint',
            example: function(){ return t('say.egRev'); },
-           use: function(said){ readReview(said); } }
+           use: function(said, more){ readReview(said, more); } }
 };
 let micTarget = MIC_TARGETS.track;
 function micBtn(){   return $(micTarget.btn); }
@@ -2911,14 +3523,16 @@ function useHeard(){
   listener = null;
   micIdle();
   if (!said){ micHint().textContent = t('say.missed'); return; }
-  micTarget.use(said);
+  const more = !!saidSoFar;                     // this is a second go, not a first
+  saidSoFar = (saidSoFar ? saidSoFar + '. ' + said : said).trim();
+  micTarget.use(saidSoFar, more);
 }
 
 /* Claude reads the sentence when there is signal and a key is set up; the
    pattern matching in this file reads it when there isn't. Either way the form
    gets filled in and shown for a look — the fallback means a basement with no
    bars still works, just a little more literally. */
-async function readIt(said){
+async function readIt(said, more){
   micLabel().textContent = t('say.reading');
   micHint().textContent = '“' + said + '”';
   let picked = null;
@@ -2930,13 +3544,13 @@ async function readIt(said){
   }
   micIdle();
   if (!picked && langOf() !== 'en'){ micHint().textContent = t('say.noRead'); return; }
-  applySpoken(picked || parseSpoken(said), !!picked);
+  applySpoken(picked || parseSpoken(said), !!picked, more);
 }
 
 /* A review is two names and a place or three, so there is no pattern-matching
    fallback worth having here — without a reading, the form simply waits to be
    typed, which is two taps and a name. */
-async function readReview(said){
+async function readReview(said, more){
   micLabel().textContent = t('say.reading');
   micHint().textContent = '“' + said + '”';
   let got = null;
@@ -2951,15 +3565,15 @@ async function readReview(said){
     micHint().textContent = t('say.noRead');
     return;
   }
-  applyReview(got, said);
+  applyReview(got, said, more);
 }
 
 /* Fill the review in and leave it on screen for a look, exactly as a job is —
    nothing is saved off the back of a microphone. */
-function applyReview(p, said){
-  $('rFirst').value = p.first || '';
-  $('rLast').value  = p.last  || '';
-  buildPlats();
+function applyReview(p, said, more){
+  if (p.first) $('rFirst').value = p.first;
+  if (p.last)  $('rLast').value  = p.last;
+  if (!more) buildPlats();
   (p.platforms || []).forEach(function(id){
     const b = [].filter.call($('plats').children, function(c){
       return c.getAttribute('data-plat') === id;
@@ -2967,12 +3581,12 @@ function applyReview(p, said){
     if (b) b.click();
   });
 
-  $('revHeardText').textContent = '“' + (p.heard || said || '') + '”';
+  $('revHeardText').textContent = '“' + (saidSoFar || p.heard || said || '') + '”';
   const missing = [];
-  if (!p.first) missing.push(t('miss.name'));
+  if (!$('rFirst').value.trim()) missing.push(t('miss.name'));
   if (!revPlats.length) missing.push(t('miss.where'));
   $('revHeardMiss').textContent = missing.length
-    ? t('heard.miss', missing.join(' ' + t('and') + ' '))
+    ? t('heard.miss', missing.join(' ' + t('and') + ' ')) + '  ' + t('say.more')
     : t('heard.ok');
   $('revHeard').hidden = false;
   buzz(35);
@@ -3044,14 +3658,18 @@ function startListening(){
 /* The form is already open on the kind he chose, so this fills it rather than
    starting it over — and whatever the parser thought the kind was is ignored.
    He said which one it was by tapping; that settles it. */
-function applySpoken(p, byClaude){
-  $('fFirst').value = p.first || '';
-  $('fLast').value  = p.last  || '';
-  $('fTown').value  = p.town  || '';
-  $('fValue').value = p.amount == null ? '' : String(p.amount);
+function applySpoken(p, byClaude, more){
+  /* Only what the reading found goes in. That way a second recording supplies
+     the amount without wiping the name, and anything typed by hand survives
+     unless the words actually replace it. */
+  const set = function(id, v){ if (v !== '' && v != null) $(id).value = String(v); };
+  set('fFirst', p.first);
+  set('fLast',  p.last);
+  set('fTown',  p.town);
+  if (p.amount != null) $('fValue').value = String(p.amount);
   ['fFirst','fTown','fValue'].forEach(function(id){ $(id).classList.remove('bad'); });
   $('trkErr').hidden = true;
-  buildPays();                     // clears anything picked before
+  if (!more) buildPays();          // only a first go clears an earlier pick
   $('pays').classList.remove('bad');
 
   if (trkKind === 'job' && p.method){
@@ -3061,17 +3679,26 @@ function applySpoken(p, byClaude){
     if (btn) btn.click();
   }
 
-  $('heardText').textContent = '“' + (p.heard || '') + '”';
+  $('heardText').textContent = '“' + (saidSoFar || p.heard || '') + '”';
   $('heardBox').hidden = false;
 
+  /* Read the form, not the reading — after a second go the fields hold both
+     halves, and it is the fields that are about to be saved. */
   const missing = [];
-  if (!p.first) missing.push(t('miss.name'));
-  if (!p.town) missing.push(t('miss.town'));
-  if (p.amount == null) missing.push(t('miss.amount'));
-  if (trkKind === 'job' && !p.method) missing.push(t('miss.pay'));
+  if (!$('fFirst').value.trim()) missing.push(t('miss.name'));
+  if (!$('fTown').value.trim()) missing.push(t('miss.town'));
+  if (!$('fValue').value.trim()) missing.push(t('miss.amount'));
+  if (trkKind === 'job' && !trkPay) missing.push(t('miss.pay'));
   $('heardMiss').textContent = missing.length
-    ? t('heard.miss', missing.join(', '))
+    ? t('heard.miss', missing.join(', ')) + '  ' + t('say.more')
     : t('heard.ok');
+  /* Which of the two read it. Without this the only difference was a dashed
+     border, which is no use at all when the question is "is the AI working". */
+  const src = document.createElement('span');
+  src.className = 'heard-src';
+  src.textContent = byClaude ? t('heard.byAi') : t('heard.byPhone');
+  $('heardMiss').appendChild(document.createTextNode('  '));
+  $('heardMiss').appendChild(src);
   $('heardBox').classList.toggle('by-hand', !byClaude);
   buzz(35);
 }
