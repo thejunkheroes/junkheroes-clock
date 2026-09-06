@@ -2078,10 +2078,12 @@ function townFromAddress(where){
 
 /* Ticking a job off. The board is updated at once so it feels immediate, and
    the sheet is told after — a tick that fails to send is put back. */
+let finishing = 0;                     // ticks in flight
 async function markDone(j, done){
   const was = j.done;
   j.done = done;
   renderSchedule(); paintNext(); buzz(done ? 35 : 12);
+  finishing++;
   try {
     const d = await ask({ action:'finish', eventId: j.id, date: j.date || schedule.date,
                           title: j.title, truck: j.truck || st.truck || '', done: done });
@@ -2090,6 +2092,9 @@ async function markDone(j, done){
     j.done = was;                       // it never reached the sheet
     renderSchedule(); paintNext();
     toast(t('net.fail'));
+  } finally {
+    finishing--;
+    if (!finishing) loadSchedule();     // now pick up the sheet's view, doneBy and all
   }
 }
 
@@ -2115,7 +2120,7 @@ function paintNext(){
 }
 
 async function loadSchedule(){
-  if (isTest() || !worker) return;
+  if (isTest() || !worker || finishing) return;   // a tick is on its way; let it land
   try {
     const d = await ask({ action:'schedule', truck: st.truck || '' });
     if (!d || !d.ok) return;                 // no calendar set up: say nothing
@@ -2125,6 +2130,8 @@ async function loadSchedule(){
                  alsoToday: d.alsoToday || [], todayDate: d.todayDate || '',
                  at: Date.now() };
     paintNext();
+    // an open board is rebuilt from the new objects, so its rows never go stale
+    if ($('schedule').classList.contains('open')) renderSchedule();
   } catch(e){ /* no signal; whatever was last known stays on screen */ }
 }
 
@@ -3170,19 +3177,31 @@ function spokenAmount(text){
   return null;
 }
 
+const NOT_A_TOWN = /^(about|around|front|back|case|total|time|record|order|addition|half|there|here|it|that|this|my|our|his|her|their|traffic|town|charge|full|part|person|between|under|over|general|short|no)$/i;
+
 function spokenTown(text){
-  const m = text.match(/\bin\s+([A-Za-z][A-Za-z.'’-]*(?:\s+[A-Za-z][A-Za-z.'’-]*){0,2})/i);
-  if (!m) return '';
-  // Stop at the first word that can't be part of a town — filtering them out
-  // instead would let "in Ridgefield eight hundred" swallow the amount.
   const isNumWord = new RegExp('^' + SPOKEN_NUMWORD + '$', 'i');
-  const kept = [];
-  const words = m[1].split(/\s+/);
-  for (let i = 0; i < words.length; i++){
-    if (SPOKEN_STOP.test(words[i]) || isNumWord.test(words[i]) || /\d/.test(words[i])) break;
-    kept.push(words[i]);
+  // the second and third words may not be "in" — otherwise "in record time in
+  // Danvers" swallows the real town as its own third word and never sees it
+  const re = /\bin\s+([A-Za-z][A-Za-z.'’-]*(?:\s+(?!in\b)[A-Za-z][A-Za-z.'’-]*){0,2})/gi;
+  const found = [];
+  let m;
+  while ((m = re.exec(text))){
+    const words = m[1].split(/\s+/);
+    if (NOT_A_TOWN.test(words[0]) || SPOKEN_STOP.test(words[0])) continue;
+    // Stop at the first word that can't be part of a town — filtering them out
+    // instead would let "in Ridgefield eight hundred" swallow the amount.
+    const kept = [];
+    for (let i = 0; i < words.length; i++){
+      if (SPOKEN_STOP.test(words[i]) || isNumWord.test(words[i]) || /\d/.test(words[i])) break;
+      kept.push(words[i]);
+    }
+    if (kept.length) found.push({ words: kept.slice(0, 3), cap: /^[A-Z]/.test(words[0]) });
   }
-  return kept.slice(0, 3).map(function(w){
+  if (!found.length) return '';
+  const caps = found.filter(function(f){ return f.cap; });
+  const pick = (caps.length ? caps : found).slice(-1)[0];
+  return pick.words.map(function(w){
     return w.charAt(0).toUpperCase() + w.slice(1);
   }).join(' ');
 }
