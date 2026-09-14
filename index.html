@@ -194,6 +194,8 @@ body.locked .bg{background:var(--void)}
 }
 .overlay{position:fixed;inset:0;z-index:20;background:var(--void);display:none;overflow-y:auto}
 .overlay.open{display:block}
+/* opened from another sheet, so it must sit above the one it came from */
+.overlay.above{z-index:21}
 
 /* ── status strip ── */
 .strip{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-height:34px}
@@ -644,7 +646,7 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
   stroke-linecap:round;stroke-linejoin:round;flex:none}
 #enrol .inner,#truckSheet .inner,#crews .inner,#myjobs .inner,#schedule .inner,#lockScreen.hasback .lock,#setup.hasback .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
 #myjobs .inner,#trackSheet .inner,#reviewSheet .inner,#confirmOut .inner,#work .inner,#owner .inner,
-#join .inner,#waitList .inner,#recent .inner{
+#join .inner,#waitList .inner,#recent .inner,#dayWeek .inner,#payHist .inner{
   padding-top:calc(env(safe-area-inset-top) + 88px)}
 h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 .sub{color:var(--haze);margin:0 0 24px;font-size:16px;line-height:1.5}
@@ -1081,7 +1083,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 </div>
 
 <!-- ═══ one man's week, day by day ═══ -->
-<div class="overlay" id="dayWeek">
+<div class="overlay above" id="dayWeek">
   <button class="back" id="dwBack">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
     <span data-i18n="back">Go back</span>
@@ -1108,7 +1110,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 </div>
 
 <!-- ═══ payments made ═══ -->
-<div class="overlay" id="payHist">
+<div class="overlay above" id="payHist">
   <button class="back" id="phBack">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
     <span data-i18n="back">Go back</span>
@@ -1121,7 +1123,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 </div>
 
 <!-- ═══ a recent entry, to put right ═══ -->
-<div class="overlay" id="recent">
+<div class="overlay above" id="recent">
   <button class="back" id="recBack">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
     <span data-i18n="back">Go back</span>
@@ -1763,8 +1765,8 @@ const STRINGS = {
   'mj.brought':  ['you helped bring in', 'que você ajudou a trazer'],
   'mj.wereOn':   ['jobs you were on', 'serviços que você fez'],
   'mj.avg':      ['average job', 'média por serviço'],
-  'mj.sub':      ['Jobs you logged, and what they came to. Tuesday to Monday.',
-                  'Serviços que você registrou, e quanto renderam. De terça a segunda.'],
+  'mj.sub':      ['Jobs you logged, and what they came to. {0} to {1}.',
+                  'Serviços que você registrou, e quanto renderam. De {0} a {1}.'],
   'mj.none':     ['No jobs on the board for you this week yet.',
                   'Nenhum serviço no seu nome nesta semana ainda.'],
   'mj.jobs1':    ['{0} job, newest first', '{0} serviço, mais novo primeiro'],
@@ -1807,10 +1809,10 @@ const STRINGS = {
                   'Muitas tentativas. Espere meia hora e tente de novo.'],
   'enrol.noNet': ["Couldn't reach the office. Check your signal and try again.",
                   'Não consegui falar com o escritório. Verifique o sinal e tente de novo.'],
-  'hrs.week':    ['The work week runs Tuesday to Monday.',
-                  'A semana de trabalho vai de terça a segunda.'],
-  'hrs.weekAll': ['The whole crew. The work week runs Tuesday to Monday.',
-                  'A equipe toda. A semana de trabalho vai de terça a segunda.'],
+  'hrs.week':    ['The work week runs {0} to {1}.',
+                  'A semana de trabalho vai de {0} a {1}.'],
+  'hrs.weekAll': ['The whole crew. The work week runs {0} to {1}.',
+                  'A equipe toda. A semana de trabalho vai de {0} a {1}.'],
   'hrs.noneAll': ['No punches recorded yet.', 'Nenhuma marcação registrada ainda.'],
   'net.fail':    ["Couldn't load that. Check the connection, then try again.",
                   'Não consegui carregar. Verifique a conexão e tente de novo.']
@@ -1819,7 +1821,7 @@ const STRINGS = {
 /* The first day of the work week first — Tuesday, as things stand. */
 /* The day a work week begins: 0 Sunday … 6 Saturday. Must match
    CONFIG.WEEK_STARTS_ON in Code.gs — the backend buckets by the same number. */
-const WEEK_STARTS_ON = 2;                       // Tuesday
+const WEEK_STARTS_ON = 3;                       // Wednesday
 
 /* Sunday-first, the way getDay() counts. The week's own order is rotated out
    of these, so changing the constant above changes the labels too. */
@@ -1861,6 +1863,11 @@ function fmtTime(ms){
 }
 function fmtDay(ms){
   try { return new Date(ms).toLocaleDateString(locale(), { weekday:'short', month:'short', day:'numeric' }); }
+  catch(e){ return ''; }
+}
+/* Just the month and the day — the weekday is already on the row. */
+function fmtDayNum(ms){
+  try { return new Date(ms).toLocaleDateString(locale(), { month:'short', day:'numeric' }); }
   catch(e){ return ''; }
 }
 function fmtDayLong(ms){
@@ -2487,7 +2494,7 @@ function renderWeekDetail(){
 
     const top = document.createElement('div'); top.className = 'dw-day-top';
     const nm = document.createElement('b');
-    nm.textContent = names[i] + '  ' + (fmtDay(dayMs(day.date)) || '');
+    nm.textContent = names[i] + '  ·  ' + (fmtDayNum(dayMs(day.date)) || '');
     const hrs = document.createElement('span');
     hrs.className = 'dw-hrs';
     hrs.textContent = day.hours ? hrsText(day.hours) : '0h';
@@ -4214,7 +4221,7 @@ $('wkPrev').onclick = function(){ hoursData.sel = 1; this.classList.add('on');
   $('wkNow').classList.remove('on'); paintHours(); };
 
 function render(weeks, everyone){
-  $('ownerSub').textContent = t(everyone ? 'hrs.weekAll' : 'hrs.week');
+  $('ownerSub').textContent = weekWords(everyone ? 'hrs.weekAll' : 'hrs.week');
 
   const list = weeks || [];
   const find = function(iso){
@@ -4279,6 +4286,15 @@ function render(weeks, everyone){
 /* HOURS-START */
 /* The work week runs Tuesday to Monday, matching the backend. */
 function dayLetters(){ return DAYS_SHORT[langOf()] || DAYS_SHORT.en; }
+/* The first and last day of the work week, in words, for the sentences that
+   describe it. Taken from the same rotation the charts use, so a change to
+   WEEK_STARTS_ON moves the words as well as the maths. */
+function weekWords(key){
+  const d = dayNames();
+  const first = d[0], last = d[6];
+  return t(key, langOf() === 'pt' ? first.toLowerCase() : first,
+                langOf() === 'pt' ? last.toLowerCase()  : last);
+}
 function dayNames(){ return DAYS_LONG[langOf()] || DAYS_LONG.en; }
 
 function weekStartISO(d){
@@ -4576,7 +4592,7 @@ $('mMine').onclick = async function(){
     mjData.now   = find(nowISO);
     mjData.prev  = find(shiftWeekISO(nowISO, 1));
     mjData.older = find(shiftWeekISO(nowISO, 2));
-    $('mjSub').textContent = t('mj.sub');
+    $('mjSub').textContent = weekWords('mj.sub');
     $('mjTop').hidden = false;
     paintMyJobs();
   } catch(e){ $('mjSub').textContent = "Couldn't load your jobs. Check the connection, then try again."; }
