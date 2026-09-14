@@ -62,14 +62,6 @@ const CONFIG = {
   TEST_USER: { name: "Test", pin: "0608" },
 
   // Optional
-  /* Which punches record where they were made. The crew is told this in the
-     app, and the phone asks for permission the first time either way — iOS
-     shows a prompt and then an indicator whenever it is used, so there is no
-     version of this the crew does not see.
-
-     [] records nothing. ["break_start","break_end"] is breaks only.
-     ["in","out","break_start","break_end"] stamps the whole shift. */
-  RECORD_LOCATION: ["break_start", "break_end"],
   /* Minutes the app can sit closed before it asks for the passcode again.
      0 = never ask on its own. The passcode is then only wanted when the phone
      is first set up and after somebody taps Log out — a man arriving at a job
@@ -239,6 +231,17 @@ button{font-family:inherit;font-size:inherit;border:0;cursor:pointer;color:inher
    the slack sits under the clock instead of under the buttons. The gaps inside
    the group are fixed, so its internal spacing never changes. */
 .stack{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:auto}
+/* A small motivating figure, not a headline: it sits under the buttons in the
+   same lilac the clock uses, and only appears for somebody with a rate set. */
+.commission{display:flex;flex-direction:column;align-items:center;gap:1px;
+  margin:16px auto 0;padding:8px 18px;border-radius:13px;
+  background:var(--tint-soft);border:1px solid var(--edge);
+  transition:transform .09s ease,background-color .09s ease}
+.commission:active{transform:scale(.98);background:var(--tint)}
+.commission b{font-size:21px;font-weight:730;letter-spacing:-.02em;color:var(--lilac);
+  font-variant-numeric:tabular-nums;line-height:1.15}
+.commission span{font-size:12px;color:var(--haze)}
+
 .log-row{display:flex;justify-content:center;align-items:stretch;gap:11px;
   width:100%;margin-top:auto;padding-top:24px}
 .punch{position:relative;width:min(238px,63vw);aspect-ratio:1;border-radius:50%;
@@ -542,6 +545,57 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
   color:var(--haze);text-decoration:underline;text-underline-offset:3px}
 .minor-link:active{color:var(--lilac)}
 
+/* ── a week, day by day ── */
+.dw-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin:0 0 18px;padding:12px 14px;border-radius:13px;
+  background:var(--sunk);border:1px solid var(--edge)}
+.dw-arrow{flex:none;width:40px;height:40px;border-radius:50%;background:transparent;
+  border:1.5px solid var(--edge);display:flex;align-items:center;justify-content:center;
+  transition:transform .09s ease,background-color .09s ease}
+.dw-arrow:active{transform:scale(.92);background:var(--tint)}
+.dw-arrow svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.dw-arrow[disabled]{opacity:.3}
+.dw-total{text-align:center;line-height:1.2}
+.dw-total b{display:block;font-size:26px;font-weight:730;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.dw-total em{font-style:normal;font-size:12.5px;color:var(--haze)}
+
+.dw-day{margin-bottom:10px;padding:13px 15px;border-radius:13px;
+  background:var(--sunk);border:1.5px solid var(--edge)}
+.dw-day.empty{opacity:.55}
+.dw-day-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.dw-day-top b{font-size:15.5px;font-weight:650}
+.dw-hrs{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.dw-punch{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:14px;color:var(--haze)}
+.dw-punch .lbl{flex:none;width:58px;font-size:11.5px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--lilac)}
+.dw-punch .tm{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
+.dw-punch .mark{font-size:11px;padding:1px 6px;border-radius:4px;
+  background:var(--tint-key);color:var(--lilac);font-weight:700}
+.dw-punch button{margin-left:auto;padding:5px 10px;border-radius:8px;font-size:12.5px;
+  font-weight:600;background:transparent;border:1.5px solid var(--edge);color:var(--haze)}
+.dw-punch button:active{background:var(--tint)}
+.dw-add{margin-top:9px;padding:7px 12px;border-radius:9px;font-size:13px;font-weight:600;
+  background:transparent;border:1.5px dashed var(--edge);color:var(--haze)}
+.dw-add:active{background:var(--tint)}
+.dw-brk{margin-top:6px;font-size:13px;color:var(--haze)}
+
+.pay-state{margin:-6px 0 16px;padding:10px 14px;border-radius:11px;font-size:14.5px;
+  background:var(--good-soft, var(--sunk));border:1px solid var(--edge);color:var(--good-text)}
+.row.paid-row b{color:var(--good-text)}
+.row.tappable{cursor:pointer;transition:transform .09s ease,background-color .09s ease}
+.row.tappable:active{transform:scale(.99);background:var(--tint-soft)}
+.pay-group{margin:22px 0 8px;font-size:12.5px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--haze)}
+
+.ph-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;padding:13px 15px;
+  border-radius:12px;background:var(--sunk);border:1px solid var(--edge)}
+.ph-row .who{flex:1;min-width:0}
+.ph-row .who b{display:block;font-size:15px;font-weight:650}
+.ph-row .who span{display:block;margin-top:2px;font-size:13px;color:var(--haze)}
+.ph-row .hrs{flex:none;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+
 .rec-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
   margin-bottom:10px;padding:14px 15px;border-radius:13px;
   background:var(--sunk);border:1.5px solid var(--edge);
@@ -811,6 +865,10 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.3 7-11.4A7 7 0 0 0 5 9.6C5 14.7 12 21 12 21z"/><circle cx="12" cy="9.6" r="2.6"/></svg>
     </span>
   </button>
+  <button class="commission" id="commission" hidden>
+    <b id="comEarned">$0</b>
+    <span id="comLabel"></span>
+  </button>
   <div class="log-row">
     <button class="track" id="track">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8a2 2 0 0 1 2 2v13a1 1 0 0 1-1.5.87L12 17.5l-4.5 2.37A1 1 0 0 1 6 19V6a2 2 0 0 1 2-2z"/><path d="M9.5 9h5"/></svg>
@@ -1022,6 +1080,46 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   </div>
 </div>
 
+<!-- ═══ one man's week, day by day ═══ -->
+<div class="overlay" id="dayWeek">
+  <button class="back" id="dwBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+  <h2 id="dwTitle">Week</h2>
+  <p class="sub" id="dwRange"></p>
+
+  <div class="dw-nav">
+    <button class="dw-arrow" id="dwPrev" aria-label="Earlier week">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5.5L8.5 12l6.5 6.5"/></svg>
+    </button>
+    <span class="dw-total"><b id="dwTotal">0h</b><em data-i18n="day.total">Week total</em></span>
+    <button class="dw-arrow" id="dwNext" aria-label="Later week">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5L15.5 12 9 18.5"/></svg>
+    </button>
+  </div>
+
+  <p class="pay-state" id="dwPaid" hidden></p>
+  <div id="dwDays"></div>
+  <button class="pick safe" id="dwMark" hidden data-i18n="pay.mark">Mark this week paid</button>
+  <button class="minor-link" type="button" id="dwUnlock" hidden data-i18n="pay.unlock">Unlock this week</button>
+  </div>
+</div>
+
+<!-- ═══ payments made ═══ -->
+<div class="overlay" id="payHist">
+  <button class="back" id="phBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+  <h2 data-i18n="pay.history">Payments</h2>
+  <p class="sub" id="phSub"></p>
+  <div id="phList"></div>
+  </div>
+</div>
+
 <!-- ═══ a recent entry, to put right ═══ -->
 <div class="overlay" id="recent">
   <button class="back" id="recBack">
@@ -1129,6 +1227,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <button class="pick" id="mWork" hidden data-i18n="menu.work">Jobs &amp; quotes</button>
   <button class="pick" id="mCrews" hidden data-i18n="menu.crews">Trucks &amp; crews</button>
   <button class="pick" id="mWait" hidden><span data-i18n="wait.menu">Phones waiting</span><small id="mWaitN"></small></button>
+  <button class="pick" id="mPay" hidden data-i18n="pay.history">Payments</button>
   <button class="pick" id="mBio" hidden></button>
   <button class="pick" id="mPin" data-i18n="menu.pin">Change passcode</button>
   <button class="pick with-icon" id="mSwitch">
@@ -1150,7 +1249,6 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
     </div>
   </div>
   <p class="note" id="diag"></p>
-  <p class="note" id="locNote" data-i18n="loc.note" hidden></p>
   <button class="logout" id="mOut">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 20H5.5A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4h4"/><path d="M16 8.5l3.5 3.5-3.5 3.5"/><path d="M9.5 12h10"/></svg>
     <span id="mOutLabel">Log out</span>
@@ -1603,6 +1701,48 @@ const STRINGS = {
 
   /* hours and jobs */
   'wk.this':     ['This week', 'Esta semana'],
+  'day.title':   ['{0}’s week', 'Semana de {0}'],
+  'day.mine':    ['My week', 'Minha semana'],
+  'day.none':    ['Nothing that day', 'Nada nesse dia'],
+  'day.in':      ['In', 'Entrada'],
+  'day.out':     ['Out', 'Saída'],
+  'day.break':   ['{0} of breaks', '{0} de pausa'],
+  'day.open':    ['still on the clock', 'ainda trabalhando'],
+  'day.edited':  ['corrected', 'corrigido'],
+  'day.total':   ['Week total', 'Total da semana'],
+  'day.edit':    ['Edit', 'Editar'],
+  'day.add':     ['Add a punch', 'Adicionar marcação'],
+  'day.delete':  ['Delete', 'Apagar'],
+  'day.newTime': ['New time', 'Novo horário'],
+  'day.save':    ['Save', 'Salvar'],
+  'day.askDel':  ['Delete this punch? The row stays in the sheet, marked.',
+                  'Apagar esta marcação? A linha fica na planilha, marcada.'],
+  'day.which':   ['Clock in or clock out?', 'Entrada ou saída?'],
+  'pay.mark':    ['Mark this week paid', 'Marcar semana como paga'],
+  'pay.markAll': ['Mark the whole crew paid', 'Marcar toda a equipe'],
+  'pay.done':    ['Paid {0}', 'Pago em {0}'],
+  'pay.by':      ['marked by {0}', 'marcado por {0}'],
+  'pay.unlock':  ['Unlock this week', 'Reabrir esta semana'],
+  'pay.askMark': ['Mark {0} as paid for this week? It locks the hours.',
+                  'Marcar {0} como pago nesta semana? As horas ficam travadas.'],
+  'pay.askAll':  ['Mark everybody paid for this week?',
+                  'Marcar todos como pagos nesta semana?'],
+  'pay.askOpen': ['Open this week again so the hours can be changed?',
+                  'Reabrir esta semana para poder alterar as horas?'],
+  'pay.locked':  ['Paid and locked', 'Pago e travado'],
+  'pay.unpaid':  ['Not paid yet', 'Ainda não pago'],
+  'pay.history': ['Payments', 'Pagamentos'],
+  'pay.none':    ['Nothing paid out yet.', 'Nenhum pagamento ainda.'],
+  'pay.owed':    ['Unpaid', 'A pagar'],
+  'pay.settled': ['Paid', 'Pago'],
+  'com.label':   ['your cut this week', 'sua parte esta semana'],
+  'com.jobs1':   ['{0} job', '{0} serviço'],
+  'com.jobsN':   ['{0} jobs', '{0} serviços'],
+  'com.pending': ['· not sent yet', '· ainda não enviado'],
+  'dup.title':   ['{0} already logged this today', '{0} já registrou isso hoje'],
+  'dup.body':    ['{0} in {1}. Is this the same job?', '{0} em {1}. É o mesmo serviço?'],
+  'dup.same':    ['Yes, the same one', 'Sim, é o mesmo'],
+  'dup.diff':    ['No, a different job', 'Não, outro serviço'],
   'wk.last':     ['Last week', 'Semana passada'],
   'wk.that':     ['That week', 'Aquela semana'],
   'wk.before':   ['The week before', 'A semana anterior'],
@@ -1623,8 +1763,8 @@ const STRINGS = {
   'mj.brought':  ['you helped bring in', 'que você ajudou a trazer'],
   'mj.wereOn':   ['jobs you were on', 'serviços que você fez'],
   'mj.avg':      ['average job', 'média por serviço'],
-  'mj.sub':      ['Jobs your truck did, and what they came to. Wednesday to Tuesday.',
-                  'Serviços do seu caminhão, e quanto renderam. De quarta a terça.'],
+  'mj.sub':      ['Jobs you logged, and what they came to. Tuesday to Monday.',
+                  'Serviços que você registrou, e quanto renderam. De terça a segunda.'],
   'mj.none':     ['No jobs on the board for you this week yet.',
                   'Nenhum serviço no seu nome nesta semana ainda.'],
   'mj.jobs1':    ['{0} job, newest first', '{0} serviço, mais novo primeiro'],
@@ -1639,8 +1779,6 @@ const STRINGS = {
   'diag.clear':  ['Everything has been sent.', 'Tudo foi enviado.'],
   'diag.last':   ['Last sent {0}.', 'Último envio {0}.'],
   'diag.problem':['Last problem: {0}.', 'Último problema: {0}.'],
-  'loc.note':    ['Where you are is recorded when a break starts and ends. Nowhere else.',
-                  'O local é registrado quando a pausa começa e termina. Em nenhum outro momento.'],
   'err.setup':   ['this phone needs setting up again', 'este celular precisa ser configurado de novo'],
   'err.rejected':['rejected', 'recusado'],
   'err.nonet':   ['no connection', 'sem conexão'],
@@ -1669,22 +1807,38 @@ const STRINGS = {
                   'Muitas tentativas. Espere meia hora e tente de novo.'],
   'enrol.noNet': ["Couldn't reach the office. Check your signal and try again.",
                   'Não consegui falar com o escritório. Verifique o sinal e tente de novo.'],
-  'hrs.week':    ['The work week runs Wednesday to Tuesday.',
-                  'A semana de trabalho vai de quarta a terça.'],
-  'hrs.weekAll': ['The whole crew. The work week runs Wednesday to Tuesday.',
-                  'A equipe toda. A semana de trabalho vai de quarta a terça.'],
+  'hrs.week':    ['The work week runs Tuesday to Monday.',
+                  'A semana de trabalho vai de terça a segunda.'],
+  'hrs.weekAll': ['The whole crew. The work week runs Tuesday to Monday.',
+                  'A equipe toda. A semana de trabalho vai de terça a segunda.'],
   'hrs.noneAll': ['No punches recorded yet.', 'Nenhuma marcação registrada ainda.'],
   'net.fail':    ["Couldn't load that. Check the connection, then try again.",
                   'Não consegui carregar. Verifique a conexão e tente de novo.']
 };
 
-/* Wednesday first, matching the work week. */
-const DAYS_SHORT = { en:['W','T','F','S','S','M','T'],
-                     pt:['qua','qui','sex','sáb','dom','seg','ter'] };
-const DAYS_LONG  = { en:['Wednesday','Thursday','Friday','Saturday','Sunday','Monday','Tuesday'],
-                     pt:['Quarta','Quinta','Sexta','Sábado','Domingo','Segunda','Terça'] };
+/* The first day of the work week first — Tuesday, as things stand. */
+/* The day a work week begins: 0 Sunday … 6 Saturday. Must match
+   CONFIG.WEEK_STARTS_ON in Code.gs — the backend buckets by the same number. */
+const WEEK_STARTS_ON = 2;                       // Tuesday
+
+/* Sunday-first, the way getDay() counts. The week's own order is rotated out
+   of these, so changing the constant above changes the labels too. */
+const DOW_SHORT = { en:['S','M','T','W','T','F','S'],
+                    pt:['dom','seg','ter','qua','qui','sex','sáb'] };
+const DOW_LONG  = { en:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+                    pt:['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'] };
+function rotate(a){ return a.slice(WEEK_STARTS_ON).concat(a.slice(0, WEEK_STARTS_ON)); }
+const DAYS_SHORT = { en: rotate(DOW_SHORT.en), pt: rotate(DOW_SHORT.pt) };
+const DAYS_LONG  = { en: rotate(DOW_LONG.en),  pt: rotate(DOW_LONG.pt) };
 const LOCALES = { en:'en-US', pt:'pt-BR' };
 const SPEECH  = { en:'en-US', pt:'pt-BR' };
+
+/* Which language this man dictates in. An owner sets it on the People tab, so
+   there is no switch for the crew to find or get wrong. A phone set up before
+   this existed falls back to its interface language, as it did before. */
+function speechLang(){
+  return acctGet('speech', '') || SPEECH[langOf()] || 'en-US';
+}
 
 let lang = 'en';
 
@@ -1719,7 +1873,7 @@ function dayMs(iso){
   if (p.length !== 3 || !p[0]) return NaN;
   return new Date(p[0], p[1] - 1, p[2]).getTime();
 }
-/* A work week, Wednesday to Tuesday. setDate rather than adding six days of
+/* A work week, Tuesday to Monday. setDate rather than adding six days of
    milliseconds, so the week the clocks change is still seven days long. */
 function weekLabel(startIso){
   const a = dayMs(startIso);
@@ -1766,11 +1920,8 @@ function paintMenu(){
   $('mCrews').hidden = !isOwner() && !isJobAdmin();
   $('mOutLabel').textContent = t('menu.out');
 
-  /* Say it where they will see it. The phone is going to ask for permission
-     regardless, and a prompt with no explanation gets refused. */
-  const wants = CONFIG.RECORD_LOCATION;
-  $('locNote').hidden = !(wants === true || (Array.isArray(wants) && wants.length));
 
+  $('mPay').hidden = !isOwner();
   $('mWait').hidden = !isOwner() || !waitingNow.length;
   if (isOwner()) loadWaiting(true);
 
@@ -1868,24 +2019,6 @@ function punch(type, extra){
   if (extra) Object.keys(extra).forEach(function(k){ ev[k] = extra[k]; });
   queue.push(ev); save(); paint(); sync();
 
-  /* The punch is already queued and sent by this point. The position arrives
-     afterwards and is added to the row it belongs to — so a phone that refuses
-     the prompt, or is in a basement, still records the break itself. Time is
-     never held up waiting on a satellite. */
-  const wants = CONFIG.RECORD_LOCATION;
-  const stamp = wants === true ||
-                (Array.isArray(wants) && wants.indexOf(type) !== -1);
-  if (stamp && navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(function(p){
-      const q = queue.find(function(x){ return x.id === ev.id; });
-      if (q){
-        q.lat = +p.coords.latitude.toFixed(6);
-        q.lng = +p.coords.longitude.toFixed(6);
-        q.acc = Math.round(p.coords.accuracy);   // how much to trust the pin
-        save(); sync();
-      }
-    }, function(){}, { timeout:8000, maximumAge:60000, enableHighAccuracy:true });
-  }
 }
 function clockIn(truck){
   st = { status:'in', shiftStart:Date.now(), breakStart:null, breakMs:0, breaks:0, truck: truck || '' };
@@ -2263,6 +2396,239 @@ $('nextJob').onclick = function(e){
   openSchedule();
 };
 
+/* ═══════════ a share of what he brought in ═══════════
+   Only for the people named in COMMISSION on the backend; for anybody else
+   nothing comes back and the element stays hidden, so their screen is the one
+   they had before. Jobs still sitting in the queue are added on top of the
+   last figure the server gave, so the number moves the moment a job is saved
+   and settles to the server's own on the next sync. */
+let commission = null;
+
+function queuedJobMoney(){
+  let money = 0, jobs = 0;
+  queue.forEach(function(e){
+    if (e.type !== 'job' || e.worker !== worker) return;
+    const amt = Number(e.amount);
+    if (isFinite(amt) && amt > 0){ money += amt; jobs++; }
+  });
+  return { money: money, jobs: jobs };
+}
+
+function paintCommission(){
+  const card = $('commission');
+  if (!commission || isTest()){ card.hidden = true; return; }
+  const pending = queuedJobMoney();
+  const earned = commission.earned + pending.money * commission.rate;
+  const jobs = commission.jobs + pending.jobs;
+  card.hidden = false;
+  $('comEarned').textContent = money(earned);
+  $('comLabel').textContent = t(jobs === 1 ? 'com.jobs1' : 'com.jobsN', jobs) +
+    '  ·  ' + t('com.label') + (pending.jobs ? '  ' + t('com.pending') : '');
+}
+
+async function loadCommission(){
+  if (isTest() || !worker){ commission = null; paintCommission(); return; }
+  try {
+    const d = await ask({ action:'commission' });
+    commission = (d && d.ok) ? d.commission : null;
+  } catch(e){ /* no signal: keep whatever was last known */ }
+  paintCommission();
+}
+
+/* ═══════════ one man's week, day by day ═══════════
+   The weekly total was never enough to answer "why is that number wrong", so
+   the total opens into the seven days behind it. Every day is shown, including
+   the empty ones, because a missing day is usually the thing you are looking
+   for. An owner can put any of it right; everybody else is reading. */
+let dwWorker = null, dwStart = null, dwData = null;
+
+async function openWeekDetail(worker, weekStart){
+  dwWorker = worker; dwStart = weekStart;
+  $('dwTitle').textContent = (worker === self()) ? t('day.mine') : t('day.title', worker);
+  $('dwRange').textContent = t('loading');
+  $('dwDays').innerHTML = '';
+  $('dayWeek').classList.add('open');
+  await loadWeekDetail();
+}
+function self(){ return worker; }
+function closeWeekDetail(){ $('dayWeek').classList.remove('open'); }
+
+async function loadWeekDetail(){
+  try {
+    const d = await ask({ action:'week', worker: dwWorker, weekStart: dwStart });
+    if (!d || !d.ok) throw new Error('failed');
+    dwData = d;
+  } catch(e){ $('dwRange').textContent = t('hrs.fail'); return; }
+  renderWeekDetail();
+}
+
+function renderWeekDetail(){
+  const d = dwData;
+  if (!d) return;
+  $('dwRange').textContent = weekLabel(d.weekStart) || '';
+  $('dwTotal').textContent = hrsText(d.hours);
+
+  const paidLine = $('dwPaid');
+  if (d.paid){
+    paidLine.hidden = false;
+    paidLine.textContent = t('pay.locked') +
+      (d.paidOn ? '  ·  ' + t('pay.done', fmtDay(d.paidOn)) : '') +
+      (d.paidBy ? '  ·  ' + t('pay.by', d.paidBy) : '');
+  } else paidLine.hidden = true;
+
+  $('dwMark').hidden   = !d.canEdit || d.paid;
+  $('dwUnlock').hidden = !d.canEdit || !d.paid;
+
+  const box = $('dwDays'); box.innerHTML = '';
+  const names = dayNames();
+  d.days.forEach(function(day, i){
+    const card = document.createElement('div');
+    card.className = 'dw-day' + (day.hours ? '' : ' empty');
+
+    const top = document.createElement('div'); top.className = 'dw-day-top';
+    const nm = document.createElement('b');
+    nm.textContent = names[i] + '  ' + (fmtDay(dayMs(day.date)) || '');
+    const hrs = document.createElement('span');
+    hrs.className = 'dw-hrs';
+    hrs.textContent = day.hours ? hrsText(day.hours) : '0h';
+    top.appendChild(nm); top.appendChild(hrs);
+    card.appendChild(top);
+
+    if (!day.punches.length){
+      const none = document.createElement('p');
+      none.className = 'dw-brk'; none.textContent = t('day.none');
+      card.appendChild(none);
+    }
+
+    day.punches.forEach(function(p){
+      const row = document.createElement('div'); row.className = 'dw-punch';
+      const lbl = document.createElement('span'); lbl.className = 'lbl';
+      lbl.textContent = p.type === 'in' ? t('day.in')
+        : p.type === 'out' ? t('day.out')
+        : p.type === 'break_start' ? '↧' : '↥';
+      const tm = document.createElement('span'); tm.className = 'tm';
+      tm.textContent = p.time;
+      row.appendChild(lbl); row.appendChild(tm);
+      if (p.edited){
+        const mk = document.createElement('span');
+        mk.className = 'mark'; mk.textContent = t('day.edited');
+        row.appendChild(mk);
+      }
+      if (d.canEdit && !d.paid){
+        const ed = document.createElement('button');
+        ed.type = 'button'; ed.textContent = t('day.edit');
+        ed.onclick = function(){ editOnePunch(p); };
+        row.appendChild(ed);
+      }
+      card.appendChild(row);
+    });
+
+    day.shifts.forEach(function(sh){
+      if (!sh.breakMin) return;
+      const b = document.createElement('p');
+      b.className = 'dw-brk'; b.textContent = t('day.break', hrsText(sh.breakMin / 60));
+      card.appendChild(b);
+    });
+    if (day.shifts.some(function(x){ return x.status === 'Still clocked in'; })){
+      const o = document.createElement('p');
+      o.className = 'dw-brk'; o.textContent = t('day.open');
+      card.appendChild(o);
+    }
+
+    if (d.canEdit && !d.paid){
+      const add = document.createElement('button');
+      add.type = 'button'; add.className = 'dw-add'; add.textContent = t('day.add');
+      add.onclick = function(){ addOnePunch(day.date); };
+      card.appendChild(add);
+    }
+    box.appendChild(card);
+  });
+}
+
+/* A time typed by hand. prompt() is plain, but it is the one control every
+   phone has that cannot be fumbled with gloves on, and this is rare work. */
+function askTime(current){
+  const said = prompt(t('day.newTime') + ' (24h, e.g. 16:30)', current || '');
+  if (said === null) return null;
+  const t2 = String(said).trim();
+  return /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(t2) ? t2 : false;
+}
+
+async function editOnePunch(p){
+  const when = askTime('');
+  if (when === null) return;
+  if (when === false){ toast(t('day.newTime')); return; }
+  try {
+    const d = await ask({ action:'editpunch', id: p.id, time: when });
+    if (!d || !d.ok) throw new Error(d && d.error);
+    buzz(35); await loadWeekDetail();
+  } catch(e){ toast(String((e && e.message) || t('net.fail'))); }
+}
+
+async function addOnePunch(date){
+  const isIn = confirm(t('day.which') + '\n\nOK = ' + t('day.in') + ',  Cancel = ' + t('day.out'));
+  const when = askTime('');
+  if (when === null) return;
+  if (when === false){ toast(t('day.newTime')); return; }
+  try {
+    const d = await ask({ action:'addpunch', worker: dwWorker, date: date,
+                          type: isIn ? 'in' : 'out', time: when });
+    if (!d || !d.ok) throw new Error(d && d.error);
+    buzz(35); await loadWeekDetail();
+  } catch(e){ toast(String((e && e.message) || t('net.fail'))); }
+}
+
+$('dwBack').onclick = closeWeekDetail;
+$('dwPrev').onclick = function(){ dwStart = shiftWeekISO(dwStart, 1); loadWeekDetail(); buzz(12); };
+$('dwNext').onclick = function(){ dwStart = shiftWeekISO(dwStart, -1); loadWeekDetail(); buzz(12); };
+
+$('dwMark').onclick = async function(){
+  if (!confirm(t('pay.askMark', dwWorker))) return;
+  try {
+    const d = await ask({ action:'markpaid', worker: dwWorker,
+                          weekStart: dwStart, hours: dwData ? dwData.hours : 0 });
+    if (!d || !d.ok) throw new Error('failed');
+    buzz(35); await loadWeekDetail();
+  } catch(e){ toast(t('net.fail')); }
+};
+$('dwUnlock').onclick = async function(){
+  if (!confirm(t('pay.askOpen'))) return;
+  try {
+    const d = await ask({ action:'unlockweek', worker: dwWorker, weekStart: dwStart });
+    if (!d || !d.ok) throw new Error('failed');
+    buzz(12); await loadWeekDetail();
+  } catch(e){ toast(t('net.fail')); }
+};
+
+/* ═══════════ what has been paid out ═══════════ */
+async function openPayments(){
+  $('phList').innerHTML = '';
+  $('phSub').textContent = t('loading');
+  $('payHist').classList.add('open');
+  let list = [];
+  try {
+    const d = await ask({ action:'payments' });
+    list = (d && d.ok && d.payments) ? d.payments : [];
+  } catch(e){ $('phSub').textContent = t('hrs.fail'); return; }
+
+  $('phSub').textContent = list.length ? '' : t('pay.none');
+  const box = $('phList');
+  list.forEach(function(p){
+    const row = document.createElement('div'); row.className = 'ph-row';
+    const who = document.createElement('div'); who.className = 'who';
+    const b = document.createElement('b'); b.textContent = p.worker;
+    const sp = document.createElement('span');
+    sp.textContent = (weekLabel(p.weekStart) || p.weekStart) +
+      (p.paidOn ? '  ·  ' + t('pay.done', fmtDay(p.paidOn)) : '');
+    who.appendChild(b); who.appendChild(sp);
+    const h = document.createElement('div');
+    h.className = 'hrs'; h.textContent = hrsText(p.hours);
+    row.appendChild(who); row.appendChild(h);
+    box.appendChild(row);
+  });
+}
+$('phBack').onclick = function(){ $('payHist').classList.remove('open'); };
+
 /* ═══════════ putting a wrong entry right ═══════════
    A figure typed in a hurry at the kerbside is going to be wrong sometimes.
    This lists what this man logged himself — never anybody else's — and loads
@@ -2450,6 +2816,8 @@ async function sync(){
       batch.forEach(function(e){ done[e.id] = true; });
       queue = queue.filter(function(e){ return !done[e.id]; });
       DB.set('jh.lastSync', Date.now()); DB.set('jh.err', null); save();
+      if (d.speech && d.speech !== acctGet('speech', '')) acctSet({ speech: d.speech });
+      loadCommission();                 // the server's own figure, now the queue is clear
     } else DB.set('jh.err', (d && d.error) || 'err.rejected');
   } catch(e){ DB.set('jh.err', 'err.nonet'); }
   syncing = false; paint();
@@ -2652,6 +3020,8 @@ function paint(){
   // is not on a job, and the two owners have the whole sheet in front of them.
   $('review').hidden = isOwner() || isJobAdmin();
   paintNext();
+
+  paintCommission();
 
   const dot = $('dot'), txt = $('syncTxt');
   if (queue.length){ dot.className = 'dot warn'; txt.textContent = t('sync.queue', queue.length); }
@@ -2960,7 +3330,7 @@ async function pollJoin(){
 
   if (d && d.ok && d.state === 'approved'){
     closeJoin();
-    acctSet({ token: d.token, role: d.role || 'crew' });
+    acctSet({ token: d.token, role: d.role || 'crew', speech: d.speech || '' });
     DB.set('jh.err', null);
     askNewPin();                       // straight to picking a passcode
     return;
@@ -3057,6 +3427,7 @@ async function answerJoin(w, yes){
   await loadWaiting();
 }
 
+$('mPay').onclick = function(){ $('menu').classList.remove('open'); openPayments(); };
 $('mWait').onclick = function(){
   $('menu').classList.remove('open');
   $('waitList').classList.add('open');
@@ -3108,7 +3479,7 @@ $('enrolGo').onclick = async function(){
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || 'bad code');
 
-    acctSet({ token: d.token, role: d.role || 'crew' });
+    acctSet({ token: d.token, role: d.role || 'crew', speech: d.speech || '' });
     if (d.name) { worker = d.name; DB.set('jh.worker', d.name); }
     DB.set('jh.err', null);
     $('enrol').classList.remove('open');
@@ -3159,6 +3530,7 @@ function wordsToNumber(str){
     if (SPOKEN_ONES[w] != null){ current += SPOKEN_ONES[w]; saw = true; }
     else if (w === 'hundred'){ current = (current || 1) * 100; saw = true; }
     else if (w === 'thousand'){ total += (current || 1) * 1000; current = 0; saw = true; }
+    else if (w === 'and'){ continue; }          // "four hundred and fifty"
     else break;
   }
   return saw ? total + current : null;
@@ -3170,7 +3542,7 @@ function spokenAmount(text){
   if (m) return num(m[1]);
   m = text.match(/\b([\d,]+(?:\.\d{1,2})?)\s*(?:dollars|bucks)\b/i);     // "500 dollars"
   if (m) return num(m[1]);
-  m = text.match(new RegExp('\\b((?:' + SPOKEN_NUMWORD + '[\\s-]+)*' + SPOKEN_NUMWORD + ')\\b', 'i'));
+  m = text.match(new RegExp('\\b((?:(?:' + SPOKEN_NUMWORD + "|and)[\\s-]+)*" + SPOKEN_NUMWORD + ')\\b', 'i'));
   if (m){ const v = wordsToNumber(m[1]); if (v) return v; }              // "five hundred"
   m = text.match(/\b(\d[\d,]*(?:\.\d{1,2})?)\b/);                        // bare number, last resort
   if (m) return num(m[1]);
@@ -3434,7 +3806,20 @@ $('trkJobBtn').onclick  = function(){ startTrack('job'); };
 $('trkQuoteBtn').onclick= function(){ startTrack('quote'); };
 $('trkBack').onclick    = function(){ $('trkForm').hidden = true; $('trkPick').hidden = false; };
 
-$('trkForm').onsubmit = function(e){
+/* Offline this answers no, which is the right way round: a man with no signal
+   saves his job and any double is caught in the sheet later. */
+async function sameJobToday(town, amount){
+  if (isTest() || !navigator.onLine) return null;
+  const now = new Date();
+  const day = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') +
+              '-' + String(now.getDate()).padStart(2, '0');
+  try {
+    const d = await ask({ action:'samejob', date: day, town: town, amount: amount });
+    return (d && d.ok && d.clash) ? d.clash : null;
+  } catch(e){ return null; }
+}
+
+$('trkForm').onsubmit = async function(e){
   e.preventDefault();
   const first = $('fFirst').value.trim();
   const town  = $('fTown').value.trim();
@@ -3461,6 +3846,19 @@ $('trkForm').onsubmit = function(e){
                 amount: Math.round(amount * 100) / 100 };
   if (job) rec.method = trkPay;
   else     rec.notes  = $('fNotes').value.trim();
+
+  /* Two men on a truck both reaching for their phones is how one job gets
+     counted twice. Ask before saving — never block, just ask. A correction is
+     not asked about, because the row it lands on already exists. */
+  if (!trkEdit && job){
+    const clash = await sameJobToday(rec.town, rec.amount);
+    if (clash){
+      const same = confirm(t('dup.title', clash.by) + '\n\n' +
+        t('dup.body', money(clash.amount), clash.town || '—') + '\n\n' +
+        'OK = ' + t('dup.same') + '\nCancel = ' + t('dup.diff'));
+      if (same) return;                 // theirs is already on the books
+    }
+  }
 
   if (trkEdit){ rec.id = trkEdit; rec.edit = true; }   // land on the original row
   const fixing = !!trkEdit;
@@ -3633,7 +4031,7 @@ function startListening(){
   catch(e){ micFail(t('say.noMic')); return; }
 
   // it has to listen in the language he is speaking
-  listener.lang = SPEECH[langOf()] || 'en-US';
+  listener.lang = speechLang();
   listener.interimResults = true;    // keep the words as they arrive
   listener.continuous = true;        // it stops when tapped, not when it feels like it
   listener.maxAlternatives = 1;
@@ -3848,26 +4246,44 @@ function render(weeks, everyone){
   list.forEach(function(w){
     const h = document.createElement('p'); h.className = 'wk';
     h.textContent = weekLabel(w.start) || w.label; box.appendChild(h);
-    w.rows.forEach(function(rw){
-      const el = document.createElement('div'); el.className = 'row';
+    /* Unpaid first, then what has already been settled, so a glance at the top
+       of the list is what is still owed. */
+    const unpaid = w.rows.filter(function(x){ return !x.paid; });
+    const settled = w.rows.filter(function(x){ return x.paid; });
+    const draw = function(rw){
+      const el = document.createElement('div');
+      el.className = 'row tappable' + (rw.paid ? ' paid-row' : '');
       el.innerHTML = '<span></span><b></b>';
       el.firstChild.textContent = (everyone ? rw.worker : t('hrs.worked')) +
         (rw.overtime > 0 ? ' · ' + rw.overtime.toFixed(2) + ' OT' : '') +
         (rw.open ? t('hrs.open') : '');
       el.lastChild.textContent = rw.hours.toFixed(2) + ' ' + t('hrs.hrs');
+      el.onclick = function(){ openWeekDetail(rw.worker, w.start); };
       box.appendChild(el);
-    });
+    };
+    if (everyone && unpaid.length && settled.length){
+      const g1 = document.createElement('p');
+      g1.className = 'pay-group'; g1.textContent = t('pay.owed');
+      box.appendChild(g1);
+    }
+    unpaid.forEach(draw);
+    if (everyone && settled.length && unpaid.length){
+      const g2 = document.createElement('p');
+      g2.className = 'pay-group'; g2.textContent = t('pay.settled');
+      box.appendChild(g2);
+    }
+    settled.forEach(draw);
   });
 }
 
 /* HOURS-START */
-/* The work week runs Wednesday to Tuesday, matching the backend. */
+/* The work week runs Tuesday to Monday, matching the backend. */
 function dayLetters(){ return DAYS_SHORT[langOf()] || DAYS_SHORT.en; }
 function dayNames(){ return DAYS_LONG[langOf()] || DAYS_LONG.en; }
 
 function weekStartISO(d){
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  x.setDate(x.getDate() - ((x.getDay() + 4) % 7));
+  x.setDate(x.getDate() - ((x.getDay() + (7 - WEEK_STARTS_ON) % 7) % 7));
   return x.getFullYear() + '-' +
          String(x.getMonth() + 1).padStart(2, '0') + '-' +
          String(x.getDate()).padStart(2, '0');
@@ -3938,7 +4354,7 @@ function drawChart(now, prev, todayIdx, opts){
   function bar(x, v, cls, i){
     if (v <= 0) return '';
     const yy = y(v), h = padT + plotH - yy, r = Math.min(4, barW / 2, h);
-    // the day's place in the week is the stagger — Wednesday first, Tuesday last
+    // the day's place in the week is the stagger — first day first, last day last
     return '<path class="' + cls + '" style="--d:' + i + '" fill="' +
       (cls === 'now' ? 'var(--s-now)' : 'var(--s-prev)') + '" d="' +
       'M' + x + ',' + (yy + h) + ' L' + x + ',' + (yy + r) +
@@ -4176,7 +4592,7 @@ document.addEventListener('visibilitychange', function(){
   const mins = CONFIG.LOCK_AFTER_MINUTES;
   const gap = Date.now() - DB.get('jh.awayAt', Date.now());
   if (mins > 0 && gap > mins * 60000) lock();
-  else { paint(); sync(); loadCrew(); loadSchedule(); }
+  else { paint(); sync(); loadCrew(); loadSchedule(); loadCommission(); }
 });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
 
