@@ -12,13 +12,23 @@
 <title>Junk Heroes Time Clock</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- the two fonts, asked for straight away so the first screen draws in them -->
+<link rel="preload" href="archivo-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="junkheroes-bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="junkheroes-medium.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="barlow-cond-700.woff2" as="font" type="font/woff2" crossorigin>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#221E2B">
+<meta name="theme-color" content="#1B0B44">
 <meta name="robots" content="noindex, nofollow">
 
 <script>
+/* Which build this is. Shown faintly in the corner of the menu, so anybody can
+   tell at a glance whether a phone has picked up the latest. Goes up by one
+   every release, together with CACHE in sw.js. */
+const APP_VERSION = 73;
+
 /* ══════════════════════════════════════════════════════════════
    EDIT THIS BLOCK, THEN YOU'RE DONE.
    ══════════════════════════════════════════════════════════════ */
@@ -32,10 +42,10 @@ const CONFIG = {
      to do comes from their role on the People tab in the spreadsheet, which
      also decides who can enrol at all. Nothing secret lives in this file. */
   WORKERS: [
-    { group: "Admins", admin: true, pair: true, names: ["Henrique", "Filipe"] },
-    { group: "Main truck crew",      names: ["Rey", "Paulo"] },
-    { group: "Assistant & Dispatch", names: ["Andy"] },
-    { group: "Extra crew",           names: ["Ryan", "Ethan"] }
+    { group: "Admins", key: "grp.admins", admin: true, pair: true, names: ["Henrique", "Filipe"] },
+    { group: "Main truck crew",      key: "grp.main",     names: ["Rey", "Paulo"] },
+    { group: "Assistant & Dispatch", key: "grp.dispatch", names: ["Andy"] },
+    { group: "Extra crew",           key: "grp.extra",    names: ["Ryan", "Ethan"] }
   ],
 
   // 6. The trucks a man can be on. Two people who pick the same one on the same
@@ -72,79 +82,115 @@ const CONFIG = {
 </script>
 
 <style>
+/* Colours are thejunkheroes.com's own (its BRAND.md): purple, teal, white and
+   ink, no yellow. The dark theme is the site's comic hero panel — the header
+   bar's deep indigo with a halftone screen — and the light theme is its clean
+   white-and-lavender sections. Teal is kept for the money actions: the punch
+   and the saves. The working and break grounds stay green-teal and rust on
+   purpose: a man glancing at his phone reads the state off the colour. */
 :root{
-  --void:#221E2B;        /* off the clock */
-  --working:#0D5F42;     /* on the clock */
-  --onbreak:#8F4E06;     /* on break */
-  --ink:#F2F0F7;
-  --haze:rgba(242,240,247,.60);
-  --lilac:#BCA6F2;
-  --edge:rgba(242,240,247,.15);
-  --sunk:rgba(242,240,247,.07);
+  --void:#1B0B44;        /* off the clock — the site's header bar */
+  --working:#0C4A4A;     /* on the clock — a deep teal */
+  --onbreak:#7E3512;     /* on break — rust */
+  --ink:#FAFAFB;
+  --haze:#BBAEE6;
+  --lilac:#CDBEF5;       /* the site's purple-300 */
+  --edge:rgba(205,190,245,.24);
+  --sunk:#241262;        /* a panel: the site's menu flyout, one step up from the bar */
   --pad:22px;
 
   /* text that sits ON a fill, rather than on the page */
-  --on-lilac:#1E1826;    /* the punch button, Save, the week switch */
-  --on-solid:#F2F0F7;    /* the red and slate buttons, whatever the theme */
-  --stop-bg:#F2F0F7;     /* the clock-out circle */
-  --stop-fg:#1E1826;
-  --danger:#B4442D;
-  --calm:#3B3448;
-  --warn-text:#F0A07E;   /* overtime, a week down on the last */
-  --good-text:#8FD9B6;
-  --err-text:#E58A76;
-  --dot-warn:#FFB020;
-  --shadow:rgba(20,14,32,.6);
-  --shadow-deep:rgba(20,14,32,.8);
-  --tint:rgba(188,166,242,.16);   /* a lilac wash for pressed states */
-  --tint-soft:rgba(188,166,242,.1);
-  --tint-key:rgba(188,166,242,.26);
-  --tint-pick:rgba(188,166,242,.18);
-  --punch-glow:rgba(188,166,242,.55);
-  --say-glow:rgba(160,120,255,.55);
-  --stop-glow:rgba(242,240,247,.4);
-  --pip-off:rgba(242,240,247,.38);
-  --hit-sel:rgba(242,240,247,.05);
+  --on-lilac:#12081F;    /* the week switch, chosen chips, the toast */
+  --on-solid:#FAFAFB;    /* the red and slate buttons, whatever the theme */
+  --stop-bg:#FAFAFB;     /* the clock-out circle */
+  --stop-fg:#12081F;
+  --danger:#C2412F;
+  --calm:#33108A;
+  --warn-text:#FFAE8A;   /* overtime, a week down on the last */
+  --good-text:#22E8DA;
+  --err-text:#FF9C8A;
+  --dot-warn:#FF8A3D;
+  --shadow:rgba(9,3,24,.6);
+  --shadow-deep:rgba(9,3,24,.8);
+  --tint:rgba(205,190,245,.16);   /* a lilac wash for pressed states */
+  --tint-soft:rgba(205,190,245,.1);
+  --tint-key:rgba(205,190,245,.26);
+  --tint-pick:rgba(205,190,245,.18);
+  --punch-glow:rgba(124,77,255,.55);
+  --say-glow:rgba(124,77,255,.62);
+  --stop-glow:rgba(250,250,251,.4);
+  --pip-off:rgba(250,250,251,.38);
+  --hit-sel:rgba(250,250,251,.06);
   --glow-1:rgba(126,182,255,.72);
   --glow-2:rgba(190,166,248,.68);
   --glow-3:rgba(150,124,252,.50);
   --glow-4:rgba(112,196,255,.38);
+
+  /* the pens (see THE COMIC SKIN at the bottom of this sheet) */
+  --line:#12081F;                 /* the heavy pen, round anything with a light face */
+  --line-2:#CDBEF5;               /* the heavy pen on a dark face */
+  --pop:#0A0322;                  /* a pressable thing's hard shadow */
+  --card-line:rgba(205,190,245,.30);  /* the light pen, round things that inform */
+  --pop-soft:#0E0532;             /* their shadow */
+  --action:#22E8DA;               /* money actions only */
+  --on-action:#12081F;
+  --brand:#7C4DFF;
+  --back-line:#7C4DFF;
+  --ghost-bg:rgba(18,8,31,.32);   /* a button that sits on whatever ground is there */
+  --field:#FAFAFB;                /* inputs are white paper on every ground */
+  --field-ink:#12081F;
+  --field-muted:#5A4B78;
+  --dots:rgba(124,77,255,.10);    /* the halftone screen */
+  --clock-shadow:#7C4DFF;
+  --ray:rgba(124,77,255,.30);
+  --spring:cubic-bezier(.2,.9,.3,1.4);
 }
 
 /* ── light ──
    The same app in daylight: the state colours become tints rather than
    darks, and every fill that carried white text now carries dark. */
 html.light{
-  --void:#F3F1F7;
-  --working:#CDE8DA;
-  --onbreak:#F7DFBB;
-  --ink:#1E1826;
-  --haze:rgba(30,24,38,.62);
-  --lilac:#6D4FD1;
-  --edge:rgba(30,24,38,.16);
-  --sunk:rgba(30,24,38,.045);
+  --void:#F5F2FC;        /* the site's lavender section ground */
+  --working:#CFF3EF;
+  --onbreak:#FBE2D3;
+  --ink:#12081F;
+  --haze:#5A4B78;
+  --lilac:#4A1FA8;       /* purple-700: dark enough for text on white */
+  --edge:rgba(75,54,118,.28);
+  --sunk:#FAFAFB;        /* white paper cards */
 
-  --on-lilac:#FFFFFF;
-  --on-solid:#FFFFFF;
-  --stop-bg:#2A2336;
-  --stop-fg:#F7F5FA;
-  --danger:#A5381F;
-  --calm:#4C4463;
-  --warn-text:#9A4A16;
-  --good-text:#16704A;
-  --err-text:#A5381F;
-  --dot-warn:#B87500;
-  --shadow:rgba(30,24,38,.18);
-  --shadow-deep:rgba(30,24,38,.26);
-  --tint:rgba(109,79,209,.12);
-  --tint-soft:rgba(109,79,209,.08);
-  --tint-key:rgba(109,79,209,.16);
-  --tint-pick:rgba(109,79,209,.12);
-  --punch-glow:rgba(109,79,209,.34);
-  --say-glow:rgba(109,79,209,.42);
-  --stop-glow:rgba(30,24,38,.28);
-  --pip-off:rgba(30,24,38,.34);
-  --hit-sel:rgba(30,24,38,.05);
+  --on-lilac:#FAFAFB;
+  --on-solid:#FAFAFB;
+  --stop-bg:#FAFAFB;
+  --stop-fg:#12081F;
+  --danger:#B33A27;
+  --calm:#4B3676;
+  --warn-text:#A3410F;
+  --good-text:#0A7C73;
+  --err-text:#B33A27;
+  --dot-warn:#D9631A;
+  --shadow:rgba(18,8,31,.18);
+  --shadow-deep:rgba(18,8,31,.26);
+  --tint:rgba(74,31,168,.10);
+  --tint-soft:rgba(74,31,168,.07);
+  --tint-key:rgba(74,31,168,.14);
+  --tint-pick:rgba(74,31,168,.10);
+  --punch-glow:rgba(74,31,168,.34);
+  --say-glow:rgba(124,77,255,.45);
+  --stop-glow:rgba(18,8,31,.28);
+  --pip-off:rgba(18,8,31,.34);
+  --hit-sel:rgba(18,8,31,.05);
+
+  --line:#12081F;
+  --line-2:#12081F;
+  --pop:#12081F;
+  --card-line:#4B3676;   /* the site's light pen */
+  --pop-soft:#CDBEF5;
+  --back-line:#4A1FA8;
+  --ghost-bg:#FAFAFB;
+  --dots:rgba(124,77,255,.07);
+  --clock-shadow:#CDBEF5;
+  --ray:rgba(124,77,255,.16);
 
   --s-now:#4a3aa7;       /* stepped for the light surface, same two hues */
   --s-prev:#1baf7a;
@@ -173,9 +219,42 @@ html{background:var(--void)}
 html[data-state="in"]{background:var(--working)}
 html[data-state="break"]{background:var(--onbreak)}
 html.locked,html.sheet{background:var(--void)}   /* a sheet is void, so the root is too */
+/* ── type ──
+   Both fonts live beside this file, like everything else (the page may only
+   load its own files). Archivo is one variable file covering every weight.
+   The Junk Heroes face is the company's own lettering, kept for the things
+   read from across a truck: headings, the clock, the big numbers, the main
+   button. It has plain English letters only, so an accented Portuguese letter
+   (ç, ã, é…) falls through to Archivo, the next font in its list. */
+@font-face{font-family:'Archivo';src:url('archivo-var.woff2') format('woff2');
+  font-weight:100 900;font-style:normal;font-display:swap}
+/* Two real cuts under one name, as on the website: Medium for headings and
+   labels on buttons, Bold for the loud things — the clock, the punch, the big
+   numbers. Nothing is ever faux-bolded: anything asking for 600 or more gets
+   the real Bold file, anything less gets Medium. */
+@font-face{font-family:'Junk Heroes';src:url('junkheroes-medium.woff2') format('woff2');
+  font-weight:100 599;font-style:normal;font-display:swap}
+@font-face{font-family:'Junk Heroes';src:url('junkheroes-bold.woff2') format('woff2');
+  font-weight:600 900;font-style:normal;font-display:swap}
+/* the site's label face: small condensed capitals for headings over groups,
+   tabs, chips and the way back */
+@font-face{font-family:'Barlow Condensed';src:url('barlow-cond-700.woff2') format('woff2');
+  font-weight:100 900;font-style:normal;font-display:swap}
+/* Arial resized to Archivo's measurements, so the screen does not jump when
+   Archivo arrives a moment after the first paint */
+@font-face{font-family:'Archivo Fallback';src:local('Arial');
+  size-adjust:97.98%;ascent-override:89.82%;descent-override:21.43%;line-gap-override:0%}
+:root{
+  --font-text:'Archivo','Archivo Fallback',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  --font-display:'Junk Heroes','Archivo','Archivo Fallback',-apple-system,system-ui,sans-serif;
+  --font-label:'Barlow Condensed','Archivo','Archivo Fallback',-apple-system,system-ui,sans-serif;
+}
+h2,.clock,.punch,.lock-name,.thanks h2,.hero-num b,.dw-total b,.split-part b,.commission b,.brand{
+  font-family:var(--font-display)}
+
 body{
   background:none;color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  font-family:var(--font-text);
   font-size:17px;line-height:1.4;overscroll-behavior:none;
   -webkit-user-select:none;user-select:none;
 }
@@ -196,6 +275,8 @@ body.locked .bg{background:var(--void)}
 .overlay.open{display:block}
 /* opened from another sheet, so it must sit above the one it came from */
 .overlay.above{z-index:21}
+/* and opened from one of those */
+.overlay.top{z-index:22}
 
 /* ── status strip ── */
 .strip{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-height:34px}
@@ -218,9 +299,11 @@ body.locked .bg{background:var(--void)}
    is down in thumb reach. */
 .hero{display:flex;flex-direction:column;align-items:center;justify-content:center;
   min-height:214px;padding:18px 0 0}
-.clock{font-size:clamp(56px,17vw,86px);font-weight:730;letter-spacing:-.045em;
+.clock{font-size:clamp(56px,17vw,86px);font-weight:730;letter-spacing:0;
   font-variant-numeric:tabular-nums;line-height:1;color:var(--ink);margin:0}
 body[data-state="in"] .clock,body[data-state="break"] .clock{color:var(--lilac)}
+.clock .cd{display:inline-block;width:.63em;text-align:center}
+.clock .cc{display:inline-block;width:.3em;text-align:center}
 /* Always two lines tall. The captions vary between one line and two, and now
    that the hero no longer flexes, that difference would shove the whole button
    group up and down as the state changes. */
@@ -240,7 +323,7 @@ button{font-family:inherit;font-size:inherit;border:0;cursor:pointer;color:inher
   background:var(--tint-soft);border:1px solid var(--edge);
   transition:transform .09s ease,background-color .09s ease}
 .commission:active{transform:scale(.98);background:var(--tint)}
-.commission b{font-size:21px;font-weight:730;letter-spacing:-.02em;color:var(--lilac);
+.commission b{font-size:21px;font-weight:730;letter-spacing:.01em;color:var(--lilac);
   font-variant-numeric:tabular-nums;line-height:1.15}
 .commission span{font-size:12px;color:var(--haze)}
 
@@ -248,7 +331,7 @@ button{font-family:inherit;font-size:inherit;border:0;cursor:pointer;color:inher
   width:100%;margin-top:auto;padding-top:24px}
 .punch{position:relative;width:min(238px,63vw);aspect-ratio:1;border-radius:50%;
   display:flex;align-items:center;justify-content:center;text-align:center;
-  font-size:27px;font-weight:700;letter-spacing:-.015em;background:var(--lilac);color:var(--on-lilac);
+  font-size:27px;font-weight:700;letter-spacing:.01em;background:var(--lilac);color:var(--on-lilac);
   box-shadow:0 14px 34px -14px var(--punch-glow),0 3px 10px -4px var(--shadow);
   transition:transform .09s ease,filter .09s ease}
 .punch.stop{background:var(--stop-bg);color:var(--stop-fg);
@@ -343,7 +426,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--lilac);outline-
   padding:calc(env(safe-area-inset-top) + 48px) var(--pad) calc(env(safe-area-inset-bottom) + 26px);
   max-width:400px;margin:0 auto}
 .lock-top{text-align:center;width:100%}
-.lock-name{font-size:26px;font-weight:680;letter-spacing:-.02em;margin:0}
+.lock-name{font-size:26px;font-weight:680;letter-spacing:.01em;margin:0}
 .lock-hint{margin:7px 0 0;color:var(--haze);font-size:15.5px;min-height:22px}
 .pips{display:flex;gap:19px;justify-content:center;margin:36px 0 0}
 .pip{width:15px;height:15px;border-radius:50%;border:2px solid var(--edge);transition:all .16s ease}
@@ -423,6 +506,11 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .brand em{font-style:normal;color:var(--lilac)}
 .brand-top{margin-bottom:20px}
 .brand-foot{margin-top:30px;opacity:.75}
+/* the build number, top right of the menu — there to be looked for, not seen */
+#menu .inner{position:relative}
+.ver{position:absolute;top:calc(env(safe-area-inset-top) + 33px);right:var(--pad);margin:0;
+  font-size:11.5px;font-weight:600;letter-spacing:.06em;color:var(--haze);opacity:.45;
+  font-variant-numeric:tabular-nums;pointer-events:none;user-select:none}
 
 /* ── hours: week switch, split, chart, stats ──
    Series colours are not the UI lilac. --lilac sits at L 0.77, outside the band
@@ -444,7 +532,7 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .wk-range{margin:0 0 20px;font-size:14.5px;color:var(--haze);text-align:center}
 
 .hero-num{text-align:center;margin:0 0 20px}
-.hero-num b{display:block;font-size:52px;font-weight:730;letter-spacing:-.04em;
+.hero-num b{display:block;font-size:52px;font-weight:730;letter-spacing:0;
   line-height:1;font-variant-numeric:tabular-nums;color:var(--ink)}
 .hero-num span{display:block;margin-top:7px;font-size:14.5px;color:var(--haze)}
 
@@ -515,6 +603,9 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .tick:active{transform:scale(.9)}
 .job-card.done .tick{background:var(--good-text);border-color:var(--good-text);color:var(--void)}
 .job-card.done .tick svg{opacity:1}
+.log-too{display:block;margin:-2px 0 14px auto;padding:9px 15px;border-radius:10px;
+  font-size:14px;font-weight:600;background:transparent;border:1.5px dashed var(--edge);color:var(--lilac)}
+.log-too:active{background:var(--tint)}
 .job-actions{display:flex;gap:9px;margin:-2px 0 14px}
 .job-actions button{flex:1;min-height:50px;border-radius:12px;font-size:15px;font-weight:600;
   transition:transform .09s ease,filter .09s ease}
@@ -559,7 +650,7 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
   stroke-linecap:round;stroke-linejoin:round}
 .dw-arrow[disabled]{opacity:.3}
 .dw-total{text-align:center;line-height:1.2}
-.dw-total b{display:block;font-size:26px;font-weight:730;letter-spacing:-.02em;
+.dw-total b{display:block;font-size:26px;font-weight:730;letter-spacing:.01em;
   font-variant-numeric:tabular-nums}
 .dw-total em{font-style:normal;font-size:12.5px;color:var(--haze)}
 
@@ -575,13 +666,7 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .dw-punch .tm{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
 .dw-punch .mark{font-size:11px;padding:1px 6px;border-radius:4px;
   background:var(--tint-key);color:var(--lilac);font-weight:700}
-.dw-punch button{margin-left:auto;padding:5px 10px;border-radius:8px;font-size:12.5px;
-  font-weight:600;background:transparent;border:1.5px solid var(--edge);color:var(--haze)}
-.dw-punch button:active{background:var(--tint)}
-.dw-add{margin-top:9px;padding:7px 12px;border-radius:9px;font-size:13px;font-weight:600;
-  background:transparent;border:1.5px dashed var(--edge);color:var(--haze)}
-.dw-add:active{background:var(--tint)}
-.dw-brk{margin-top:6px;font-size:13px;color:var(--haze)}
+.dw-brk{margin:6px 0 0;font-size:13px;color:var(--haze)}
 
 .pay-state{margin:-6px 0 16px;padding:10px 14px;border-radius:11px;font-size:14.5px;
   background:var(--good-soft, var(--sunk));border:1px solid var(--edge);color:var(--good-text)}
@@ -609,6 +694,9 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
 .rec-what b{display:block;font-size:15.5px;font-weight:600}
 .rec-what span{display:block;margin-top:2px;font-size:13px;color:var(--haze)}
 .rec-amt{flex:none;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.rec-row.locked{opacity:.6}
+.rec-row.locked:active{transform:none;background:var(--sunk)}
+.rec-what em{display:block;margin-top:3px;font-style:normal;font-size:12px;font-weight:650;color:var(--lilac)}
 
 .truck-or{margin:18px 0 12px;text-align:center;font-size:12.5px;font-weight:700;
   letter-spacing:.08em;text-transform:uppercase;color:var(--haze)}
@@ -631,6 +719,34 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
   font-size:11px;font-weight:600;letter-spacing:.03em;color:var(--haze);vertical-align:1px}
 .chart-title{margin:0 0 10px;font-size:13.5px;font-weight:600;color:var(--haze);text-align:center}
 
+/* ── jobs & quotes, for the office: one person at a time, or everybody ── */
+.jb-people{display:flex;gap:7px;overflow-x:auto;margin:0 calc(-1 * var(--pad)) 20px;
+  padding:2px var(--pad) 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.jb-people::-webkit-scrollbar{display:none}
+.jb-chip{flex:none;display:flex;align-items:center;gap:7px;min-height:42px;padding:0 16px;
+  border-radius:999px;background:var(--sunk);border:1.5px solid var(--edge);color:var(--ink);
+  font-size:14.5px;font-weight:600;white-space:nowrap;transition:transform .09s ease}
+.jb-chip i{font-style:normal;font-size:12.5px;font-weight:700;color:var(--haze);font-variant-numeric:tabular-nums}
+.jb-chip.on{background:var(--lilac);border-color:var(--lilac);color:var(--on-lilac)}
+.jb-chip.on i{color:var(--on-lilac);opacity:.75}
+.jb-chip:active{transform:scale(.97)}
+.jb-group{margin:0 0 24px}
+.jb-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 2px 9px}
+.jb-head b{font-size:17px;font-weight:680;letter-spacing:-.01em}
+.jb-head span{font-size:13.5px;color:var(--haze);font-variant-numeric:tabular-nums}
+.jb-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-bottom:8px;
+  padding:13px 15px;border-radius:13px;background:var(--sunk);border:1.5px solid var(--edge);
+  color:inherit;font:inherit;transition:transform .09s ease,background-color .09s ease}
+button.jb-row:active{transform:scale(.985);background:var(--tint)}
+.jb-what{flex:1;min-width:0}
+.jb-what b{display:block;font-size:15.5px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.jb-what span{display:block;margin-top:2px;font-size:13px;color:var(--haze);line-height:1.4}
+.jb-amt{flex:none;text-align:right;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.jb-amt em{display:block;margin-top:2px;font-style:normal;font-size:11.5px;font-weight:600;color:var(--haze)}
+.jb-what .jb-tag{display:inline-block;margin:0 0 0 7px;padding:1px 8px;border-radius:999px;
+  vertical-align:1px;font-size:11px;font-weight:700;line-height:1.5;letter-spacing:.02em;
+  background:var(--tint-key);color:var(--warn-text)}
+
 /* ── sheets ── */
 .inner{max-width:520px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 26px) var(--pad) calc(env(safe-area-inset-bottom) + 26px)}
 
@@ -646,9 +762,10 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
   stroke-linecap:round;stroke-linejoin:round;flex:none}
 #enrol .inner,#truckSheet .inner,#crews .inner,#myjobs .inner,#schedule .inner,#lockScreen.hasback .lock,#setup.hasback .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
 #myjobs .inner,#trackSheet .inner,#reviewSheet .inner,#confirmOut .inner,#work .inner,#owner .inner,
-#join .inner,#waitList .inner,#recent .inner,#dayWeek .inner,#payHist .inner{
+#join .inner,#waitList .inner,#recent .inner,#dayWeek .inner,#payHist .inner,
+#jobAct .inner,#brkAdd .inner,#commCalc .inner,#quotes .inner{
   padding-top:calc(env(safe-area-inset-top) + 88px)}
-h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
+h2{font-size:25px;font-weight:680;letter-spacing:.005em;margin:0 0 6px}
 .sub{color:var(--haze);margin:0 0 24px;font-size:16px;line-height:1.5}
 .pick{width:100%;min-height:70px;border-radius:13px;background:var(--sunk);border:2px solid var(--edge);
   font-size:20px;font-weight:600;margin-bottom:11px;text-align:left;padding:16px 22px}
@@ -807,6 +924,295 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   letter-spacing:.06em;text-transform:uppercase}
 .grp:first-child{margin-top:0}
 .note{margin-top:26px;font-size:14.5px;color:var(--haze);line-height:1.55}
+
+/* ══ THE COMIC SKIN ════════════════════════════════════════════════
+   thejunkheroes.com's look, brought to the clock ("Comic × Heavy Duty" in the
+   site's BRAND.md). One rule decides every element, the same rule the site
+   uses:
+     things that ACT — buttons, the punch, keys, chips you choose — are drawn
+     with the HEAVY pen: a thick outline and a hard offset shadow, square-ish
+     corners, and they press down into their shadow when tapped;
+     things that INFORM — cards, rows, figures — are drawn with the LIGHT
+     pen: a thin outline, rounder corners and a softer offset shadow.
+   No blurred glows except the voice button's, which was asked for by name.
+   Lettering: Junk Heroes in capitals for headings and buttons, Barlow
+   Condensed capitals for labels, Archivo for everything you read. Written as
+   a layer over the rules above, so taking it off is one block. */
+
+/* On the teal and rust grounds the lavender pen and text go white, the way the
+   site draws its buttons over a photo. Only the clock screen: sheets stay purple. */
+html:not(.light) body[data-state="in"] .screen,html:not(.light) body[data-state="break"] .screen{
+  --haze:rgba(250,250,251,.84);--lilac:#FAFAFB;--line-2:#FAFAFB;--pop:rgba(9,3,24,.55)}
+
+/* the halftone screen, on the page and on every sheet */
+body[data-state] .bg,.overlay{
+  background-image:radial-gradient(var(--dots) 1.4px,transparent 1.5px);background-size:14px 14px}
+
+/* the press: things that act sink into their shadow instead of shrinking.
+   Their entrance animations must not hold a transform once they have played,
+   or a press could never move them. */
+body:not(.locked) .punch,body:not(.locked) .minor,body:not(.locked) .track,
+.thanks .pick{animation-fill-mode:backwards}
+
+/* ── lettering ── */
+h2{font-weight:500;text-transform:uppercase;font-size:28px;line-height:1.04;letter-spacing:.015em;margin:0 0 8px}
+#confirmOut h2{font-size:30px}
+.thanks h2{font-size:34px;line-height:1.06;max-width:14ch}
+.lock-name,#whoName,.jb-head b{font-family:var(--font-display);font-weight:500;text-transform:uppercase;letter-spacing:.03em}
+.lock-name{font-size:30px}
+#whoName{font-size:21px}
+.jb-head b{font-size:19px}
+.grp,.theme-label,.pay-group,.join-label,.truck-or,.crew-truck,.next-top em,.rec-kind,
+.dw-punch .lbl,.heard-src,.wk-opt,.jb-chip,.back,.flabel,.field>span:not(.money),.chart-title,
+.wk,.dw-total em,.now,.sync,.log-too,.key.util,.logout,.done-by,
+.minor-link,.reset,.toast,.pay,.legend{font-family:var(--font-label);font-weight:700}
+.grp,.theme-label,.pay-group,.join-label,.truck-or,.crew-truck,.next-top em,.rec-kind,
+.dw-punch .lbl,.heard-src,.wk-opt,.back,.flabel,.field>span:not(.money),.chart-title,.wk,
+.dw-total em,.now,.log-too,.key.util,.logout,.toast,.pay{
+  text-transform:uppercase;letter-spacing:.07em}
+.field>span:not(.money),.flabel{font-size:15.5px;color:var(--lilac)}
+.field span i{text-transform:none;letter-spacing:0}
+.theme-label,.pay-group,.join-label,.truck-or,.crew-truck,.chart-title{font-size:14.5px;color:var(--lilac)}
+.wk{font-size:16px;color:var(--lilac)}
+.now{font-size:14px}
+.sync{font-size:15px;letter-spacing:.04em}
+
+/* the name picker's group headings are the site's eyebrow: a tilted caption box */
+.grp{display:inline-block;margin:28px 0 14px 2px;padding:5px 13px 3px;font-size:15px;letter-spacing:.14em;
+  color:var(--on-lilac);background:var(--lilac);border:2px solid var(--line);border-radius:4px;
+  transform:rotate(-1.2deg);box-shadow:3px 3px 0 var(--pop)}
+.grp:first-child{margin-top:4px}
+
+/* ── the clock ── */
+.clock{text-shadow:5px 5px 0 var(--clock-shadow)}
+body[data-state="in"] .clock,body[data-state="break"] .clock{color:var(--ink);text-shadow:5px 5px 0 var(--pop)}
+html.light body[data-state="in"] .clock,html.light body[data-state="break"] .clock{text-shadow:5px 5px 0 var(--clock-shadow)}
+.hero-num b{text-shadow:4px 4px 0 var(--clock-shadow)}
+.join-number,.wait-num{font-family:var(--font-display);font-weight:700;text-shadow:3px 3px 0 var(--pop)}
+
+/* the punch: the money button — teal, inked, standing on a hard shadow */
+.punch{background:var(--action);color:var(--on-action);border:4px solid var(--line);
+  box-shadow:8px 8px 0 var(--pop),inset 0 -9px 0 rgba(0,0,0,.14);
+  font-size:32px;line-height:1.02;text-transform:uppercase;letter-spacing:.03em;padding:0 18px;
+  transition:transform .14s var(--spring),box-shadow .14s var(--spring)}
+.punch.stop{background:var(--stop-bg);color:var(--stop-fg);
+  box-shadow:8px 8px 0 var(--pop),inset 0 -9px 0 rgba(18,8,31,.10)}
+.punch:active{transform:translate(5px,5px);filter:none;
+  box-shadow:3px 3px 0 var(--pop),inset 0 -5px 0 rgba(0,0,0,.14)}
+.punch::after{border-color:var(--action)}
+.punch.stop::after{border-color:var(--ink)}
+
+/* the second rung: break, job / quote */
+.minor,.track{background:var(--ghost-bg);color:var(--ink);border:3px solid var(--line-2);border-radius:6px;
+  box-shadow:5px 5px 0 var(--pop);font-family:var(--font-display);font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;
+  transition:transform .14s var(--spring),box-shadow .14s var(--spring)}
+.minor{font-size:19px}
+.track{font-size:15px;min-height:50px}
+.minor:active,.track:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--pop);background:var(--ghost-bg)}
+.minor::after,.say::after{border-color:var(--lilac)}
+
+/* ── big buttons: menu items, names, choices ── */
+.pick{background:var(--sunk);border:3px solid var(--line-2);border-radius:6px;box-shadow:5px 5px 0 var(--pop);
+  font-family:var(--font-display);font-weight:500;font-size:21px;text-transform:uppercase;letter-spacing:.03em;
+  margin-bottom:14px;transition:transform .14s var(--spring),box-shadow .14s var(--spring),background-color .12s ease}
+.pick small{font-family:var(--font-text);font-weight:500;text-transform:none;letter-spacing:0}
+.pick:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--pop);background:var(--sunk)}
+.pick.safe{background:var(--action);color:var(--on-action);border:3px solid var(--line);
+  box-shadow:5px 5px 0 var(--pop),inset 0 -5px 0 rgba(0,0,0,.14)}
+.pick.safe small{color:var(--on-action);opacity:.78}
+.pick.safe:active{background:var(--action);filter:none}
+.pick.danger{border:3px solid var(--line)}
+.pick.danger:active{background:var(--danger);filter:none}
+.pick.calm{background:var(--ghost-bg);color:var(--ink);border:3px solid var(--line-2)}
+.pick.calm small{color:var(--haze)}
+.pick.calm:active{background:var(--ghost-bg);filter:none}
+/* teal is for money: going back to the clock, or taking a break, is not */
+#mSync,#cBreak{background:var(--lilac);color:var(--on-lilac);border-color:var(--line)}
+#mSync small,#cBreak small{color:var(--on-lilac)}
+#mSync:active,#cBreak:active{background:var(--lilac)}
+#confirmOut .pick{border-radius:6px;border-width:3px;transition:transform .14s var(--spring),box-shadow .14s var(--spring)}
+#confirmOut .pick:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--pop)}
+.pick.test-user{box-shadow:none;border-style:dashed}
+.pair .pick{margin-bottom:14px}
+
+/* ── the way back: the site's outlined menu button ── */
+.back{background:var(--void);color:var(--ink);opacity:1;border:2.5px solid var(--back-line);border-radius:6px;
+  min-height:44px;padding:0 16px 0 12px;font-size:16px;
+  transition:transform .14s var(--spring),border-color .12s ease,color .12s ease}
+.back:active{transform:translate(1px,1px);opacity:1;border-color:var(--action);color:var(--action)}
+html.light .back:active{color:var(--lilac);border-color:var(--lilac)}
+
+/* ── the passcode ── */
+.key{background:var(--sunk);border:2.5px solid var(--line-2);box-shadow:4px 4px 0 var(--pop);
+  font-family:var(--font-display);font-weight:700;font-size:30px;
+  transition:transform .12s var(--spring),box-shadow .12s var(--spring),background-color .08s ease}
+.key:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--pop);background:var(--tint-key)}
+.key.blank,.key.util,.key.bio{box-shadow:none;border:0;background:none}
+.key.util:active,.key.bio:active{transform:none;box-shadow:none}
+.pip{border:2.5px solid var(--lilac)}
+.pip.on{background:var(--lilac);border-color:var(--lilac)}
+
+/* ── cards: the light pen ── */
+.split-part,.stat,.chart-card,.dw-day,.rec-row,.jb-row,.job-card,.ph-row,.wait-row,.heard,
+.crew-line,.next,.commission,.dw-nav,.wk-switch,.truck-chip,.pay-state{
+  background:var(--sunk);border:2px solid var(--card-line);box-shadow:4px 5px 0 var(--pop-soft)}
+.split-part,.stat,.chart-card,.dw-day,.rec-row,.jb-row,.job-card,.ph-row,.wait-row,.heard,
+.crew-line,.next,.dw-nav,.pay-state{border-radius:14px}
+.rec-row,.jb-row,.dw-day,.job-card,.ph-row{margin-bottom:12px}
+.heard.by-hand{border-style:dashed}
+.rec-row,.jb-row,.next,.commission,.truck-chip{transition:transform .14s var(--spring),box-shadow .14s var(--spring)}
+.rec-row:active,button.jb-row:active,.next:active,.commission:active,.truck-chip:active{
+  transform:translate(2px,3px);box-shadow:2px 2px 0 var(--pop-soft);background:var(--sunk)}
+.rec-row.locked:active{transform:none;box-shadow:4px 5px 0 var(--pop-soft)}
+.job-card.on-now{border-color:var(--lilac);border-width:2.5px;box-shadow:4px 5px 0 var(--brand)}
+.split-part.ot b{color:var(--warn-text)}
+.row{border-bottom:2px solid var(--edge)}
+.pay-state{color:var(--good-text);font-family:var(--font-label);font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em}
+
+/* ── tabs and chips you choose: the heavy pen, small ── */
+.wk-switch{border-radius:10px;padding:6px;gap:8px}
+.wk-opt{border-radius:6px;font-size:16px;border:2px solid transparent;
+  transition:background-color .14s var(--ease),color .14s var(--ease),transform .14s var(--spring)}
+.wk-opt.on{background:var(--lilac);color:var(--on-lilac);border-color:var(--line);box-shadow:2px 3px 0 var(--pop)}
+.jb-chip,.pay{background:var(--sunk);color:var(--ink);border:2.5px solid var(--line-2);box-shadow:3px 4px 0 var(--pop);
+  transition:transform .12s var(--spring),box-shadow .12s var(--spring),background-color .1s ease}
+.jb-chip{font-size:16px;letter-spacing:.04em}
+.pay{border-radius:6px;font-size:13.5px;letter-spacing:.06em}
+.jb-chip:active,.pay:active{transform:translate(2px,3px);box-shadow:1px 1px 0 var(--pop)}
+.jb-chip.on,.pay.on{background:var(--lilac);color:var(--on-lilac);border-color:var(--line)}
+.jb-chip.on i{color:var(--on-lilac)}
+.pays.bad .pay{border-color:var(--danger)}
+.jb-people{padding-bottom:9px}
+
+/* ── small inked buttons inside cards ── */
+.tick,.next-go,.dw-arrow{border:2.5px solid var(--line-2);box-shadow:3px 3px 0 var(--pop);
+  transition:transform .12s var(--spring),box-shadow .12s var(--spring),background-color .12s ease}
+.tick:active,.next-go:active,.dw-arrow:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--pop)}
+.next-go{background:var(--lilac);border-color:var(--line);border-radius:8px}
+.next-go svg{stroke:var(--on-lilac)}
+.job-card.done .tick{background:var(--good-text);border-color:var(--line);color:var(--on-action)}
+.job-actions button,.wait-acts button{border:3px solid var(--line-2);border-radius:6px;box-shadow:4px 4px 0 var(--pop);
+  font-family:var(--font-display);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:15px;
+  transition:transform .14s var(--spring),box-shadow .14s var(--spring)}
+.job-actions button:active,.wait-acts button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--pop)}
+.job-actions .fin{background:var(--action);color:var(--on-action);border-color:var(--line)}
+.job-actions .tickall,.wait-acts .no{background:var(--ghost-bg);color:var(--ink)}
+.wait-acts .yes{background:var(--lilac);color:var(--on-lilac);border-color:var(--line)}
+.log-too{border:2px dashed var(--line-2);color:var(--lilac);font-size:15px;border-radius:6px}
+.dw-punch .mark,.jb-what .jb-tag{border-radius:3px;font-family:var(--font-label);font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;transform:rotate(-2deg)}
+.rec-what em{font-family:var(--font-label);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:13px}
+
+/* ── forms: white paper, inked ── */
+.field input,.field textarea{background:var(--field);color:var(--field-ink);border:3px solid var(--line);
+  border-radius:6px;color-scheme:light}
+.field input:focus,.field textarea:focus{background:var(--field);border-color:var(--brand);box-shadow:4px 4px 0 var(--brand)}
+.field input::placeholder,.field textarea::placeholder{color:var(--field-muted);opacity:1}
+.field input.bad,.field textarea.bad{border-color:var(--danger);box-shadow:4px 4px 0 var(--danger)}
+.money b{color:var(--field-muted)}
+
+/* the voice button keeps the pulsing purple glow it was asked for, drawn heavier */
+.say{background:var(--sunk);border:3px dashed var(--line-2);font-family:var(--font-display);font-weight:500;
+  text-transform:uppercase;letter-spacing:.03em;font-size:20px}
+.say.mini{font-size:17px}
+.say.hot{border-style:solid;border-color:var(--lilac);background:var(--tint)}
+
+/* ── odds and ends ── */
+.toast{background:var(--lilac);color:var(--on-lilac);border:3px solid var(--line);border-radius:6px;
+  box-shadow:5px 5px 0 var(--pop);font-size:17px}
+.logout{border:3px solid var(--line-2);border-radius:6px;box-shadow:5px 5px 0 var(--pop);color:var(--ink);font-size:18px;
+  transition:transform .14s var(--spring),box-shadow .14s var(--spring),background-color .14s ease}
+.logout:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--pop)}
+.logout.armed{border-color:var(--line)}
+.commission{border-radius:10px}
+.truck-chip{border-radius:999px}
+.brand{font-weight:700}
+
+/* the thank-you is the app's one big moment, so it gets the site's burst:
+   slow rays turning behind the words, over a halftone screen */
+.thanks .glow::before{inset:-60%;
+  background:repeating-conic-gradient(from 0deg at 50% 50%,var(--ray) 0deg 6deg,transparent 6deg 16deg);
+  -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 0%,rgba(0,0,0,.6) 32%,transparent 62%);
+  mask-image:radial-gradient(circle at 50% 50%,#000 0%,rgba(0,0,0,.6) 32%,transparent 62%);
+  animation:raySpin 80s linear infinite}
+@keyframes raySpin{to{transform:rotate(360deg)}}
+.thanks .grain{opacity:1;background-image:radial-gradient(var(--dots) 1.4px,transparent 1.5px);background-size:12px 12px}
+
+/* ── a day: for an admin every line is one tap, no rows of buttons. A break is
+      a thin line in the break colour tucked between the clock-in and the
+      clock-out, so it never reads as just another punch ── */
+:root{--brk:#FF9A62}
+html.light{--brk:#A3410F}
+.dw-break{display:flex;align-items:center;gap:10px;margin:2px 0 2px 14px;padding:7px 2px 7px 12px;
+  border:0;border-left:3px solid var(--brk);border-radius:0;background:transparent}
+.dw-break .lbl{flex:none;font-family:var(--font-label);font-weight:700;font-size:12px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brk)}
+.dw-break .span{flex:1;min-width:0;font-size:13.5px;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.dw-break .span em{display:block;font-style:normal;font-size:12px;font-weight:600;color:var(--haze)}
+.dw-break .mins{flex:none;font-family:var(--font-label);font-weight:700;font-size:14px;color:var(--brk);letter-spacing:.03em}
+.dw-day-top{align-items:flex-start}
+.dw-sum{flex:none;text-align:right;line-height:1.15}
+.dw-sum .dw-hrs{display:block}
+.dw-brk-tot{display:block;margin-top:3px;font-family:var(--font-label);font-weight:700;font-size:12px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--brk)}
+.dw-punch.tap,.dw-break.tap{text-align:left;-webkit-tap-highlight-color:transparent;transition:background-color .12s ease}
+.dw-punch.tap{width:100%;margin-top:2px;padding:8px 2px;background:transparent;border-radius:6px}
+.dw-break.tap{width:calc(100% - 14px)}
+.dw-punch.tap:active,.dw-break.tap:active{background:var(--tint)}
+.dw-chev{flex:none;margin-left:auto;padding-left:4px;font-size:22px;line-height:1;color:var(--haze)}
+.dw-break .dw-chev{margin-left:0}
+.dw-addone{display:inline-block;margin-top:8px;padding:6px 2px;background:transparent;
+  font-family:var(--font-label);font-weight:700;font-size:14px;letter-spacing:.07em;text-transform:uppercase;color:var(--lilac)}
+.dw-addone:active{opacity:.7}
+.duo.one{grid-template-columns:1fr}
+.ja-status.two{grid-template-columns:repeat(2,1fr)}
+.minor-link.del-link{color:var(--err-text)}
+.dw-old{margin-top:8px;font-family:var(--font-label);font-weight:700;font-size:12.5px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--haze)}
+.row .row-brk{display:inline-block;margin-left:8px;font-style:normal;font-family:var(--font-label);font-weight:700;
+  font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--brk)}
+
+/* ── the commission calculator ── */
+.cc-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:15px 16px;border-radius:14px;
+  background:var(--sunk);border:2px solid var(--card-line);box-shadow:4px 5px 0 var(--pop-soft)}
+.cc-row .who{flex:1;min-width:0}
+.cc-row .who b{display:block;font-family:var(--font-display);font-weight:500;font-size:20px;
+  text-transform:uppercase;letter-spacing:.03em}
+.cc-row .who span{display:block;margin-top:3px;font-size:13.5px;color:var(--haze);line-height:1.4}
+.cc-row .earn{flex:none;font-family:var(--font-display);font-weight:700;font-size:26px;color:var(--lilac);
+  font-variant-numeric:tabular-nums}
+
+/* ── quotes: their status, and the follow-up list ── */
+.jb-what .jb-st{display:inline-block;margin:0 0 0 7px;padding:1px 7px;border-radius:3px;vertical-align:1px;
+  font-family:var(--font-label);font-weight:700;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;
+  border:1.5px solid var(--edge);color:var(--haze)}
+.jb-what .jb-st.won{border-color:var(--good-text);color:var(--good-text)}
+.jb-what .jb-st.lost{border-color:var(--danger);color:var(--err-text)}
+.ja-status{grid-template-columns:repeat(3,1fr)}
+.ja-status .pay{min-height:52px;font-size:15px}
+.ja-status .pay[data-st="won"].on{background:var(--action);color:var(--on-action)}
+.q-row{margin-bottom:14px;padding:14px 15px;border-radius:14px;background:var(--sunk);
+  border:2px solid var(--card-line);box-shadow:4px 5px 0 var(--pop-soft)}
+.q-top{display:flex;align-items:flex-start;gap:10px}
+.q-top .q-what{flex:1;min-width:0}
+.q-top b{display:block;font-size:16px;font-weight:650}
+.q-top span{display:block;margin-top:2px;font-size:13px;color:var(--haze);line-height:1.4}
+.q-top .q-amt{flex:none;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.q-age{display:inline-block;margin-top:6px;font-style:normal;font-family:var(--font-label);font-weight:700;font-size:12.5px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--warn-text)}
+.q-acts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.q-acts button{min-height:48px;border-radius:6px;border:3px solid var(--line-2);box-shadow:4px 4px 0 var(--pop);
+  font-family:var(--font-display);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:16px;
+  background:var(--ghost-bg);color:var(--ink);transition:transform .14s var(--spring),box-shadow .14s var(--spring)}
+.q-acts button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--pop)}
+.q-acts .won{background:var(--action);color:var(--on-action);border-color:var(--line)}
+
+@media (max-height:720px){
+  .punch{font-size:27px}
+  .minor{font-size:17px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -838,7 +1244,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
       <button class="who" id="who">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.9 20a7.1 7.1 0 0 1 14.2 0"/></svg>
         <span id="whoName">—</span>
-        <svg class="star" id="whoStar" viewBox="0 0 24 24" aria-label="Admin" hidden><path d="M12 2.7l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.51l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg>
+        <svg class="star" id="whoStar" viewBox="0 0 24 24" aria-label="Admin" data-i18n-aria="admin" hidden><path d="M12 2.7l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.51l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94z"/></svg>
       </button>
       <p class="now" id="now">—</p>
     </div>
@@ -863,7 +1269,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
       <span class="next-top"><em id="nextWhen">—</em><b id="nextTitle"></b></span>
       <span class="next-where" id="nextWhere"></span>
     </span>
-    <span class="next-go" id="nextGo" role="link" aria-label="Directions">
+    <span class="next-go" id="nextGo" role="link" aria-label="Directions" data-i18n-aria="next.maps">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.3 7-11.4A7 7 0 0 0 5 9.6C5 14.7 12 21 12 21z"/><circle cx="12" cy="9.6" r="2.6"/></svg>
     </span>
   </button>
@@ -1093,11 +1499,11 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <p class="sub" id="dwRange"></p>
 
   <div class="dw-nav">
-    <button class="dw-arrow" id="dwPrev" aria-label="Earlier week">
+    <button class="dw-arrow" id="dwPrev" aria-label="Earlier week" data-i18n-aria="wk.earlier">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5.5L8.5 12l6.5 6.5"/></svg>
     </button>
     <span class="dw-total"><b id="dwTotal">0h</b><em data-i18n="day.total">Week total</em></span>
-    <button class="dw-arrow" id="dwNext" aria-label="Later week">
+    <button class="dw-arrow" id="dwNext" aria-label="Later week" data-i18n-aria="wk.later">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5L15.5 12 9 18.5"/></svg>
     </button>
   </div>
@@ -1119,6 +1525,42 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <h2 data-i18n="pay.history">Payments</h2>
   <p class="sub" id="phSub"></p>
   <div id="phList"></div>
+  </div>
+</div>
+
+<!-- ═══ commission, worked out for the office ═══ -->
+<div class="overlay" id="commCalc">
+  <button class="back" id="ccBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 data-i18n="cc.title">Commission</h2>
+    <p class="sub" id="ccSub"></p>
+    <div class="dw-nav">
+      <button class="dw-arrow" id="ccPrev" aria-label="Earlier week" data-i18n-aria="wk.earlier">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5.5L8.5 12l6.5 6.5"/></svg>
+      </button>
+      <span class="dw-total"><b id="ccTotal">$0</b><em data-i18n="cc.total">to pay for this week</em></span>
+      <button class="dw-arrow" id="ccNext" aria-label="Later week" data-i18n-aria="wk.later">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5L15.5 12 9 18.5"/></svg>
+      </button>
+    </div>
+    <div id="ccList"></div>
+    <p class="note" data-i18n="cc.note">Worked out from the jobs each person logged themselves that week. Quotes and deleted jobs don't count.</p>
+  </div>
+</div>
+
+<!-- ═══ quotes still open, oldest first ═══ -->
+<div class="overlay" id="quotes">
+  <button class="back" id="qfBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 data-i18n="qf.title">Quotes to follow up</h2>
+    <p class="sub" id="qfSub" data-i18n="qf.sub">Every quote still open from the last 60 days, oldest first.</p>
+    <div id="qfList"></div>
   </div>
 </div>
 
@@ -1155,7 +1597,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
     <span data-i18n="back">Go back</span>
   </button>
   <div class="inner">
-    <h2>Trucks &amp; crews</h2>
+    <h2 data-i18n="menu.crews">Trucks &amp; crews</h2>
     <p class="sub" id="crewsSub" data-i18n="loading">Loading…</p>
     <div id="crewsData"></div>
   </div>
@@ -1221,7 +1663,8 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
 
 <!-- ═══ menu ═══ -->
 <div class="overlay" id="menu"><div class="inner">
-  <h2>Menu</h2>
+  <p class="ver" id="appVer" aria-hidden="true"></p>
+  <h2 data-i18n="menu">Menu</h2>
   <p class="sub" id="menuWho"></p>
   <button class="pick safe" id="mSync" data-i18n="menu.clock">Go to clock</button>
   <button class="pick" id="mOwner" data-i18n="menu.myHours">My hours</button>
@@ -1230,6 +1673,8 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <button class="pick" id="mCrews" hidden data-i18n="menu.crews">Trucks &amp; crews</button>
   <button class="pick" id="mWait" hidden><span data-i18n="wait.menu">Phones waiting</span><small id="mWaitN"></small></button>
   <button class="pick" id="mPay" hidden data-i18n="pay.history">Payments</button>
+  <button class="pick" id="mComm" hidden data-i18n="menu.comm">Calculate commission</button>
+  <button class="pick" id="mQuotes" hidden data-i18n="menu.quotes">Quotes to follow up</button>
   <button class="pick" id="mBio" hidden></button>
   <button class="pick" id="mPin" data-i18n="menu.pin">Change passcode</button>
   <button class="pick with-icon" id="mSwitch">
@@ -1258,7 +1703,7 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <p class="brand brand-foot"><img class="brand-mark" src="logo.png" alt="" width="18" height="18">The Junk <em>Heroes</em></p>
 </div></div>
 
-<!-- ═══ jobs & quotes (full admins and job admins) ═══ -->
+<!-- ═══ jobs & quotes, by who logged them (full admins and job admins) ═══ -->
 <div class="overlay" id="work">
   <button class="back" id="workBack">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
@@ -1267,7 +1712,97 @@ h2{font-size:25px;font-weight:680;letter-spacing:-.02em;margin:0 0 6px}
   <div class="inner">
     <h2 data-i18n="menu.work">Jobs &amp; quotes</h2>
     <p class="sub" id="workSub" data-i18n="loading">Loading…</p>
+
+    <div class="dw-nav">
+      <button class="dw-arrow" id="jbPrev" aria-label="Earlier week" data-i18n-aria="wk.earlier">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5.5L8.5 12l6.5 6.5"/></svg>
+      </button>
+      <span class="dw-total"><b id="jbTotal">$0</b><em id="jbCount"></em></span>
+      <button class="dw-arrow" id="jbNext" aria-label="Later week" data-i18n-aria="wk.later">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5L15.5 12 9 18.5"/></svg>
+      </button>
+    </div>
+
+    <div class="wk-switch">
+      <button class="wk-opt on" id="jbJobs" data-i18n="jb.jobs">Jobs</button>
+      <button class="wk-opt" id="jbQuotes" data-i18n="jb.quotes">Quotes</button>
+    </div>
+
+    <div class="jb-people" id="jbPeople"></div>
     <div id="workData"></div>
+    <p class="note" id="jbHint" hidden data-i18n="jb.hint">Tap one to change what it came to, or to delete it.</p>
+  </div>
+</div>
+
+<!-- ═══ one job, for the office to change or take off the books ═══ -->
+<div class="overlay above" id="jobAct">
+  <button class="back" id="jaBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 id="jaTitle"></h2>
+    <p class="sub" id="jaSub"></p>
+    <div id="jaStatusWrap" hidden>
+      <p class="flabel" data-i18n="ja.status">Quote status</p>
+      <div class="pays ja-status" id="jaStatus">
+        <button type="button" class="pay" data-st="open"><span data-i18n="qs.open">Open</span></button>
+        <button type="button" class="pay" data-st="won"><span data-i18n="qs.won">Won</span></button>
+        <button type="button" class="pay" data-st="lost"><span data-i18n="qs.lost">Lost</span></button>
+      </div>
+    </div>
+    <div id="jaEdit">
+      <div class="duo">
+        <label class="field"><span data-i18n="f.first">First name</span>
+          <input id="jaFirst" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
+        <label class="field"><span data-i18n-html="f.last">Last name <i>— optional</i></span>
+          <input id="jaLast" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
+      </div>
+      <div class="duo">
+        <label class="field"><span data-i18n="f.town">Town or city</span>
+          <input id="jaTown" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
+        <label class="field"><span data-i18n="ja.amount">What it came to</span>
+          <span class="money"><b>$</b><input id="jaAmt" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off"></span></label>
+      </div>
+      <div id="jaPayWrap">
+        <p class="flabel" data-i18n="f.pay">How did they pay?</p>
+        <div class="pays" id="jaPays"></div>
+      </div>
+      <label class="field" id="jaNotesWrap"><span data-i18n-html="f.notes">Notes <i>— optional</i></span>
+        <textarea id="jaNotes" autocapitalize="sentences"></textarea></label>
+      <p class="err" id="jaErr" hidden></p>
+      <button class="pick safe" type="button" id="jaSave" data-i18n="ja.saveAll">Save the changes</button>
+      <button class="pick danger" type="button" id="jaDel"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ one line of a day, changed or added: a clock-in, a clock-out or a break ═══ -->
+<div class="overlay top" id="brkAdd">
+  <button class="back" id="baBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 id="baTitle">Add a break</h2>
+    <p class="sub" id="baSub"></p>
+    <div id="baKindWrap" hidden>
+      <p class="flabel" data-i18n="tf.what">What are you adding?</p>
+      <div class="pays ja-status" id="baKinds">
+        <button type="button" class="pay" data-k="in"><span data-i18n="tf.in">Clock-in</span></button>
+        <button type="button" class="pay" data-k="out"><span data-i18n="tf.out">Clock-out</span></button>
+        <button type="button" class="pay" data-k="break"><span data-i18n="tf.break">Break</span></button>
+      </div>
+    </div>
+    <div class="duo" id="baTimes">
+      <label class="field"><span id="baFromLbl">Break started</span>
+        <input id="baFrom" type="time" step="60"></label>
+      <label class="field" id="baToWrap"><span data-i18n="ba.to">Break ended</span>
+        <input id="baTo" type="time" step="60"></label>
+    </div>
+    <p class="err" id="baErr" hidden></p>
+    <button class="pick safe" type="button" id="baSave">Add the break</button>
+    <button class="minor-link del-link" type="button" id="baDel" hidden>Delete this break</button>
   </div>
 </div>
 
@@ -1373,7 +1908,7 @@ async function checkPin(pin){
 /* ═══════════ Face ID / fingerprint (WebAuthn) ═══════════ */
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const BIO = isIOS ? 'Face ID' : 'Fingerprint';
+function bioName(){ return isIOS ? 'Face ID' : t('bio.finger'); }
 
 const b64 = buf => btoa(String.fromCharCode.apply(null, new Uint8Array(buf)))
   .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
@@ -1433,7 +1968,7 @@ function applyTheme(name){
   const light = name === 'light';
   document.documentElement.classList.toggle('light', light);
   const meta = document.querySelector('meta[name=theme-color]');
-  if (meta) meta.setAttribute('content', light ? '#F3F1F7' : '#221E2B');
+  if (meta) meta.setAttribute('content', light ? '#F5F2FC' : '#1B0B44');
   const dark = $('thDark'), lit = $('thLight');
   if (dark && lit){
     dark.classList.toggle('on', !light);
@@ -1467,7 +2002,7 @@ const STRINGS = {
   'bio.on':      ['Turn on {0}<small>Skip typing the passcode</small>',
                   'Ativar {0}<small>Sem precisar digitar a senha</small>'],
   'bio.gone':    ['{0} is off. Use your passcode from now on.',
-                  '{0} desligado. Use sua senha de agora em diante.'],
+                  'Desbloqueio por {0} desligado. Use sua senha de agora em diante.'],
   'bio.off':     ['Turn off {0}<small>Passcode only from then on</small>',
                   'Desativar {0}<small>Só a senha a partir de então</small>'],
   'lock.wrong':  ['Wrong passcode', 'Senha errada'],
@@ -1566,6 +2101,7 @@ const STRINGS = {
   'sched.finish':['Complete job', 'Concluir serviço'],
   'sched.tick':  ['Just mark it done', 'Só marcar como feito'],
   'sched.undo':  ['Not done after all', 'Não foi feito ainda'],
+  'sched.logToo':['Log it too', 'Registrar também'],
   'sched.allDone':['Everything on the board is done. Nice one.',
                   'Tudo do quadro está feito. Muito bem.'],
   'sched.saving':['Saving…', 'Salvando…'],
@@ -1712,14 +2248,8 @@ const STRINGS = {
   'day.open':    ['still on the clock', 'ainda trabalhando'],
   'day.edited':  ['corrected', 'corrigido'],
   'day.total':   ['Week total', 'Total da semana'],
-  'day.edit':    ['Edit', 'Editar'],
-  'day.add':     ['Add a punch', 'Adicionar marcação'],
-  'day.delete':  ['Delete', 'Apagar'],
-  'day.newTime': ['New time', 'Novo horário'],
-  'day.save':    ['Save', 'Salvar'],
   'day.askDel':  ['Delete this punch? The row stays in the sheet, marked.',
                   'Apagar esta marcação? A linha fica na planilha, marcada.'],
-  'day.which':   ['Clock in or clock out?', 'Entrada ou saída?'],
   'pay.mark':    ['Mark this week paid', 'Marcar semana como paga'],
   'pay.markAll': ['Mark the whole crew paid', 'Marcar toda a equipe'],
   'pay.done':    ['Paid {0}', 'Pago em {0}'],
@@ -1741,16 +2271,152 @@ const STRINGS = {
   'com.jobs1':   ['{0} job', '{0} serviço'],
   'com.jobsN':   ['{0} jobs', '{0} serviços'],
   'com.pending': ['· not sent yet', '· ainda não enviado'],
-  'dup.title':   ['{0} already logged this today', '{0} já registrou isso hoje'],
-  'dup.body':    ['{0} in {1}. Is this the same job?', '{0} em {1}. É o mesmo serviço?'],
-  'dup.same':    ['Yes, the same one', 'Sim, é o mesmo'],
-  'dup.diff':    ['No, a different job', 'Não, outro serviço'],
   'wk.last':     ['Last week', 'Semana passada'],
   'wk.that':     ['That week', 'Aquela semana'],
   'wk.before':   ['The week before', 'A semana anterior'],
   'work.fail':   ["Couldn't load jobs and quotes. Check the connection, then try again.",
                   'Não consegui carregar os serviços e orçamentos. Verifique a conexão e tente de novo.'],
+  'jb.jobs':     ['Jobs', 'Serviços'],
+  'jb.quotes':   ['Quotes', 'Orçamentos'],
+  'jb.all':      ['Everyone', 'Todos'],
+  'jb.qt1':      ['{0} quote', '{0} orçamento'],
+  'jb.qtN':      ['{0} quotes', '{0} orçamentos'],
+  'jb.noneJ':    ['No jobs logged this week.', 'Nenhum serviço registrado nesta semana.'],
+  'jb.noneQ':    ['No quotes logged this week.', 'Nenhum orçamento registrado nesta semana.'],
+  'jb.hint':     ['Tap one to change what it came to, or to delete it.',
+                  'Toque em um para mudar o valor ou apagar.'],
+  'jb.double':   ['double?', 'duplicado?'],
+  /* v70 */
+  'admin':       ['Admin', 'Administrador'],
+  'menu.comm':   ['Calculate commission', 'Calcular comissão'],
+  'menu.quotes': ['Quotes to follow up', 'Orçamentos para acompanhar'],
+  'wk.earlier':  ['Earlier week', 'Semana anterior'],
+  'wk.later':    ['Later week', 'Semana seguinte'],
+  'bio.finger':  ['Fingerprint', 'Digital'],
+  'grp.admins':  ['Admins', 'Administradores'],
+  'grp.main':    ['Main truck crew', 'Equipe do caminhão principal'],
+  'grp.dispatch':['Assistant & Dispatch', 'Assistente e despacho'],
+  'grp.extra':   ['Extra crew', 'Equipe extra'],
+  'truck.n':     ['Truck {0}', 'Caminhão {0}'],
+  'truck.office':['Office', 'Escritório'],
+  'truck.officeSub':['Not on a truck today', 'Sem caminhão hoje'],
+  'crews.none':  ['Nobody has picked a truck yet.', 'Ninguém escolheu um caminhão ainda.'],
+  'crews.nobody':['nobody', 'ninguém'],
+  'wait.phone':  ['Phone', 'Celular'],
+  'u.m':         ['m', 'min'],
+  'hrs.otN':     ['{0} OT', '{0} extra'],
+  'hrs.brkRow':  ['{0} breaks', '{0} de pausa'],
+  'hrs.tip':     ['{0} this week, {1} last', '{0} esta semana, {1} na passada'],
+  'hrs.nothing': ['nothing', 'nada'],
+  'hrs.chartAria':['Hours each day, this week against last week', 'Horas por dia, esta semana comparada com a passada'],
+  'st.avg':      ['average per day worked', 'média por dia trabalhado'],
+  'st.day1':     ['day worked', 'dia trabalhado'],
+  'st.dayN':     ['days worked', 'dias trabalhados'],
+  'st.longest':  ['longest day', 'dia mais longo'],
+  'st.over':     ['over 40 this week', 'acima de 40 nesta semana'],
+  'st.until':    ['until overtime', 'até a hora extra'],
+  'st.vsLast':   ['versus last week', 'comparado à semana passada'],
+  'st.vsBefore': ['versus the week before', 'comparado à semana anterior'],
+  'st.people':   ['people on the clock', 'pessoas no serviço'],
+  'mj.fail':     ["Couldn't load your jobs. Check the connection, then try again.",
+                  'Não consegui carregar seus serviços. Verifique a conexão e tente de novo.'],
+  'mj.chartMoney':['Money each day, this week against last week', 'Dinheiro por dia, esta semana comparada com a passada'],
+  'mj.chartJobs':['Jobs each day, this week against last week', 'Serviços por dia, esta semana comparada com a passada'],
+  'day.gone':    ['That punch is not there any more.', 'Essa marcação não existe mais.'],
+  'day.brk':     ['Break', 'Pausa'],
+  'day.brkOpen': ['still on break', 'ainda em pausa'],
+  'day.brkToOut':['ran to the clock-out', 'foi até a saída'],
+  'day.brkTot':  ['{0} break', '{0} de pausa'],
+  'day.old':     ['From an earlier month. Read only.', 'De um mês anterior. Só leitura.'],
+  'day.deleted': ['Punch deleted.', 'Marcação apagada.'],
+  'srv.busy':    ['The sheet is busy. Try again in a moment.', 'A planilha está ocupada. Tente de novo daqui a pouco.'],
+  'srv.denied':  ["You can't change that from this account.", 'Você não pode mudar isso com esta conta.'],
+  'err.busy':    ['the sheet was busy', 'a planilha estava ocupada'],
+  'err.save':    ["the sheet couldn't save it", 'a planilha não conseguiu salvar'],
+  'err.tooMany': ['too many sent at once', 'muitas enviadas de uma vez'],
+  'err.denied':  ['not allowed', 'sem permissão'],
+  'ba.editTitle':['Change a break', 'Mudar uma pausa'],
+  'ba.saveEdit': ['Save the break', 'Salvar a pausa'],
+  'ba.del':      ['Delete this break', 'Apagar esta pausa'],
+  'ba.askDel':   ['Delete this break? Its two punches stay in the sheet, marked.',
+                  'Apagar esta pausa? As duas marcações ficam na planilha, marcadas.'],
+  'ba.changed':  ['Break changed.', 'Pausa alterada.'],
+  'ba.deleted':  ['Break deleted.', 'Pausa apagada.'],
+  'ba.gone':     ['That break is not there any more.', 'Essa pausa não existe mais.'],
+  'cc.title':    ['Commission', 'Comissão'],
+  'cc.total':    ['to pay for this week', 'a pagar nesta semana'],
+  'cc.of':       ['{0} of {1}', '{0} de {1}'],
+  'cc.none':     ['Nobody has a commission rate set.', 'Ninguém tem uma taxa de comissão definida.'],
+  'cc.note':     ["Worked out from the jobs each person logged themselves that week. Quotes and deleted jobs don't count.",
+                  'Calculado com os serviços que cada pessoa registrou naquela semana. Orçamentos e serviços apagados não contam.'],
+  'qf.title':    ['Quotes to follow up', 'Orçamentos para acompanhar'],
+  'qf.sub':      ['Every quote still open from the last 60 days, oldest first.',
+                  'Todo orçamento ainda aberto dos últimos 60 dias, o mais antigo primeiro.'],
+  'qf.none':     ['Nothing to follow up. Every quote has an answer.', 'Nada para acompanhar. Todo orçamento tem resposta.'],
+  'qf.today':    ['today', 'hoje'],
+  'qf.day1':     ['1 day old', '1 dia'],
+  'qf.dayN':     ['{0} days old', '{0} dias'],
+  'qf.by':       ['by {0}', 'por {0}'],
+  'qs.open':     ['Open', 'Aberto'],
+  'qs.won':      ['Won', 'Fechado'],
+  'qs.lost':     ['Lost', 'Perdido'],
+  'qs.saved':    ['Marked {0}.', 'Marcado como {0}.'],
+  'ja.status':   ['Quote status', 'Situação do orçamento'],
+  'ja.saveAll':  ['Save the changes', 'Salvar as alterações'],
+  'ja.savedAll': ['Changes saved.', 'Alterações salvas.'],
+  'ja.badFirst': ['A first name is needed.', 'O nome é obrigatório.'],
+  'ja.badTown':  ['A town is needed.', 'A cidade é obrigatória.'],
+  'ja.badPay':   ['Pick how they paid.', 'Escolha como pagou.'],
+  'jb.logged':   ['{0} entries', '{0} registros'],
+  'srv.old':     ['This needs the new Code.gs. Deploy the new version in Apps Script, then try again.',
+                  'Isto precisa do novo Code.gs. Publique a nova versão no Apps Script e tente de novo.'],
+  'jb.was':      ['was {0}', 'era {0}'],
+  'ja.amount':   ['What it came to', 'Valor'],
+  'ja.save':     ['Save the new amount', 'Salvar o novo valor'],
+  'ja.delJ':     ['Delete this job', 'Apagar este serviço'],
+  'ja.delQ':     ['Delete this quote', 'Apagar este orçamento'],
+  'ja.askDelJ':  ['Delete the job for {0} ({1})? It comes off every total. The row stays in the sheet, marked Void, in case you ever need it back.',
+                  'Apagar o serviço de {0} ({1})? Ele sai de todos os totais. A linha fica na planilha, marcada como Void, caso precise dela de volta.'],
+  'ja.askDelQ':  ['Delete the quote for {0} ({1})? The row stays in the sheet, marked Void, in case you ever need it back.',
+                  'Apagar o orçamento de {0} ({1})? A linha fica na planilha, marcada como Void, caso precise dela de volta.'],
+  'ja.bad':      ['Type an amount above $0.', 'Digite um valor acima de $0.'],
+  'ja.saved':    ['Amount changed.', 'Valor alterado.'],
+  'ja.gone':     ['Deleted.', 'Apagado.'],
+  'ja.already':  ['That one was already deleted.', 'Esse já tinha sido apagado.'],
+  'edit.locked': ['Changed by the office', 'Alterado pelo escritório'],
+  'ba.from':     ['Break started', 'Início da pausa'],
+  'ba.to':       ['Break ended', 'Fim da pausa'],
+  'ba.save':     ['Add the break', 'Adicionar a pausa'],
+  'ba.bad':      ['Pick when the break started and when it ended.',
+                  'Escolha quando a pausa começou e quando terminou.'],
+  'ba.order':    ['The break has to end after it starts.',
+                  'A pausa tem que terminar depois de começar.'],
+  'ba.noShift':  ["That time isn't inside a shift. Add the missing clock-in or clock-out first.",
+                  'Esse horário não fica dentro de um turno. Adicione a entrada ou a saída que falta primeiro.'],
+  'ba.overlap':  ['That overlaps a break that is already there.',
+                  'Isso se sobrepõe a uma pausa que já existe.'],
+  'ba.future':   ["That break hasn't happened yet.", 'Essa pausa ainda não aconteceu.'],
+  'ba.added':    ['Break added.', 'Pausa adicionada.'],
+  'day.addOne':  ['+ Add', '+ Adicionar'],
+  'day.changed': ['Punch changed.', 'Marcação alterada.'],
+  'day.added':   ['Punch added.', 'Marcação adicionada.'],
+  'tf.addTitle': ['Add to this day', 'Adicionar neste dia'],
+  'tf.what':     ['What are you adding?', 'O que você vai adicionar?'],
+  'tf.in':       ['Clock-in', 'Entrada'],
+  'tf.out':      ['Clock-out', 'Saída'],
+  'tf.break':    ['Break', 'Pausa'],
+  'tf.time':     ['Time', 'Horário'],
+  'tf.editIn':   ['Change the clock-in', 'Mudar a entrada'],
+  'tf.editOut':  ['Change the clock-out', 'Mudar a saída'],
+  'tf.saveP':    ['Save the time', 'Salvar o horário'],
+  'tf.addIn':    ['Add the clock-in', 'Adicionar a entrada'],
+  'tf.addOut':   ['Add the clock-out', 'Adicionar a saída'],
+  'tf.delIn':    ['Delete this clock-in', 'Apagar esta entrada'],
+  'tf.delOut':   ['Delete this clock-out', 'Apagar esta saída'],
+  'tf.pickKind': ['Pick clock-in, clock-out or break first.', 'Escolha entrada, saída ou pausa primeiro.'],
+  'tf.badTime':  ['Pick a time.', 'Escolha um horário.'],
   'hrs.onClock': ['on the clock', 'no serviço'],
+  'hrs.crewOn':  ['crew hours on the clock', 'horas da equipe no serviço'],
   'hrs.regular': ['regular, up to 40', 'normais, até 40'],
   'hrs.ot':      ['overtime, past 40', 'extras, acima de 40'],
   'hrs.none':    ['None', 'Nenhuma'],
@@ -1791,7 +2457,7 @@ const STRINGS = {
   'bio.ask':     ['Use {0} to unlock this app instead of typing your passcode?',
                   'Usar {0} para abrir o app em vez de digitar a senha?'],
   'bio.onNow':   ['{0} is on. Your passcode still works as a backup.',
-                  '{0} ativado. Sua senha continua funcionando como reserva.'],
+                  'Desbloqueio por {0} ativado. Sua senha continua funcionando como reserva.'],
   'bio.failed':  ["{0} didn't turn on. You can try again from the menu.",
                   'Não deu para ativar {0}. Você pode tentar de novo pelo menu.'],
   'out.onBrk':   ['You’re on break — clocking out ends the break and the shift. {0} on the clock so far.',
@@ -1902,6 +2568,9 @@ function applyLang(next){
   document.querySelectorAll('[data-i18n-html]').forEach(function(el){
     el.innerHTML = t(el.getAttribute('data-i18n-html'));
   });
+  document.querySelectorAll('[data-i18n-aria]').forEach(function(el){
+    el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
+  });
   const en = $('lgEn'), pt = $('lgPt');
   if (en && pt){
     en.classList.toggle('on', lang === 'en');
@@ -1914,11 +2583,12 @@ function applyLang(next){
    data-i18n attribute is handled by applyLang and does not belong here. */
 function paintMenu(){
   if (worker) $('menuWho').textContent = t('menu.as', worker);
+  $('appVer').textContent = 'v' + APP_VERSION;
 
   const bioBtn = $('mBio');
   if (bioReady){
     bioBtn.hidden = false;
-    bioBtn.innerHTML = acctGet('bio', null) ? t('bio.off', BIO) : t('bio.on', BIO);
+    bioBtn.innerHTML = acctGet('bio', null) ? t('bio.off', bioName()) : t('bio.on', bioName());
   } else bioBtn.hidden = true;
 
   // Everybody can see their own hours; only a full admin sees the crew's.
@@ -1929,6 +2599,8 @@ function paintMenu(){
 
 
   $('mPay').hidden = !isOwner();
+  $('mComm').hidden = !isOwner();
+  $('mQuotes').hidden = !isOwner() && !isJobAdmin();
   $('mWait').hidden = !isOwner() || !waitingNow.length;
   if (isOwner()) loadWaiting(true);
 
@@ -1996,7 +2668,47 @@ function acctDel(name){
   ['jh.token','jh.role','jh.pin','jh.salt','jh.bio'].forEach(function(k){ DB.del(k); });
 })();
 let st      = DB.get('jh.state', { status:'out', shiftStart:null, breakStart:null, breakMs:0, breaks:0 });
+/* A state left behind by an older build can be self-contradictory — on a break
+   with no break start, on the clock with no shift start, a break that began
+   before the shift, a last shift that came to less than nothing. Any of those
+   is what put a minus figure on the clock. Put it straight before anything
+   reads it. */
+(function sane(){
+  const ok = function(n){ return typeof n === 'number' && isFinite(n) && n > 0 && n <= Date.now() + 60000; };
+  if (!st || typeof st !== 'object') st = {};
+  if (st.status !== 'in' && st.status !== 'break') st.status = 'out';
+  // a start a little in the future is a phone whose clock was since corrected:
+  // keep the shift (only a real clock-out may end one) and start it now
+  if (st.status !== 'out' && typeof st.shiftStart === 'number' && st.shiftStart > Date.now())
+    st.shiftStart = Date.now();
+  if (st.status !== 'out' && !ok(st.shiftStart)) st.status = 'out';
+  if (st.status === 'out'){ st.shiftStart = null; st.breakStart = null; st.breakMs = 0; st.breaks = 0; }
+  if (st.status === 'break' && (!ok(st.breakStart) || st.breakStart < st.shiftStart)) st.breakStart = Date.now();
+  if (st.status === 'in') st.breakStart = null;
+  if (typeof st.breakMs !== 'number' || !isFinite(st.breakMs) || st.breakMs < 0) st.breakMs = 0;
+  // more break than there was time for is a break counted twice by an older build
+  if (st.status !== 'out'){
+    const room = Math.max(0, (st.status === 'break' ? st.breakStart : Date.now()) - st.shiftStart);
+    if (st.breakMs > room) st.breakMs = room;
+  }
+  if (typeof st.breaks !== 'number' || st.breaks < 0) st.breaks = 0;
+  if (typeof st.last !== 'number' || !isFinite(st.last) || st.last < 0) { delete st.last; delete st.lastAt; }
+})();
 let queue   = DB.get('jh.queue', []);
+/* The clock-out an older build forgot to save. If the newest in-or-out this
+   phone is still holding for its person is a clock-out made after the shift
+   began, the shift is over, whatever the saved state says. */
+(function reconcile(){
+  if (st.status === 'out' || !worker || !Array.isArray(queue)) return;
+  const mine = queue.filter(function(e){
+    return e && e.worker === worker && (e.type === 'in' || e.type === 'out');
+  });
+  const lastP = mine[mine.length - 1];
+  if (lastP && lastP.type === 'out' && Date.parse(lastP.ts) >= st.shiftStart){
+    st = { status:'out', shiftStart:null, breakStart:null, breakMs:0, breaks:0 };
+    DB.set('jh.state', st);
+  }
+})();
 let syncing = false, unlocked = false, bioReady = false;
 let entry = '', pinMode = null, firstEntry = '', fails = 0;
 /* Set only while changing an EXISTING passcode, so that flow can be cancelled.
@@ -2015,8 +2727,9 @@ function hms(ms){
   return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 }
 function human(ms){
-  const t = Math.round(ms/60000), h = Math.floor(t/60), m = t%60;
-  return h ? h + 'h ' + m + 'm' : m + 'm';
+  if (!(ms > 0)) ms = 0;                 // never a minus figure, never NaN
+  const mins = Math.round(ms/60000), h = Math.floor(mins/60), m = mins%60;
+  return h ? h + 'h ' + m + t('u.m') : m + t('u.m');
 }
 
 /* ═══════════ punching ═══════════ */
@@ -2024,8 +2737,12 @@ function punch(type, extra){
   const ev = { id:uid(), ts:new Date().toISOString(), worker:worker, type:type,
                tzOffset:new Date().getTimezoneOffset(), lat:null, lng:null };
   if (extra) Object.keys(extra).forEach(function(k){ ev[k] = extra[k]; });
-  queue.push(ev); save(); paint(); sync();
-
+  /* One id, one entry. Anything already waiting under the same id is replaced
+     rather than sent twice — a correction made before the first copy got out
+     simply becomes the copy that goes. */
+  const at = queue.findIndex(function(e){ return e.id === ev.id && e.worker === ev.worker; });
+  if (at >= 0) queue[at] = ev; else queue.push(ev);
+  save(); paint(); sync();
 }
 function clockIn(truck){
   st = { status:'in', shiftStart:Date.now(), breakStart:null, breakMs:0, breaks:0, truck: truck || '' };
@@ -2034,11 +2751,17 @@ function clockIn(truck){
   buzz(35);
   loadCrew();                       // find out who else picked this truck
 }
+/* The clocked-out state is set BEFORE the last punch, because punch() is what
+   saves. Set after it, it lived only in memory until the next save — so a phone
+   closed before the punch was sent woke up still on the clock, and clocking out
+   a second time counted the break twice. */
 function clockOut(){
-  if (st.status === 'break'){ st.breakMs += Date.now() - st.breakStart; st.breaks++; punch('break_end'); }
+  const now = Date.now();
+  if (st.status === 'break'){ st.breakMs += now - st.breakStart; st.breaks++; punch('break_end'); }
+  const worked = Math.max(0, now - st.shiftStart - st.breakMs);
+  st = { status:'out', shiftStart:null, breakStart:null, breakMs:0, breaks:0,
+         last:worked, lastAt:now, lastBy:worker };
   punch('out');
-  const worked = Date.now() - st.shiftStart - st.breakMs;
-  st = { status:'out', shiftStart:null, breakStart:null, breakMs:0, breaks:0, last:worked, lastAt:Date.now() };
   buzz([30,60,30]);
   return worked;
 }
@@ -2058,6 +2781,16 @@ function truckMode(name){
   return (m === 'none' || m === 'office') ? m : 'trucks';
 }
 function officeName(){ return (CONFIG.OFFICE && CONFIG.OFFICE.name) || 'Office'; }
+/* The names in CONFIG are the words the sheet records ("Office"), so they stay
+   English there; on screen the usual ones are translated. Anything somebody
+   types in differently is shown as written. */
+function placeLabel(name){ return name === officeName() ? t('truck.office') : name; }
+function tagLabel(tag){
+  const n = /^Truck (\d+)$/.exec(String(tag || ''));
+  if (n) return t('truck.n', n[1]);
+  if (CONFIG.OFFICE && tag === CONFIG.OFFICE.tag) return t('truck.officeSub');
+  return tag;
+}
 
 function buildTrucks(){
   const box = $('truckList'); box.innerHTML = '';
@@ -2072,7 +2805,7 @@ function buildTrucks(){
     b.appendChild(line);
     if (tag){
       const sm = document.createElement('small');
-      sm.textContent = tag;
+      sm.textContent = tagLabel(tag);
       b.appendChild(sm);
     }
     b.onclick = function(){
@@ -2092,12 +2825,12 @@ function buildTrucks(){
     const o = document.createElement('button');
     o.className = 'pick';
     const line = document.createElement('span');
-    line.textContent = officeName();
+    line.textContent = placeLabel(officeName());
     o.appendChild(line);
     const tag = CONFIG.OFFICE && CONFIG.OFFICE.tag;
     if (tag){
       const sm = document.createElement('small');
-      sm.textContent = tag;
+      sm.textContent = tagLabel(tag);
       o.appendChild(sm);
     }
     o.onclick = function(){
@@ -2136,7 +2869,8 @@ function renderCrews(days){
   const box = $('crewsData'); box.innerHTML = '';
   if (!days || !days.length){
     $('crewsSub').textContent = '';
-    box.innerHTML = '<p class="note">Nobody has picked a truck yet.</p>';
+    const p0 = document.createElement('p'); p0.className = 'note'; p0.textContent = t('crews.none');
+    box.appendChild(p0);
     return;
   }
   $('crewsSub').textContent = t('crews.sub');
@@ -2144,15 +2878,15 @@ function renderCrews(days){
     const h = document.createElement('p');
     h.className = 'wk'; h.textContent = fmtDayLong(dayMs(d.date)) || d.label;
     box.appendChild(h);
-    d.trucks.forEach(function(t){
+    d.trucks.forEach(function(tr){
       const el = document.createElement('div'); el.className = 'row';
       el.innerHTML = '<span></span><b></b>';
-      const who = t.people.length > 1
-        ? t.people.slice(0, -1).join(', ') + ' and ' + t.people[t.people.length - 1]
-        : (t.people[0] || 'nobody');
-      el.firstChild.textContent = t.truck + ': ' + who +
-        (t.jobs ? '  ·  ' + t.jobs + (t.jobs === 1 ? ' job' : ' jobs') : '');
-      el.lastChild.textContent = '$' + (Number(t.revenue) || 0).toFixed(2);
+      const who = tr.people.length > 1
+        ? tr.people.slice(0, -1).join(', ') + ' ' + t('and') + ' ' + tr.people[tr.people.length - 1]
+        : (tr.people[0] || t('crews.nobody'));
+      el.firstChild.textContent = placeLabel(tr.truck) + ': ' + who +
+        (tr.jobs ? '  ·  ' + t(tr.jobs === 1 ? 'com.jobs1' : 'com.jobsN', tr.jobs) : '');
+      el.lastChild.textContent = money(tr.revenue);
       box.appendChild(el);
     });
   });
@@ -2219,7 +2953,11 @@ function townFromAddress(where){
 /* Ticking a job off. The board is updated at once so it feels immediate, and
    the sheet is told after — a tick that fails to send is put back. */
 let finishing = 0;                     // ticks in flight
-async function markDone(j, done){
+/* `logged` is set when the tick comes from saving the job itself. That job is
+   already safe in the queue, so a tick that cannot be sent is not put back —
+   un-ticked, the job would sit at the top of the board again and get logged a
+   second time. It stays ticked on this phone and goes with the next sync. */
+async function markDone(j, done, logged){
   const was = j.done;
   j.done = done;
   renderSchedule(); paintNext(); buzz(done ? 35 : 12);
@@ -2228,14 +2966,54 @@ async function markDone(j, done){
     const d = await ask({ action:'finish', eventId: j.id, date: j.date || schedule.date,
                           title: j.title, truck: j.truck || st.truck || '', done: done });
     if (!d || !d.ok) throw new Error('refused');
+    // this is now the sheet's answer, so an older held tick must not undo it later
+    const day = j.date || schedule.date;
+    DB.set('jh.ticks', heldTicks().filter(function(p){
+      return !(p.worker === worker && p.eventId === j.id && p.date === day);
+    }));
   } catch(e){
-    j.done = was;                       // it never reached the sheet
-    renderSchedule(); paintNext();
-    toast(t('net.fail'));
+    if (logged){
+      holdTick({ worker: worker, eventId: j.id, date: j.date || schedule.date,
+                 title: j.title, truck: j.truck || st.truck || '', done: done });
+    } else {
+      j.done = was;                     // it never reached the sheet
+      renderSchedule(); paintNext();
+      toast(t('net.fail'));
+    }
   } finally {
     finishing--;
     if (!finishing) loadSchedule();     // now pick up the sheet's view, doneBy and all
   }
+}
+
+/* Ticks held back for want of signal, kept on the phone until they get through. */
+function heldTicks(){ const l = DB.get('jh.ticks', []); return Array.isArray(l) ? l : []; }
+function holdTick(x){
+  const l = heldTicks().filter(function(p){
+    return !(p.worker === x.worker && p.eventId === x.eventId && p.date === x.date);
+  });
+  l.push(x); DB.set('jh.ticks', l);
+}
+let sendingTicks = false;
+async function sendTicks(){
+  if (sendingTicks || isTest() || !worker || !navigator.onLine) return;
+  const mine = heldTicks().filter(function(p){ return p.worker === worker; });
+  if (!mine.length) return;
+  sendingTicks = true;
+  const sent = {};
+  for (let i = 0; i < mine.length; i++){
+    const x = mine[i];
+    try {
+      const d = await ask({ action:'finish', eventId: x.eventId, date: x.date,
+                            title: x.title, truck: x.truck, done: x.done });
+      if (d && d.ok) sent[x.eventId + '|' + x.date] = true;
+    } catch(e){ break; }                // still no signal; next time
+  }
+  DB.set('jh.ticks', heldTicks().filter(function(p){
+    return !(p.worker === worker && sent[p.eventId + '|' + p.date]);
+  }));
+  sendingTicks = false;
+  if (Object.keys(sent).length) loadSchedule();
 }
 
 /* The one the crew is on. Time does not decide this — a job is current until
@@ -2261,9 +3039,16 @@ function paintNext(){
 
 async function loadSchedule(){
   if (isTest() || !worker || finishing) return;   // a tick is on its way; let it land
+  sendTicks();
   try {
     const d = await ask({ action:'schedule', truck: st.truck || '' });
     if (!d || !d.ok) return;                 // no calendar set up: say nothing
+    // anything ticked here but not yet sent stays ticked
+    const held = heldTicks().filter(function(p){ return p.worker === worker; });
+    (d.jobs || []).forEach(function(j){
+      const h = held.filter(function(p){ return p.eventId === j.id && p.date === (j.date || d.date); })[0];
+      if (h) j.done = h.done;
+    });
     schedule = { jobs: d.jobs || [], today: d.today !== false,
                  merged: !!d.merged, truck: d.truck || '',
                  date: d.date || '', allDone: !!d.allDone,
@@ -2346,6 +3131,16 @@ function renderSchedule(){
       const by = document.createElement('p');
       by.className = 'done-by'; by.textContent = t('sched.doneBy', j.doneBy);
       box.appendChild(by);
+      /* Everybody logs every job they were on. Once a crewmate has finished
+         one it is off the "now" card, so this is the way in for everyone else
+         — the same form, the town already filled in. */
+      if (!loggedHere(j)){
+        const also = document.createElement('button');
+        also.type = 'button'; also.className = 'log-too';
+        also.textContent = t('sched.logToo');
+        also.onclick = function(){ completeJob(j); };
+        box.appendChild(also);
+      }
     }
 
     /* The job in hand gets its two ways out: log what it was worth, or just
@@ -2374,6 +3169,17 @@ function renderSchedule(){
     p.className = 'note'; p.textContent = t('sched.allDone');
     box.appendChild(p);
   }
+}
+
+/* Which booked jobs this person has logged from this phone, so "Log it too"
+   goes away once they have. A week is plenty; older ones are dropped. */
+function loggedKey(j){ return worker + '|' + j.id + '|' + (j.date || schedule.date || ''); }
+function loggedHere(j){ return !!DB.get('jh.logged', {})[loggedKey(j)]; }
+function noteLogged(j){
+  const all = DB.get('jh.logged', {}), keep = {}, cut = Date.now() - 7 * 864e5;
+  Object.keys(all).forEach(function(k){ if (all[k] > cut) keep[k] = all[k]; });
+  keep[loggedKey(j)] = Date.now();
+  DB.set('jh.logged', keep);
 }
 
 /* Straight from the board into the same form the crew already knows — the town
@@ -2489,16 +3295,28 @@ function renderWeekDetail(){
   const box = $('dwDays'); box.innerHTML = '';
   const names = dayNames();
   d.days.forEach(function(day, i){
+    // a day moved to its month tab is history: shown, never changed
+    const canChange = d.canEdit && !d.paid && !day.archived;
     const card = document.createElement('div');
     card.className = 'dw-day' + (day.hours ? '' : ' empty');
 
     const top = document.createElement('div'); top.className = 'dw-day-top';
     const nm = document.createElement('b');
     nm.textContent = names[i] + '  ·  ' + (fmtDayNum(dayMs(day.date)) || '');
+    top.appendChild(nm);
+    // the hours, with the day's break time quietly underneath
+    const sum = document.createElement('span'); sum.className = 'dw-sum';
     const hrs = document.createElement('span');
     hrs.className = 'dw-hrs';
     hrs.textContent = day.hours ? hrsText(day.hours) : '0h';
-    top.appendChild(nm); top.appendChild(hrs);
+    sum.appendChild(hrs);
+    const brkMin = (day.shifts || []).reduce(function(a, x){ return a + (x.breakMin || 0); }, 0);
+    if (brkMin > 0){
+      const bt = document.createElement('span'); bt.className = 'dw-brk-tot';
+      bt.textContent = t('day.brkTot', human(brkMin * 60000));
+      sum.appendChild(bt);
+    }
+    top.appendChild(sum);
     card.appendChild(top);
 
     if (!day.punches.length){
@@ -2507,85 +3325,253 @@ function renderWeekDetail(){
       card.appendChild(none);
     }
 
+    /* Clock-ins and clock-outs as lines, each break as one block between them,
+       in time order — so a break reads as a break, not as two more punches. */
+    const items = [];
     day.punches.forEach(function(p){
-      const row = document.createElement('div'); row.className = 'dw-punch';
-      const lbl = document.createElement('span'); lbl.className = 'lbl';
-      lbl.textContent = p.type === 'in' ? t('day.in')
-        : p.type === 'out' ? t('day.out')
-        : p.type === 'break_start' ? '↧' : '↥';
-      const tm = document.createElement('span'); tm.className = 'tm';
-      tm.textContent = p.time;
-      row.appendChild(lbl); row.appendChild(tm);
-      if (p.edited){
-        const mk = document.createElement('span');
-        mk.className = 'mark'; mk.textContent = t('day.edited');
-        row.appendChild(mk);
-      }
-      if (d.canEdit && !d.paid){
-        const ed = document.createElement('button');
-        ed.type = 'button'; ed.textContent = t('day.edit');
-        ed.onclick = function(){ editOnePunch(p); };
-        row.appendChild(ed);
-      }
-      card.appendChild(row);
+      if (p.type === 'in' || p.type === 'out') items.push({ ms: p.ms, punch: p });
+    });
+    (day.breaks || []).forEach(function(b){ items.push({ ms: b.startMs, brk: b }); });
+    items.sort(function(a, b){
+      return a.ms - b.ms || ((a.punch && a.punch.type === 'out') ? 1 : 0) - ((b.punch && b.punch.type === 'out') ? 1 : 0);
     });
 
-    day.shifts.forEach(function(sh){
-      if (!sh.breakMin) return;
-      const b = document.createElement('p');
-      b.className = 'dw-brk'; b.textContent = t('day.break', hrsText(sh.breakMin / 60));
-      card.appendChild(b);
+    /* For an admin every line is one tap: it opens a small sheet with the time,
+       Save and Delete, instead of a row of buttons on every line. */
+    function line(cls, open){
+      const el = document.createElement(canChange ? 'button' : 'div');
+      el.className = cls;
+      if (canChange){ el.type = 'button'; el.classList.add('tap'); el.onclick = open; }
+      return el;
+    }
+    function chevron(el){
+      if (!canChange) return;
+      const c = document.createElement('span'); c.className = 'dw-chev';
+      c.setAttribute('aria-hidden', 'true'); c.textContent = '›';
+      el.appendChild(c);
+    }
+
+    items.forEach(function(it){
+      if (it.punch){
+        const p = it.punch;
+        const row = line('dw-punch', function(){ openEditPunch(day.date, p); });
+        const lbl = document.createElement('span'); lbl.className = 'lbl';
+        lbl.textContent = p.type === 'in' ? t('day.in') : t('day.out');
+        const tm = document.createElement('span'); tm.className = 'tm';
+        tm.textContent = fmtTime(p.ms) || p.time;
+        row.appendChild(lbl); row.appendChild(tm);
+        if (p.edited){
+          const mk = document.createElement('span');
+          mk.className = 'mark'; mk.textContent = t('day.edited');
+          row.appendChild(mk);
+        }
+        chevron(row);
+        card.appendChild(row);
+        return;
+      }
+      const b = it.brk;
+      const blk = line('dw-break', function(){ openEditBreak(day.date, b); });
+      const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = t('day.brk');
+      const span = document.createElement('span'); span.className = 'span';
+      span.textContent = fmtTime(b.startMs) + ' → ' +
+        (b.endMs && !b.toClockOut ? fmtTime(b.endMs) : (b.toClockOut ? fmtTime(b.endMs) : '…'));
+      if (!b.endMs || b.toClockOut || b.edited){
+        const why = document.createElement('em');
+        why.textContent = [!b.endMs ? t('day.brkOpen') : '', b.toClockOut ? t('day.brkToOut') : '',
+                           b.edited ? t('day.edited') : ''].filter(Boolean).join('  ·  ');
+        span.appendChild(why);
+      }
+      blk.appendChild(lbl); blk.appendChild(span);
+      if (b.minutes != null){
+        const mn = document.createElement('span'); mn.className = 'mins';
+        mn.textContent = human(b.minutes * 60000);
+        blk.appendChild(mn);
+      }
+      chevron(blk);
+      card.appendChild(blk);
     });
+
     if (day.shifts.some(function(x){ return x.status === 'Still clocked in'; })){
       const o = document.createElement('p');
       o.className = 'dw-brk'; o.textContent = t('day.open');
       card.appendChild(o);
     }
+    if (day.archived){
+      const old = document.createElement('p');
+      old.className = 'dw-old'; old.textContent = t('day.old');
+      card.appendChild(old);
+    }
 
-    if (d.canEdit && !d.paid){
+    if (canChange){
       const add = document.createElement('button');
-      add.type = 'button'; add.className = 'dw-add'; add.textContent = t('day.add');
-      add.onclick = function(){ addOnePunch(day.date); };
+      add.type = 'button'; add.className = 'dw-addone'; add.textContent = t('day.addOne');
+      // a break needs a shift to sit in, so only offered on a day that has one
+      const canBreak = day.punches.length > 0;
+      add.onclick = function(){ openAddToDay(day.date, canBreak); };
       card.appendChild(add);
     }
     box.appendChild(card);
   });
 }
 
-/* A time typed by hand. prompt() is plain, but it is the one control every
-   phone has that cannot be fumbled with gloves on, and this is rare work. */
-function askTime(current){
-  const said = prompt(t('day.newTime') + ' (24h, e.g. 16:30)', current || '');
-  if (said === null) return null;
-  const t2 = String(said).trim();
-  return /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(t2) ? t2 : false;
+/* The server's reasons, said in the reader's language. Never its raw words,
+   and never the browser's own "Failed to fetch". */
+function dayWords(err){
+  return ({ 'that week is already paid': t('pay.locked'), 'bad request': t('srv.old'),
+            'that punch was deleted': t('day.gone'), 'no such punch': t('day.gone'),
+            'no such break': t('ba.gone'), 'bad time': t('tf.badTime'),
+            'busy, retry': t('srv.busy'), 'not allowed': t('srv.denied'),
+            'no shift': t('ba.noShift'), 'overlaps': t('ba.overlap'), 'not yet': t('ba.future'),
+            'ends before it starts': t('ba.order') })[err] || t('net.fail');
 }
 
-async function editOnePunch(p){
-  const when = askTime('');
-  if (when === null) return;
-  if (when === false){ toast(t('day.newTime')); return; }
+/* One line of a day, changed or added: a clock-in, a clock-out or a break.
+   Times come from the phone's own time picker, never typed, and the server
+   checks every one before writing anything. Deleting marks the rows in the
+   sheet; nothing is erased. */
+let baDate = null, baBusy = false;
+/* Set by anything that changes a week from the day sheet. The Hours list behind
+   it was drawn before the change, so it is redrawn on the way back out —
+   otherwise a fixed week still shows the old total and looks unfixed. */
+let hoursDirty = false;
+async function refreshHours(){
+  hoursDirty = false;
+  if (!$('owner').classList.contains('open')) return;
   try {
-    const d = await ask({ action:'editpunch', id: p.id, time: when });
-    if (!d || !d.ok) throw new Error(d && d.error);
-    buzz(35); await loadWeekDetail();
-  } catch(e){ toast(String((e && e.message) || t('net.fail'))); }
+    const d = await ask({ action:'summary', weeks:4 });
+    if (d && d.ok) render(d.summary, d.scope === 'all');
+  } catch(e){ /* no signal: the old figures stay until it is reopened */ }
 }
-
-async function addOnePunch(date){
-  const isIn = confirm(t('day.which') + '\n\nOK = ' + t('day.in') + ',  Cancel = ' + t('day.out'));
-  const when = askTime('');
-  if (when === null) return;
-  if (when === false){ toast(t('day.newTime')); return; }
+/* What the sheet is working on: the break or the punch being changed, or what
+   kind of line is being added ('in', 'out' or 'break'). */
+let baEdit = null, baPunch = null, baKind = null;
+function hhmm(ms){
+  const x = new Date(ms);
+  return String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0');
+}
+function openTimeSheet(date){
+  baDate = date; baEdit = null; baPunch = null; baKind = null;
+  $('baSub').textContent = dwWorker + '  ·  ' + (fmtDay(dayMs(date)) || date);
+  $('baKindWrap').hidden = true;
+  $('baTimes').hidden = false; $('baSave').hidden = false;
+  $('baFrom').value = ''; $('baTo').value = '';
+  $('baFrom').classList.remove('bad'); $('baTo').classList.remove('bad');
+  $('baErr').hidden = true;
+  $('baDel').hidden = true;
+  $('baSave').disabled = baBusy; $('baDel').disabled = baBusy;   // the last one is still on its way
+  $('brkAdd').classList.add('open');
+  $('brkAdd').scrollTop = 0;
+}
+/* One time for a clock-in or clock-out, two for a break. */
+function showKind(k){
+  baKind = k;
+  const brk = k === 'break';
+  $('baTimes').classList.toggle('one', !brk);
+  $('baToWrap').hidden = !brk;
+  $('baFromLbl').textContent = brk ? t('ba.from') : t('tf.time');
+  [].forEach.call($('baKinds').children, function(c){
+    const on = c.getAttribute('data-k') === k;
+    c.classList.toggle('on', on); c.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+function openEditPunch(date, p){
+  openTimeSheet(date);
+  baPunch = p;
+  showKind(p.type);
+  $('baTitle').textContent = t(p.type === 'in' ? 'tf.editIn' : 'tf.editOut');
+  $('baSave').textContent = t('tf.saveP');
+  $('baDel').textContent = t(p.type === 'in' ? 'tf.delIn' : 'tf.delOut');
+  $('baDel').hidden = false;
+  $('baFrom').value = hhmm(p.ms);
+}
+function openEditBreak(date, b){
+  openTimeSheet(date);
+  baEdit = b;
+  showKind('break');
+  $('baTitle').textContent = t('ba.editTitle');
+  $('baSave').textContent = t('ba.saveEdit');
+  $('baDel').textContent = t('ba.del');
+  $('baDel').hidden = false;
+  $('baFrom').value = hhmm(b.startMs);
+  $('baTo').value = b.endMs && !b.toClockOut ? hhmm(b.endMs) : '';
+}
+/* Adding: first what kind of line, then its time. Nothing is picked for them —
+   a clock-out added as a clock-in would split the day wrong. */
+function openAddToDay(date, canBreak){
+  openTimeSheet(date);
+  $('baTitle').textContent = t('tf.addTitle');
+  $('baKindWrap').hidden = false;
+  $('baKinds').querySelector('[data-k="break"]').hidden = !canBreak;
+  $('baKinds').classList.toggle('two', !canBreak);
+  showKind(null);
+  $('baTimes').hidden = true; $('baSave').hidden = true;
+}
+[].forEach.call($('baKinds').children, function(btn){
+  btn.onclick = function(){
+    if (baEdit || baPunch) return;
+    const k = btn.getAttribute('data-k');
+    showKind(k);
+    $('baTimes').hidden = false; $('baSave').hidden = false; $('baErr').hidden = true;
+    $('baSave').textContent = t(k === 'in' ? 'tf.addIn' : k === 'out' ? 'tf.addOut' : 'ba.save');
+    buzz(12);
+  };
+});
+function closeAddBreak(){ baDate = null; baEdit = null; baPunch = null; baKind = null; $('brkAdd').classList.remove('open'); }
+function baFail(msg){ $('baErr').textContent = msg; $('baErr').hidden = false; }
+function baWords(err, brk){
+  if (err === 'bad time') return t(brk ? 'ba.bad' : 'tf.badTime');
+  return dayWords(err);
+}
+$('baBack').onclick = closeAddBreak;
+$('baSave').onclick = async function(){
+  if (!baDate || baBusy) return;
+  if (!baKind) return baFail(t('tf.pickKind'));
+  const brk = baKind === 'break';
+  const from = $('baFrom').value, to = $('baTo').value;     // always 'HH:MM', 24-hour
+  $('baFrom').classList.toggle('bad', !from); $('baTo').classList.toggle('bad', brk && !to);
+  if (!from || (brk && !to)) return baFail(t(brk ? 'ba.bad' : 'tf.badTime'));
+  if (brk && to <= from){ $('baTo').classList.add('bad'); return baFail(t('ba.order')); }
+  baBusy = true; this.disabled = true; $('baDel').disabled = true;
+  const day = baDate, who = dwWorker, edit = baEdit, punch = baPunch, kind = baKind;
+  const mine = function(){                                     // see jaSave
+    return baDate === day && dwWorker === who && baEdit === edit && baPunch === punch && baKind === kind;
+  };
+  const req = punch ? { action:'editpunch', id: punch.id, time: from.slice(0, 5) }
+    : edit ? { action:'editbreak', worker: who, date: day, startId: edit.startId, endId: edit.endId,
+               from: from.slice(0, 5), to: to.slice(0, 5) }
+    : brk ? { action:'addbreak', worker: who, date: day, from: from.slice(0, 5), to: to.slice(0, 5) }
+    : { action:'addpunch', worker: who, date: day, type: kind, time: from.slice(0, 5) };
+  const done = punch ? 'day.changed' : edit ? 'ba.changed' : brk ? 'ba.added' : 'day.added';
   try {
-    const d = await ask({ action:'addpunch', worker: dwWorker, date: date,
-                          type: isIn ? 'in' : 'out', time: when });
-    if (!d || !d.ok) throw new Error(d && d.error);
-    buzz(35); await loadWeekDetail();
-  } catch(e){ toast(String((e && e.message) || t('net.fail'))); }
-}
+    const d = await ask(req);
+    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+    buzz(35); if (mine()) closeAddBreak(); toast(t(done));
+    hoursDirty = true;
+    if (dwWorker === who) loadWeekDetail();
+  } catch(err){
+    const msg = baWords(err && err.message, brk);
+    if (mine()) baFail(msg); else toast(msg);
+  }
+  finally { baBusy = false; $('baSave').disabled = false; $('baDel').disabled = false; }
+};
+$('baDel').onclick = async function(){
+  const edit = baEdit, punch = baPunch, day = baDate, who = dwWorker;
+  if ((!edit && !punch) || baBusy) return;
+  if (!confirm(t(punch ? 'day.askDel' : 'ba.askDel'))) return;
+  baBusy = true; this.disabled = true; $('baSave').disabled = true;
+  const mine = function(){ return baEdit === edit && baPunch === punch; };
+  try {
+    const d = await ask(punch ? { action:'voidpunch', id: punch.id }
+      : { action:'voidbreak', worker: who, date: day, startId: edit.startId, endId: edit.endId });
+    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+    buzz([30,60,30]); if (mine()) closeAddBreak(); toast(t(punch ? 'day.deleted' : 'ba.deleted'));
+    hoursDirty = true;
+    if (dwWorker === who) loadWeekDetail();
+  } catch(err){ if (mine()) baFail(dayWords(err && err.message)); else toast(dayWords(err && err.message)); }
+  finally { baBusy = false; $('baSave').disabled = false; $('baDel').disabled = false; }
+};
 
-$('dwBack').onclick = closeWeekDetail;
+$('dwBack').onclick = function(){ closeWeekDetail(); if (hoursDirty) refreshHours(); };
 $('dwPrev').onclick = function(){ dwStart = shiftWeekISO(dwStart, 1); loadWeekDetail(); buzz(12); };
 $('dwNext').onclick = function(){ dwStart = shiftWeekISO(dwStart, -1); loadWeekDetail(); buzz(12); };
 
@@ -2595,7 +3581,7 @@ $('dwMark').onclick = async function(){
     const d = await ask({ action:'markpaid', worker: dwWorker,
                           weekStart: dwStart, hours: dwData ? dwData.hours : 0 });
     if (!d || !d.ok) throw new Error('failed');
-    buzz(35); await loadWeekDetail();
+    buzz(35); hoursDirty = true; await loadWeekDetail();
   } catch(e){ toast(t('net.fail')); }
 };
 $('dwUnlock').onclick = async function(){
@@ -2603,7 +3589,7 @@ $('dwUnlock').onclick = async function(){
   try {
     const d = await ask({ action:'unlockweek', worker: dwWorker, weekStart: dwStart });
     if (!d || !d.ok) throw new Error('failed');
-    buzz(12); await loadWeekDetail();
+    buzz(12); hoursDirty = true; await loadWeekDetail();
   } catch(e){ toast(t('net.fail')); }
 };
 
@@ -2668,7 +3654,7 @@ function renderRecent(){
     const nm = document.createElement('b');
     nm.textContent = ((e.first || '') + (e.last ? ' ' + e.last : '')).trim() || t('mj.customer');
     const sub = document.createElement('span');
-    sub.textContent = [fmtDay(e.whenMs), e.town, e.method,
+    sub.textContent = [fmtDay(e.whenMs), e.town, payName(e.method),
                        (e.platforms || []).join(', ')].filter(Boolean).join('  ·  ');
     w.appendChild(nm); w.appendChild(sub);
 
@@ -2678,7 +3664,14 @@ function renderRecent(){
       a.className = 'rec-amt'; a.textContent = money(e.amount);
       b.appendChild(a);
     }
-    b.onclick = function(){ loadForFix(e); };
+    /* The office has put this one right itself, and the server would turn a
+       correction from here away — so say so rather than let it look saved. */
+    if (e.locked){
+      b.classList.add('locked'); b.disabled = true;
+      const lk = document.createElement('em');
+      lk.textContent = t('edit.locked');
+      w.appendChild(lk);
+    } else b.onclick = function(){ loadForFix(e); };
     box.appendChild(b);
   });
 }
@@ -2825,7 +3818,9 @@ async function sync(){
       DB.set('jh.lastSync', Date.now()); DB.set('jh.err', null); save();
       if (d.speech && d.speech !== acctGet('speech', '')) acctSet({ speech: d.speech });
       loadCommission();                 // the server's own figure, now the queue is clear
-    } else DB.set('jh.err', (d && d.error) || 'err.rejected');
+      sendTicks();                      // and any job tick that was waiting on signal
+    } else DB.set('jh.err', ({ 'busy, retry': 'err.busy', 'could not save, try again': 'err.save',
+                              'too many at once': 'err.tooMany', 'not allowed': 'err.denied' })[d && d.error] || 'err.rejected');
   } catch(e){ DB.set('jh.err', 'err.nonet'); }
   syncing = false; paint();
   if (queue.length) setTimeout(sync, 20000);
@@ -2850,7 +3845,7 @@ function buildKeys(){
     const b = document.createElement('button');
     if (k === 'L'){
       if (pinMode === null && bioReady && acctGet('bio', null)){
-        b.className = 'key bio'; b.textContent = '☺'; b.setAttribute('aria-label', BIO);
+        b.className = 'key bio'; b.textContent = '☺'; b.setAttribute('aria-label', bioName());
         b.onclick = tryBio;
       } else { b.className = 'key blank'; b.disabled = true; }
     } else if (k === 'B'){
@@ -2915,7 +3910,7 @@ $('reset').onclick = function(){
 };
 
 async function tryBio(){
-  $('lockHint').textContent = t('lock.wait', BIO);
+  $('lockHint').textContent = t('lock.wait', bioName());
   try { await bioUnlock(); unlock(); }
   catch(e){ $('lockHint').textContent = t('lock.enter'); }
 }
@@ -2957,9 +3952,9 @@ function unlock(){
   paint(); sync(); loadSchedule();
 }
 async function offerBio(){
-  if (!confirm(t('bio.ask', BIO))) return;
-  try { await bioEnroll(); alert(t('bio.onNow', BIO)); }
-  catch(e){ alert(t('bio.failed', BIO)); }
+  if (!confirm(t('bio.ask', bioName()))) return;
+  try { await bioEnroll(); alert(t('bio.onNow', bioName())); }
+  catch(e){ alert(t('bio.failed', bioName())); }
 }
 
 /* ═══════════ render ═══════════ */
@@ -3014,7 +4009,7 @@ function paint(){
     // an svg has no .hidden property of its own — set the attribute
     $('chipTruck').toggleAttribute('hidden', desk);
     $('chipDesk').toggleAttribute('hidden', !desk);
-    $('truckName').textContent = st.truck;
+    $('truckName').textContent = placeLabel(st.truck);
     const mates = st.mates || [];
     $('truckMates').textContent = mates.length
       ? t('truck.with', mates.length > 1
@@ -3035,7 +4030,9 @@ function paint(){
   else if (!navigator.onLine){ dot.className = 'dot off'; txt.textContent = t('sync.off'); }
   else { dot.className = 'dot'; txt.textContent = t('sync.sent'); }
 
-  if (st.status === 'out' && st.last) $('foot').textContent = t('foot.last', human(st.last));
+  // the last shift is only news to whoever worked it, not the next person on this phone
+  if (st.status === 'out' && st.last > 0 && (!st.lastBy || st.lastBy === worker))
+    $('foot').textContent = t('foot.last', human(st.last));
   else if (st.status !== 'out' && st.breaks) $('foot').textContent = t(st.breaks === 1 ? 'foot.brk1' : 'foot.brkN', st.breaks);
   else $('foot').textContent = '';
 
@@ -3050,9 +4047,26 @@ function stamp(){
     d.toLocaleTimeString(LOCALES[langOf()], { hour:'numeric', minute:'2-digit' });
 }
 function tick(){
-  if (st.status === 'out'){ $('clock').textContent = st.last ? human(st.last) : '0:00'; return; }
+  // Off the clock the big number is always zero. The last shift is in the
+  // line underneath, where it cannot be mistaken for a clock that is running.
+  if (st.status === 'out'){ drawClock('0:00'); return; }
   const paused = st.status === 'break' ? Date.now() - st.breakStart : 0;
-  $('clock').textContent = hms(Date.now() - st.shiftStart - st.breakMs - paused);
+  drawClock(hms(Date.now() - st.shiftStart - st.breakMs - paused));
+}
+/* The Junk Heroes digits are all different widths, so a running clock in it
+   would shuffle sideways every second. Each character gets a slot of its own
+   instead — a digit's slot fits the widest digit — and the clock stands still. */
+function drawClock(text){
+  const el = $('clock');
+  if (el.dataset.t === text) return;
+  el.dataset.t = text;
+  el.textContent = '';
+  String(text).split('').forEach(function(ch){
+    const s = document.createElement('span');
+    s.className = ch === ':' ? 'cc' : 'cd';
+    s.textContent = ch;
+    el.appendChild(s);
+  });
 }
 setInterval(function(){
   if (!unlocked) return;
@@ -3125,7 +4139,7 @@ $('who').onclick = function(){
 $('mSync').onclick = function(){ $('menu').classList.remove('open'); sync(); };
 $('mBio').onclick   = async function(){
   $('menu').classList.remove('open');
-  if (acctGet('bio', null)){ acctSet({ bio: null }); alert(t('bio.gone', BIO)); }
+  if (acctGet('bio', null)){ acctSet({ bio: null }); alert(t('bio.gone', bioName())); }
   else await offerBio();
 };
 $('lgEn').onclick = function(){ setLang('en'); buzz(12); };
@@ -3148,6 +4162,10 @@ $('lockBack').onclick = function(){
     unlock();
     return;
   }
+  /* Every account on a phone shares the one clock, so going back to the list of
+     names mid-shift would hand the running shift to whoever picks next. Logging
+     out is fine — it only locks the same person's screen. */
+  if (st.status !== 'out'){ toast(t('switch.first')); return; }
   pinMode = null;
   $('lockScreen').classList.remove('open');
   worker = null; DB.set('jh.worker', null);
@@ -3214,7 +4232,8 @@ function buildSetup(){
 
     if (label){
       const h = document.createElement('p');
-      h.className = 'grp'; h.textContent = label;
+      // the heading in the reader's language when it has a key; as written when not
+      h.className = 'grp'; h.textContent = section.key ? t(section.key) : label;
       box.appendChild(h);
     }
 
@@ -3232,7 +4251,7 @@ function buildSetup(){
         const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         s.setAttribute('class', 'star');
         s.setAttribute('viewBox', '0 0 24 24');
-        s.setAttribute('aria-label', 'Admin');
+        s.setAttribute('aria-label', t('admin'));
         s.innerHTML = STAR_PATH;
         b.appendChild(s);
       }
@@ -3403,7 +4422,7 @@ function renderWaiting(){
     const who = document.createElement('div'); who.className = 'wait-who';
     const b = document.createElement('b'); b.textContent = w.name;
     const sp = document.createElement('span');
-    sp.textContent = [w.device, fmtTime(w.askedMs)].filter(Boolean).join('  ·  ');
+    sp.textContent = [w.device === 'Phone' ? t('wait.phone') : w.device, fmtTime(w.askedMs)].filter(Boolean).join('  ·  ');
     who.appendChild(b); who.appendChild(sp);
 
     const num = document.createElement('p');
@@ -3459,6 +4478,7 @@ function needsEnrol(){
 }
 
 $('enrolBackTop').onclick = function(){
+  if (st.status !== 'out'){ toast(t('switch.first')); return; }   // see lockBack
   $('enrol').classList.remove('open');
   worker = null; DB.set('jh.worker', null);
   buildSetup();
@@ -3636,6 +4656,14 @@ const PAYMENTS = [
   { id:'cashapp', label:'Cash App', icon:payMark('$') }
 ];
 
+/* How something was paid, in the reader's language — the sheet keeps the
+   plain English key ('cash'), the screen says Dinheiro when it should. */
+function payName(id){
+  const p = PAYMENTS.filter(function(x){ return x.id === id; })[0];
+  if (!p) return id || '';
+  return STRINGS[p.label] ? t(p.label) : p.label;
+}
+
 /* Where a review can land. More than one is normal — a happy customer often
    leaves the same words in two places. */
 const PLATFORMS = [
@@ -3649,6 +4677,13 @@ let trkKind = null, trkPay = null, toastTimer = null;
 let schedView = 'day';
 /* The id of the entry being corrected, if this form was opened to fix one. */
 let trkEdit = null, revEdit = null;
+/* The id a form will save under, made when the form opens and used up by the
+   first Save. A second tap — gloves, a slow screen — finds it gone and does
+   nothing, so one job can only ever be one entry. */
+let trkDraft = null, revDraft = null;
+/* Goes up every time a form opens or closes, so an answer that arrives late
+   can tell whether the form it was meant for is still the one on screen. */
+let formGen = 0;
 let recent = [];
 /* Set when the form was opened from the day's board, so saving ticks that job
    off as well as recording it. Cleared whenever the form is opened any other
@@ -3712,9 +4747,11 @@ function buildPlats(){
 
 function openReview(){
   micStop();
+  formGen++;
   micTarget = MIC_TARGETS.review;
   saidSoFar = '';
   revEdit = null;
+  revDraft = uid();
   $('revSave').textContent = t('rev.save');
   const canHear = micSupported();
   $('revSay').toggleAttribute('hidden', !canHear);
@@ -3727,7 +4764,7 @@ function openReview(){
   $('reviewSheet').classList.add('open');
   $('reviewSheet').scrollTop = 0;
 }
-function closeReview(){ micStop(); revEdit = null; $('reviewSheet').classList.remove('open'); }
+function closeReview(){ micStop(); formGen++; revEdit = null; $('reviewSheet').classList.remove('open'); }
 
 function openTrack(){
   micStop();
@@ -3739,10 +4776,16 @@ function openTrack(){
   $('trkPick').hidden = false;
   $('trackSheet').classList.add('open');
 }
-function closeTrack(){ micStop(); trkJob = null; trkEdit = null; $('trackSheet').classList.remove('open'); }
+function closeTrack(){ micStop(); formGen++; trkJob = null; trkEdit = null; $('trackSheet').classList.remove('open'); }
 
 function startTrack(kind){
   trkKind = kind;
+  trkDraft = uid();
+  /* A fresh form is a new entry. Left set from "Fix a recent one" then Back,
+     this would send the next new job as a correction to the old one and write
+     over it. loadForFix sets it again after calling this. */
+  trkEdit = null;
+  formGen++;
   saidSoFar = '';                   // choosing job or quote starts the listening over
   const job = kind === 'job';
   $('trkTitle').textContent = t(job ? 'trk.job' : 'trk.quoteT');
@@ -3798,8 +4841,11 @@ $('revForm').onsubmit = function(e){
     return;
   }
 
+  if (!revEdit && !revDraft) return;          // already saved — a second tap
   const rec = { first: first, last: $('rLast').value.trim(), platforms: revPlats.slice() };
   if (revEdit){ rec.id = revEdit; rec.edit = true; }
+  else rec.id = revDraft;
+  revDraft = null;
   const fixing = !!revEdit;
   punch('review', rec);
   buzz(35);
@@ -3813,21 +4859,13 @@ $('trkJobBtn').onclick  = function(){ startTrack('job'); };
 $('trkQuoteBtn').onclick= function(){ startTrack('quote'); };
 $('trkBack').onclick    = function(){ $('trkForm').hidden = true; $('trkPick').hidden = false; };
 
-/* Offline this answers no, which is the right way round: a man with no signal
-   saves his job and any double is caught in the sheet later. */
-async function sameJobToday(town, amount){
-  if (isTest() || !navigator.onLine) return null;
-  const now = new Date();
-  const day = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') +
-              '-' + String(now.getDate()).padStart(2, '0');
-  try {
-    const d = await ask({ action:'samejob', date: day, town: town, amount: amount });
-    return (d && d.ok && d.clash) ? d.clash : null;
-  } catch(e){ return null; }
-}
-
-$('trkForm').onsubmit = async function(e){
+/* Saving never waits on the network. It used to ask the office first whether
+   somebody else had logged the same job, and on a weak signal that wait was
+   long enough for a second and third tap on Save to each make another copy.
+   Everybody logs every job they were on now, so there is nothing to ask. */
+$('trkForm').onsubmit = function(e){
   e.preventDefault();
+  if (!trkEdit && !trkDraft) return;          // already saved — a second tap
   const first = $('fFirst').value.trim();
   const town  = $('fTown').value.trim();
   const raw   = $('fValue').value.replace(/[^0-9.]/g, '');
@@ -3854,27 +4892,21 @@ $('trkForm').onsubmit = async function(e){
   if (job) rec.method = trkPay;
   else     rec.notes  = $('fNotes').value.trim();
 
-  /* Two men on a truck both reaching for their phones is how one job gets
-     counted twice. Ask before saving — never block, just ask. A correction is
-     not asked about, because the row it lands on already exists. */
-  if (!trkEdit && job){
-    const clash = await sameJobToday(rec.town, rec.amount);
-    if (clash){
-      const same = confirm(t('dup.title', clash.by) + '\n\n' +
-        t('dup.body', money(clash.amount), clash.town || '—') + '\n\n' +
-        'OK = ' + t('dup.same') + '\nCancel = ' + t('dup.diff'));
-      if (same) return;                 // theirs is already on the books
-    }
-  }
-
   if (trkEdit){ rec.id = trkEdit; rec.edit = true; }   // land on the original row
+  else rec.id = trkDraft;
+  trkDraft = null;
   const fixing = !!trkEdit;
   punch(trkKind, rec);
   buzz(35);
   const booked = trkJob;            // closeTrack clears it
   closeTrack();
   toast(fixing ? t('edit.saved') : t(job ? 'saved.job' : 'saved.quote', first));
-  if (booked && job) markDone(booked, true);   // logged, so it is finished
+  if (booked && job){
+    noteLogged(booked);
+    // logged, so it is finished — unless a crewmate already said so
+    if (!booked.done) markDone(booked, true, true);
+    else { renderSchedule(); paintNext(); }
+  }
 };
 
 /* MIC-START */
@@ -3959,6 +4991,7 @@ function useHeard(){
 async function readIt(said, more){
   micLabel().textContent = t('say.reading');
   micHint().textContent = '“' + said + '”';
+  const gen = formGen;
   let picked = null;
   if (!isTest()){
     try {
@@ -3966,6 +4999,10 @@ async function readIt(said, more){
       if (d && d.ok) picked = d;
     } catch(e){ /* no signal, or the office is down: our own reading will do */ }
   }
+  /* A slow reading can come back after that form was saved or closed and a new
+     one opened. Filling the new one with the last customer is how one job gets
+     logged twice, so a reading only ever lands on the form it was heard for. */
+  if (gen !== formGen) return;
   micIdle();
   if (!picked && langOf() !== 'en'){ micHint().textContent = t('say.noRead'); return; }
   applySpoken(picked || parseSpoken(said), !!picked, more);
@@ -3977,6 +5014,7 @@ async function readIt(said, more){
 async function readReview(said, more){
   micLabel().textContent = t('say.reading');
   micHint().textContent = '“' + said + '”';
+  const gen = formGen;
   let got = null;
   if (!isTest()){
     try {
@@ -3984,6 +5022,7 @@ async function readReview(said, more){
       if (d && d.ok) got = d;
     } catch(e){ /* no signal: he types it */ }
   }
+  if (gen !== formGen) return;          // that form is gone; see readIt
   micIdle();
   if (!got){
     micHint().textContent = t('say.noRead');
@@ -4155,45 +5194,443 @@ function ask(payload){
 }
 
 /* ═══════════ jobs & quotes ═══════════ */
-$('workBack').onclick = function(){ $('work').classList.remove('open'); };
-$('mWork').onclick = async function(){
-  $('menu').classList.remove('open');
-  $('workData').innerHTML = ''; $('workSub').textContent = t('loading');
-  $('work').classList.add('open');
-  try {
-    const d = await ask({ action:'work', limit:60 });
-    if (!d.ok) throw new Error(d.error || 'failed');
-    renderWork(d.work || []);
-  } catch(e){ $('workSub').textContent = t('work.fail'); }
-};
+/* One work week of everybody's jobs, grouped by whoever logged them, with a
+   row of names along the top to look at one person at a time. Full admins can
+   tap any of it to change the amount or take it off the books; Andy reads it.
+   The server decides which — it only hands out the ids to somebody allowed to
+   use them. */
+const jb = { week: null, kind: 'job', who: '', data: null, busy: false };
 
-function renderWork(items){
-  const box = $('workData'); box.innerHTML = '';
-  if (!items.length){
-    $('workSub').textContent = '';
-    box.innerHTML = '<p class="note">Nothing tracked yet.</p>';
+$('workBack').onclick = function(){ $('work').classList.remove('open'); };
+$('mWork').onclick = function(){
+  $('menu').classList.remove('open');
+  jb.week = weekStartISO(new Date()); jb.kind = 'job'; jb.who = ''; jb.data = null;
+  $('jbJobs').classList.add('on'); $('jbQuotes').classList.remove('on');
+  $('work').classList.add('open');
+  $('work').scrollTop = 0;
+  loadJobs();
+};
+$('jbPrev').onclick = function(){ jb.week = shiftWeekISO(jb.week, 1); loadJobs(); buzz(12); };
+$('jbNext').onclick = function(){
+  if (jb.week >= weekStartISO(new Date())) return;       // nothing logged in the future
+  jb.week = shiftWeekISO(jb.week, -1); loadJobs(); buzz(12);
+};
+$('jbJobs').onclick = function(){ jb.kind = 'job'; this.classList.add('on');
+  $('jbQuotes').classList.remove('on'); renderJobs(); };
+$('jbQuotes').onclick = function(){ jb.kind = 'quote'; this.classList.add('on');
+  $('jbJobs').classList.remove('on'); renderJobs(); };
+
+async function loadJobs(){
+  const want = jb.week;
+  $('workSub').textContent = t('loading');
+  $('workData').innerHTML = ''; $('jbPeople').innerHTML = '';
+  $('jbTotal').textContent = '—'; $('jbCount').textContent = '';
+  $('jbHint').hidden = true;
+  $('jbNext').disabled = jb.week >= weekStartISO(new Date());
+  let d;
+  try {
+    d = await ask({ action:'jobs', weekStart: want });
+    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+  } catch(e){
+    if (jb.week === want)
+      $('workSub').textContent = t(e && e.message === 'bad request' ? 'srv.old' : 'work.fail');
     return;
   }
-  let jobs = 0, quotes = 0, took = 0;
-  items.forEach(function(w){
-    if (w.kind === 'Job'){ jobs++; took += Number(w.amount) || 0; } else quotes++;
-  });
-  $('workSub').textContent = jobs + (jobs === 1 ? ' job' : ' jobs') + ' ($' + took.toFixed(2) + ') and ' +
-                             quotes + (quotes === 1 ? ' quote' : ' quotes') + ', newest first.';
+  if (jb.week !== want) return;                           // tapped on to another week meanwhile
+  jb.data = d;
+  renderJobs();
+}
 
-  let day = '';
-  items.forEach(function(w){
-    if (w.date !== day){
-      day = w.date;
-      const h = document.createElement('p'); h.className = 'wk'; h.textContent = day; box.appendChild(h);
-    }
-    const el = document.createElement('div'); el.className = 'row';
-    el.innerHTML = '<span></span><b></b>';
-    const who = (w.first || '') + (w.last ? ' ' + w.last : '');
-    el.firstChild.textContent = w.kind + ' · ' + who + (w.town ? ', ' + w.town : '') +
-                                (w.method ? ' · ' + w.method : '') + ' · ' + w.worker;
-    el.lastChild.textContent = '$' + (Number(w.amount) || 0).toFixed(2);
-    box.appendChild(el);
+/* The same person, the same customer, the same money, the same day: almost
+   certainly one job saved twice. Marked, not hidden — it is the office's call. */
+function jobTwins(list){
+  const n = {};
+  const key = function(e){
+    return [e.worker, e.kind, ((e.first || '') + ' ' + (e.last || '')).trim(), e.amount, e.date]
+      .join('|').toLowerCase();
+  };
+  list.forEach(function(e){ const k = key(e); n[k] = (n[k] || 0) + 1; });
+  return function(e){ return n[key(e)] > 1; };
+}
+
+/* The jobs behind a list of entries from several people. For each day,
+   customer first name and amount, the most any one person logged is how many
+   jobs there were — so two of one man's are two, and one each from a crew of
+   three is one. The same rule the server uses for a truck's total. */
+function oneEach(list){
+  const per = {}, most = {};
+  list.forEach(function(e){
+    const k = [e.date, String(e.first || '').trim().split(/\s+/)[0].toLowerCase(),
+               (Number(e.amount) || 0).toFixed(2)].join('|');
+    const w = per[e.worker] = per[e.worker] || {};
+    w[k] = (w[k] || 0) + 1;
+    if (!most[k] || w[k] > most[k]) most[k] = w[k];
+  });
+  let n = 0, total = 0;
+  Object.keys(most).forEach(function(k){
+    n += most[k]; total += most[k] * Number(k.split('|').pop());
+  });
+  return { n: n, total: total };
+}
+
+function renderJobs(){
+  const d = jb.data;
+  if (!d) return;
+  $('workSub').textContent = weekLabel(d.weekStart) || '';
+  const job = jb.kind === 'job';
+  const all = (d.entries || []).filter(function(e){ return e.kind === jb.kind; });
+
+  const byWho = {};
+  all.forEach(function(e){ (byWho[e.worker] = byWho[e.worker] || []).push(e); });
+  const names = Object.keys(byWho).sort(function(a, b){ return a.localeCompare(b); });
+  if (jb.who && !byWho[jb.who]) jb.who = '';
+
+  // the names along the top
+  const chips = $('jbPeople'); chips.innerHTML = '';
+  const chip = function(label, count, who){
+    const c = document.createElement('button');
+    c.type = 'button'; c.className = 'jb-chip' + (jb.who === who ? ' on' : '');
+    c.appendChild(document.createTextNode(label));
+    const i = document.createElement('i'); i.textContent = count; c.appendChild(i);
+    c.onclick = function(){ jb.who = who; renderJobs(); buzz(12); };
+    chips.appendChild(c);
+  };
+  if (names.length > 1) {
+    chip(t('jb.all'), all.length, '');
+    names.forEach(function(n){ chip(n, byWho[n].length, n); });
+  }
+
+  const shown = jb.who ? byWho[jb.who] : all;
+  const sum = function(list){
+    return list.reduce(function(a, e){ return a + (Number(e.amount) || 0); }, 0);
+  };
+  const count = function(n){
+    return t(job ? (n === 1 ? 'com.jobs1' : 'com.jobsN') : (n === 1 ? 'jb.qt1' : 'jb.qtN'), n);
+  };
+  /* Everybody logs every job they were on, so across people one job can be two
+     or three entries. The headline counts it once — same day, same customer
+     first name, same money — and says how many entries that took. One person
+     on their own is simply their own. */
+  if (!jb.who && names.length > 1){
+    const one = oneEach(all);
+    $('jbTotal').textContent = money(one.total);
+    $('jbCount').textContent = count(one.n) +
+      (one.n !== all.length ? '  ·  ' + t('jb.logged', all.length) : '');
+  } else {
+    $('jbTotal').textContent = money(sum(shown));
+    $('jbCount').textContent = count(shown.length);
+  }
+
+  const box = $('workData'); box.innerHTML = '';
+  if (!shown.length){
+    const p = document.createElement('p');
+    p.className = 'note'; p.textContent = t(job ? 'jb.noneJ' : 'jb.noneQ');
+    box.appendChild(p);
+    $('jbHint').hidden = true;
+    return;
+  }
+
+  const twin = jobTwins(all);
+  (jb.who ? [jb.who] : names).forEach(function(name){
+    const list = byWho[name];
+    const g = document.createElement('div'); g.className = 'jb-group';
+    const h = document.createElement('div'); h.className = 'jb-head';
+    const hb = document.createElement('b'); hb.textContent = name;
+    const hs = document.createElement('span');
+    hs.textContent = count(list.length) + '  ·  ' + money(sum(list));
+    h.appendChild(hb); h.appendChild(hs); g.appendChild(h);
+
+    list.forEach(function(e){
+      // a full admin edits anything; Andy can only say how a quote went
+      const canTap = !!e.id && (d.canEdit || e.kind === 'quote');
+      const row = document.createElement(canTap ? 'button' : 'div');
+      if (canTap) row.type = 'button';
+      row.className = 'jb-row';
+
+      const what = document.createElement('div'); what.className = 'jb-what';
+      const nm = document.createElement('b');
+      nm.textContent = ((e.first || '') + (e.last ? ' ' + e.last : '')).trim() || t('mj.customer');
+      if (twin(e)){
+        const tag = document.createElement('span');
+        tag.className = 'jb-tag'; tag.textContent = t('jb.double');
+        nm.appendChild(tag);
+      }
+      if (e.kind === 'quote' && e.status){
+        const st = document.createElement('span');
+        st.className = 'jb-st ' + e.status; st.textContent = t('qs.' + e.status);
+        nm.appendChild(st);
+      }
+      const sub = document.createElement('span');
+      sub.textContent = [fmtDay(e.whenMs), e.town, payName(e.method)].filter(Boolean).join('  ·  ') +
+                        (e.notes ? '  ·  ' + e.notes : '');
+      what.appendChild(nm); what.appendChild(sub);
+
+      const amt = document.createElement('div'); amt.className = 'jb-amt';
+      amt.textContent = e.amount == null ? '—' : money(e.amount);
+      if (e.edited && e.original != null && e.original !== e.amount){
+        const was = document.createElement('em');
+        was.textContent = t('jb.was', money(e.original));
+        amt.appendChild(was);
+      }
+      row.appendChild(what); row.appendChild(amt);
+      if (canTap) row.onclick = function(){ openJobAct(e); };
+      g.appendChild(row);
+    });
+    box.appendChild(g);
+  });
+  $('jbHint').hidden = !d.canEdit;
+}
+
+/* the office's payment buttons, the same set the crew's form uses */
+let jaPay = null;
+function buildJaPays(selected){
+  const box = $('jaPays'); box.innerHTML = ''; jaPay = selected || null;
+  PAYMENTS.forEach(function(p){
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'pay' + (p.id === jaPay ? ' on' : '');
+    b.setAttribute('aria-pressed', p.id === jaPay ? 'true' : 'false');
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + p.icon + '</svg><span>' + payName(p.id) + '</span>';
+    b.onclick = function(){
+      jaPay = p.id;
+      box.classList.remove('bad');
+      [].forEach.call(box.children, function(c){
+        c.classList.toggle('on', c === b); c.setAttribute('aria-pressed', c === b ? 'true' : 'false');
+      });
+      buzz(12);
+    };
+    box.appendChild(b);
+  });
+}
+function paintJaStatus(st){
+  [].forEach.call($('jaStatus').children, function(c){
+    const on = c.getAttribute('data-st') === st;
+    c.classList.toggle('on', on); c.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
+/* ── one job: a new amount, or off the books ── */
+let jaEntry = null;
+function openJobAct(e){
+  jaEntry = e;
+  const job = e.kind === 'job';
+  const full = !!(jb.data && jb.data.canEdit);
+  $('jaTitle').textContent = ((e.first || '') + (e.last ? ' ' + e.last : '')).trim() || t('mj.customer');
+  $('jaSub').textContent = [e.worker, fmtDay(e.whenMs), e.town, payName(e.method)].filter(Boolean).join('  ·  ');
+  // a quote's status, for anyone working the list
+  $('jaStatusWrap').hidden = job;
+  if (!job) paintJaStatus(e.status || 'open');
+  // everything else only for the full admins
+  $('jaEdit').hidden = !full;
+  $('jaFirst').value = e.first || ''; $('jaLast').value = e.last || ''; $('jaTown').value = e.town || '';
+  $('jaAmt').value = e.amount == null ? '' : String(e.amount);
+  $('jaNotes').value = e.notes || '';
+  $('jaPayWrap').hidden = !job;
+  $('jaNotesWrap').hidden = job;
+  if (job) buildJaPays(e.method);
+  ['jaFirst','jaTown','jaAmt'].forEach(function(id){ $(id).classList.remove('bad'); });
+  $('jaPays').classList.remove('bad');
+  $('jaErr').hidden = true;
+  $('jaDel').textContent = t(job ? 'ja.delJ' : 'ja.delQ');
+  // still waiting on the last one's answer: this one waits its turn
+  $('jaSave').disabled = jb.busy; $('jaDel').disabled = jb.busy;
+  $('jobAct').classList.add('open');
+  $('jobAct').scrollTop = 0;
+}
+function closeJobAct(){ jaEntry = null; $('jobAct').classList.remove('open'); }
+function jaFail(msg){ $('jaErr').textContent = msg; $('jaErr').hidden = false; }
+function jaWords(err){
+  if (err === 'bad amount') return t('ja.bad');
+  if (err === 'first name needed') return t('ja.badFirst');
+  if (err === 'town needed') return t('ja.badTown');
+  if (err === 'bad method') return t('ja.badPay');
+  if (err === 'busy, retry') return t('srv.busy');
+  if (err === 'not allowed') return t('srv.denied');
+  if (err === 'that entry was deleted' || err === 'no such entry') return t('ja.already');
+  if (err === 'bad request') return t('srv.old');     // Code.gs not updated yet
+  return t('net.fail');
+}
+
+$('jaBack').onclick = closeJobAct;
+/* Won, lost or open: saved the moment it is tapped. */
+[].forEach.call($('jaStatus').children, function(btn){
+  btn.onclick = async function(){
+    const e = jaEntry, st = btn.getAttribute('data-st');
+    if (!e || jb.busy || e.status === st) return;
+    jb.busy = true;
+    const was = e.status || 'open';
+    paintJaStatus(st); buzz(12);
+    try {
+      const d = await ask({ action:'quotestatus', id: e.id, status: st });
+      if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+      e.status = st;
+      toast(t('qs.saved', t('qs.' + st)));
+      loadJobs();
+    } catch(err){
+      if (jaEntry === e) { paintJaStatus(was); jaFail(jaWords(err && err.message)); }
+      else toast(jaWords(err && err.message));
+    } finally { jb.busy = false; }
+  };
+});
+$('jaSave').onclick = async function(){
+  const e = jaEntry;
+  if (!e || jb.busy) return;
+  const raw = $('jaAmt').value.replace(/[^0-9.]/g, '');
+  const amount = parseFloat(raw);
+  const first = $('jaFirst').value.trim(), town = $('jaTown').value.trim();
+  ['jaFirst','jaTown','jaAmt'].forEach(function(id){ $(id).classList.remove('bad'); });
+  if (!first){ $('jaFirst').classList.add('bad'); return jaFail(t('ja.badFirst')); }
+  if (!town){ $('jaTown').classList.add('bad'); return jaFail(t('ja.badTown')); }
+  if (!raw || isNaN(amount) || amount <= 0){ $('jaAmt').classList.add('bad'); return jaFail(t('ja.bad')); }
+  if (e.kind === 'job' && !jaPay){ $('jaPays').classList.add('bad'); return jaFail(t('ja.badPay')); }
+  const change = { action:'editjob', id: e.id, first: first, last: $('jaLast').value.trim(), town: town,
+                   amount: Math.round(amount * 100) / 100 };
+  if (e.kind === 'job') change.method = jaPay; else change.notes = $('jaNotes').value.trim();
+  jb.busy = true; this.disabled = true; $('jaDel').disabled = true;
+  /* The answer belongs to this job. If a slow one arrives after somebody has
+     gone back and opened another, it must not close or mark that one. */
+  const mine = function(){ return jaEntry === e; };
+  try {
+    const d = await ask(change);
+    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+    buzz(35); if (mine()) closeJobAct(); toast(t(d.unchanged ? 'ja.savedAll' : 'ja.savedAll'));
+    loadJobs();
+  } catch(err){ if (mine()) jaFail(jaWords(err && err.message)); else toast(jaWords(err && err.message)); }
+  finally { jb.busy = false; $('jaSave').disabled = false; $('jaDel').disabled = false; }
+};
+$('jaDel').onclick = async function(){
+  const e = jaEntry;
+  if (!e || jb.busy) return;
+  const who = ((e.first || '') + (e.last ? ' ' + e.last : '')).trim() || t('mj.customer');
+  if (!confirm(t(e.kind === 'job' ? 'ja.askDelJ' : 'ja.askDelQ', who, money(e.amount)))) return;
+  jb.busy = true; this.disabled = true; $('jaSave').disabled = true;
+  const mine = function(){ return jaEntry === e; };          // see Save
+  try {
+    const d = await ask({ action:'voidjob', id: e.id });
+    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+    buzz([30,60,30]); if (mine()) closeJobAct(); toast(t('ja.gone'));
+    loadJobs();
+  } catch(err){ if (mine()) jaFail(jaWords(err && err.message)); else toast(jaWords(err && err.message)); }
+  finally { jb.busy = false; $('jaSave').disabled = false; $('jaDel').disabled = false; }
+};
+
+/* ═══════════ commission, for the office ═══════════
+   Everybody with a rate in Code.gs (Rey 2.7%, Paulo 1.3%), for whichever week
+   is on screen: the jobs they logged themselves, what those came to, and the
+   cut. The arrows step through earlier weeks for paying a week late. */
+const cc = { week: null, busy: false };
+$('mComm').onclick = function(){
+  $('menu').classList.remove('open');
+  cc.week = weekStartISO(new Date());
+  $('commCalc').classList.add('open'); $('commCalc').scrollTop = 0;
+  loadComm();
+};
+$('ccBack').onclick = function(){ $('commCalc').classList.remove('open'); };
+$('ccPrev').onclick = function(){ cc.week = shiftWeekISO(cc.week, 1); loadComm(); buzz(12); };
+$('ccNext').onclick = function(){
+  if (cc.week >= weekStartISO(new Date())) return;
+  cc.week = shiftWeekISO(cc.week, -1); loadComm(); buzz(12);
+};
+async function loadComm(){
+  const want = cc.week;
+  $('ccSub').textContent = weekLabel(want) || '';
+  $('ccTotal').textContent = '—';
+  $('ccList').innerHTML = '';
+  $('ccNext').disabled = want >= weekStartISO(new Date());
+  let d;
+  try {
+    d = await ask({ action:'commissions', weekStart: want });
+    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+  } catch(e){
+    if (cc.week === want) $('ccSub').textContent = e && e.message === 'bad request' ? t('srv.old') : t('net.fail');
+    return;
+  }
+  if (cc.week !== want) return;
+  $('ccTotal').textContent = money(d.total);
+  const box = $('ccList');
+  if (!d.people.length){
+    const p = document.createElement('p'); p.className = 'note'; p.textContent = t('cc.none');
+    box.appendChild(p); return;
+  }
+  d.people.forEach(function(x){
+    const row = document.createElement('div'); row.className = 'cc-row';
+    const who = document.createElement('div'); who.className = 'who';
+    const b = document.createElement('b'); b.textContent = x.name;
+    const sp = document.createElement('span');
+    sp.textContent = t('cc.of', fmtNum(x.rate * 100, 1) + '%', money(x.revenue)) + '  ·  ' +
+                     t(x.jobs === 1 ? 'com.jobs1' : 'com.jobsN', x.jobs);
+    who.appendChild(b); who.appendChild(sp);
+    const earn = document.createElement('div'); earn.className = 'earn';
+    earn.textContent = money(x.earned);
+    row.appendChild(who); row.appendChild(earn);
+    box.appendChild(row);
+  });
+}
+
+/* ═══════════ quotes to follow up ═══════════
+   Every quote still open from the last 60 days, oldest first — the oldest is
+   the one going cold. Won or lost is one tap, and it leaves the list. */
+let qfBusy = false;
+$('mQuotes').onclick = function(){
+  $('menu').classList.remove('open');
+  $('quotes').classList.add('open'); $('quotes').scrollTop = 0;
+  loadQuotes();
+};
+$('qfBack').onclick = function(){ $('quotes').classList.remove('open'); };
+async function loadQuotes(){
+  $('qfSub').textContent = t('loading');
+  $('qfList').innerHTML = '';
+  let d;
+  try {
+    d = await ask({ action:'openquotes' });
+    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+  } catch(e){ $('qfSub').textContent = e && e.message === 'bad request' ? t('srv.old') : t('net.fail'); return; }
+  $('qfSub').textContent = t('qf.sub');
+  const box = $('qfList');
+  if (!d.quotes.length){
+    const p = document.createElement('p'); p.className = 'note'; p.textContent = t('qf.none');
+    box.appendChild(p); return;
+  }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  d.quotes.forEach(function(q){
+    const row = document.createElement('div'); row.className = 'q-row';
+    const top = document.createElement('div'); top.className = 'q-top';
+    const what = document.createElement('div'); what.className = 'q-what';
+    const b = document.createElement('b');
+    b.textContent = ((q.first || '') + (q.last ? ' ' + q.last : '')).trim() || t('mj.customer');
+    const sp = document.createElement('span');
+    sp.textContent = [fmtDay(q.whenMs), q.town, t('qf.by', q.worker)].filter(Boolean).join('  ·  ') +
+                     (q.notes ? '  ·  ' + q.notes : '');
+    const age = document.createElement('em'); age.className = 'q-age';
+    const days = Math.max(0, Math.round((today.getTime() - dayMs(q.date)) / 864e5));
+    age.textContent = days === 0 ? t('qf.today') : t(days === 1 ? 'qf.day1' : 'qf.dayN', days);
+    what.appendChild(b); what.appendChild(sp); what.appendChild(age);
+    const amt = document.createElement('div'); amt.className = 'q-amt';
+    amt.textContent = q.amount == null ? '—' : money(q.amount);
+    top.appendChild(what); top.appendChild(amt);
+    row.appendChild(top);
+    const acts = document.createElement('div'); acts.className = 'q-acts';
+    ['won', 'lost'].forEach(function(st){
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = st; btn.textContent = t('qs.' + st);
+      btn.onclick = async function(){
+        if (qfBusy) return;
+        qfBusy = true; buzz(12);
+        try {
+          const r = await ask({ action:'quotestatus', id: q.id, status: st });
+          if (!r || !r.ok) throw new Error((r && r.error) || 'failed');
+          row.remove();
+          toast(t('qs.saved', t('qs.' + st)));
+          if (!box.children.length){
+            const p = document.createElement('p'); p.className = 'note'; p.textContent = t('qf.none');
+            box.appendChild(p);
+          }
+        } catch(err){ toast(jaWords(err && err.message)); }
+        finally { qfBusy = false; }
+      };
+      acts.appendChild(btn);
+    });
+    row.appendChild(acts);
+    box.appendChild(row);
   });
 }
 
@@ -4236,9 +5673,9 @@ function render(weeks, everyone){
   hoursData.now       = foldWeek(wNow);
   hoursData.prev      = foldWeek(wPrev);
   hoursData.older     = foldWeek(find(backISO));
-  hoursData.nowLabel  = wNow ? wNow.label : t('wk.this');
-  hoursData.prevLabel = wPrev ? wPrev.label : t('wk.last');
-  $('hTotalLabel').textContent = everyone ? 'crew hours on the clock' : 'on the clock';
+  hoursData.nowLabel  = weekLabel(nowISO) || t('wk.this');
+  hoursData.prevLabel = weekLabel(prevISO) || t('wk.last');
+  $('hTotalLabel').textContent = t(everyone ? 'hrs.crewOn' : 'hrs.onClock');
   $('hoursTop').hidden = false;
   paintHours();
 
@@ -4262,9 +5699,15 @@ function render(weeks, everyone){
       el.className = 'row tappable' + (rw.paid ? ' paid-row' : '');
       el.innerHTML = '<span></span><b></b>';
       el.firstChild.textContent = (everyone ? rw.worker : t('hrs.worked')) +
-        (rw.overtime > 0 ? ' · ' + rw.overtime.toFixed(2) + ' OT' : '') +
+        (rw.overtime > 0 ? ' · ' + t('hrs.otN', fmtNum(rw.overtime, 2)) : '') +
         (rw.open ? t('hrs.open') : '');
-      el.lastChild.textContent = rw.hours.toFixed(2) + ' ' + t('hrs.hrs');
+      // the week's breaks, in the break colour, so they are seen without opening it
+      if (rw.breakMin > 0){
+        const bk = document.createElement('em'); bk.className = 'row-brk';
+        bk.textContent = t('hrs.brkRow', human(rw.breakMin * 60000));
+        el.firstChild.appendChild(bk);
+      }
+      el.lastChild.textContent = fmtNum(rw.hours, 2) + ' ' + t('hrs.hrs');
       el.onclick = function(){ openWeekDetail(rw.worker, w.start); };
       box.appendChild(el);
     };
@@ -4311,9 +5754,14 @@ function shiftWeekISO(iso, backWeeks){
   return weekStartISO(d);
 }
 function hrsText(h){
-  const t = Math.round(h * 60);
-  const H = Math.floor(t / 60), M = t % 60;
-  return H ? H + 'h' + (M ? ' ' + M + 'm' : '') : M + 'm';
+  const mins = Math.round(h * 60);
+  const H = Math.floor(mins / 60), M = mins % 60;
+  return H ? H + 'h' + (M ? ' ' + M + t('u.m') : '') : M + t('u.m');
+}
+/* A number in the reader's own style: 7.50 here, 7,50 in Portuguese. */
+function fmtNum(n, dp){
+  try { return Number(n).toLocaleString(locale(), { minimumFractionDigits: dp, maximumFractionDigits: dp }); }
+  catch(e){ return Number(n).toFixed(dp); }
 }
 
 /* One week folded into the shape the screen needs. For an admin the crew is
@@ -4359,7 +5807,7 @@ function drawChart(now, prev, todayIdx, opts){
   const barW = Math.min(13, (groupW - 8) / 2);
   const svg = [];
 
-  svg.push('<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Hours each day, this week against last week">');
+  svg.push('<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + (o.aria || t('hrs.chartAria')) + '">');
 
   // recessive gridlines, labelled at top and middle only
   [0, top / 2, top].forEach(function(v){
@@ -4401,9 +5849,8 @@ function chartTip(i){
   const b = document.createElement('b');
   b.textContent = dayNames()[i];
   $('chartTip').appendChild(b);
-  $('chartTip').appendChild(document.createTextNode(
-    ' — ' + (n > 0 ? hrsText(n) : 'nothing') + ' this week, ' +
-    (p > 0 ? hrsText(p) : 'nothing') + ' last'));
+  $('chartTip').appendChild(document.createTextNode(' — ' +
+    t('hrs.tip', n > 0 ? hrsText(n) : t('hrs.nothing'), p > 0 ? hrsText(p) : t('hrs.nothing'))));
   [].forEach.call(document.querySelectorAll('#chart .hit'), function(el){
     el.classList.toggle('sel', Number(el.getAttribute('data-day')) === i);
   });
@@ -4418,17 +5865,17 @@ function drawStats(cur, other){
   const left = 40 - cur.total;
 
   const cards = [
-    { v: worked ? hrsText(avg) : '—', l: 'average per day worked' },
-    { v: String(worked), l: worked === 1 ? 'day worked' : 'days worked' },
-    { v: longest > 0 ? hrsText(longest) : '—', l: 'longest day' },
+    { v: worked ? hrsText(avg) : '—', l: t('st.avg') },
+    { v: String(worked), l: t(worked === 1 ? 'st.day1' : 'st.dayN') },
+    { v: longest > 0 ? hrsText(longest) : '—', l: t('st.longest') },
     cur.overtime > 0
-      ? { v: hrsText(cur.overtime), l: 'over 40 this week' }
-      : { v: left > 0 ? hrsText(left) : '—', l: 'until overtime' },
+      ? { v: hrsText(cur.overtime), l: t('st.over') }
+      : { v: left > 0 ? hrsText(left) : '—', l: t('st.until') },
     { v: (diff >= 0 ? '+' : '−') + hrsText(Math.abs(diff)),
-      l: hoursData.sel === 0 ? 'versus last week' : 'versus the week before',
+      l: t(hoursData.sel === 0 ? 'st.vsLast' : 'st.vsBefore'),
       cls: Math.abs(diff) < 0.02 ? '' : (diff > 0 ? 'up' : 'down') }
   ];
-  if (hoursData.everyone) cards.push({ v: String(cur.people), l: 'people on the clock' });
+  if (hoursData.everyone) cards.push({ v: String(cur.people), l: t('st.people') });
 
   const box = $('stats'); box.innerHTML = '';
   cards.forEach(function(c){
@@ -4448,7 +5895,7 @@ function paintHours(){
   $('wkRange').textContent = hoursData.sel === 0 ? hoursData.nowLabel : hoursData.prevLabel;
   $('hTotal').textContent = hrsText(cur.total);
   $('hReg').textContent   = hrsText(cur.regular);
-  $('hOt').textContent    = cur.overtime > 0 ? hrsText(cur.overtime) : 'None';
+  $('hOt').textContent    = cur.overtime > 0 ? hrsText(cur.overtime) : t('hrs.none');
   $('hOtCard').classList.toggle('none', !(cur.overtime > 0));
 
   // the chart always compares the two weeks either side of the switch
@@ -4487,7 +5934,7 @@ document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { pa
 let mjData = { now:null, prev:null, older:null, sel:0 };
 const money = function(v){
   const n = Number(v) || 0;
-  return '$' + (n >= 1000 ? Math.round(n).toLocaleString() : n.toFixed(n % 1 ? 2 : 0));
+  return '$' + (n >= 1000 ? Math.round(n).toLocaleString(locale()) : fmtNum(n, n % 1 ? 2 : 0));
 };
 const emptyWeek = { total:0, count:0, revenue:[0,0,0,0,0,0,0], counts:[0,0,0,0,0,0,0], jobs:[], label:'' };
 
@@ -4497,13 +5944,13 @@ function mjTipFor(which, i){
   const isMoney = which === 'Money';
   const a = isMoney ? cur.revenue[i] : cur.counts[i];
   const b = isMoney ? oth.revenue[i] : oth.counts[i];
-  const say = function(v){ return isMoney ? money(v) : (v + (v === 1 ? ' job' : ' jobs')); };
+  const say = function(v){ return isMoney ? money(v) : t(v === 1 ? 'com.jobs1' : 'com.jobsN', v); };
   const el = $('mjTip' + which);
   el.innerHTML = '';
   const bold = document.createElement('b');
   bold.textContent = dayNames()[i];
   el.appendChild(bold);
-  el.appendChild(document.createTextNode(' — ' + say(a) + ' this week, ' + say(b) + ' last'));
+  el.appendChild(document.createTextNode(' — ' + t('hrs.tip', say(a), say(b))));
   [].forEach.call(document.querySelectorAll('#mjChart' + which + ' .hit'), function(h){
     h.classList.toggle('sel', Number(h.getAttribute('data-day')) === i);
   });
@@ -4530,8 +5977,8 @@ function paintMyJobs(){
   $('mjLegNow').textContent  = mjData.sel === 0 ? t('wk.this') : t('wk.that');
   $('mjLegPrev').textContent = mjData.sel === 0 ? t('wk.last') : t('wk.before');
 
-  drawMj('Money', cur.revenue, oth.revenue, { fmt: money, floor: 200, padL: 40 });
-  drawMj('Jobs',  cur.counts,  oth.counts,  { fmt: function(v){ return String(v); }, floor: 2 });
+  drawMj('Money', cur.revenue, oth.revenue, { fmt: money, floor: 200, padL: 40, aria: t('mj.chartMoney') });
+  drawMj('Jobs',  cur.counts,  oth.counts,  { fmt: function(v){ return String(v); }, floor: 2, aria: t('mj.chartJobs') });
 
   const box = $('mjList'); box.innerHTML = '';
   if (!cur.jobs.length){
@@ -4543,14 +5990,14 @@ function paintMyJobs(){
   }
   const head = document.createElement('p');
   head.className = 'wk';
-  head.textContent = cur.count + (cur.count === 1 ? ' job' : ' jobs') + ', newest first';
+  head.textContent = t(cur.count === 1 ? 'mj.jobs1' : 'mj.jobsN', cur.count);
   box.appendChild(head);
 
   cur.jobs.forEach(function(j){
     const row = document.createElement('div'); row.className = 'job-row';
     const left = document.createElement('div');
     const who = document.createElement('div'); who.className = 'job-who';
-    who.textContent = (j.first || 'Customer') + (j.last ? ' ' + j.last : '');
+    who.textContent = (j.first || t('mj.customer')) + (j.last ? ' ' + j.last : '');
     if (!j.mine){
       const tag = document.createElement('span');
       tag.className = 'job-tag'; tag.textContent = j.by;   // whose phone logged it
@@ -4558,7 +6005,7 @@ function paintMyJobs(){
     }
     const sub = document.createElement('div'); sub.className = 'job-sub';
     sub.textContent = (fmtDay(j.whenMs) || j.day) +
-      (j.town ? '  ·  ' + j.town : '') + (j.method ? '  ·  ' + j.method : '');
+      (j.town ? '  ·  ' + j.town : '') + (j.method ? '  ·  ' + payName(j.method) : '');
     left.appendChild(who); left.appendChild(sub);
     const amt = document.createElement('div'); amt.className = 'job-amt';
     amt.textContent = money(j.amount);
@@ -4595,7 +6042,7 @@ $('mMine').onclick = async function(){
     $('mjSub').textContent = weekWords('mj.sub');
     $('mjTop').hidden = false;
     paintMyJobs();
-  } catch(e){ $('mjSub').textContent = "Couldn't load your jobs. Check the connection, then try again."; }
+  } catch(e){ $('mjSub').textContent = t('mj.fail'); }
 };
 
 /* ═══════════ boot ═══════════ */
