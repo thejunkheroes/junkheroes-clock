@@ -27,7 +27,7 @@
 /* Which build this is. Shown faintly in the corner of the menu, so anybody can
    tell at a glance whether a phone has picked up the latest. Goes up by one
    every release, together with CACHE in sw.js. */
-const APP_VERSION = 79;
+const APP_VERSION = 80;
 
 /* ══════════════════════════════════════════════════════════════
    EDIT THIS BLOCK, THEN YOU'RE DONE.
@@ -767,7 +767,7 @@ button.jb-row:active{transform:scale(.985);background:var(--tint)}
 #enrol .inner,#truckSheet .inner,#crews .inner,#myjobs .inner,#schedule .inner,#lockScreen.hasback .lock,#setup.hasback .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
 #myjobs .inner,#trackSheet .inner,#reviewSheet .inner,#confirmOut .inner,#work .inner,#owner .inner,
 #join .inner,#waitList .inner,#recent .inner,#dayWeek .inner,#payHist .inner,
-#jobAct .inner,#brkAdd .inner,#brkCheck .inner,#crewChk .inner,#commCalc .inner,#quotes .inner{
+#jobAct .inner,#brkAdd .inner,#brkCheck .inner,#crewChk .inner,#commCalc .inner,#quotes .inner,#qSheet .inner{
   padding-top:calc(env(safe-area-inset-top) + 88px)}
 h2{font-size:25px;font-weight:680;letter-spacing:.005em;margin:0 0 6px}
 .sub{color:var(--haze);margin:0 0 24px;font-size:16px;line-height:1.5}
@@ -888,10 +888,20 @@ h2{font-size:25px;font-weight:680;letter-spacing:.005em;margin:0 0 6px}
   transition:opacity .2s ease}
 .toast.show{opacity:1}
 /* log out — quiet until it is armed, then unmistakably the red one */
-.theme-row{margin:22px 0 4px}
+.theme-row{display:flex;align-items:center;gap:12px;margin:14px 0 0}
 .theme-label{margin:0 0 9px 2px;font-size:13px;font-weight:700;letter-spacing:.06em;
   text-transform:uppercase;color:var(--haze)}
+.theme-row .theme-label{flex:none;margin:0 0 0 2px;min-width:96px}
 .theme-switch{margin-bottom:0}
+.theme-row .theme-switch{flex:1;min-width:0}
+.theme-row .wk-opt{padding:10px 4px;font-size:14.5px}
+
+/* the menu, two across. A row's odd one out grows to the full width, and
+   .wide always takes a line of its own. */
+.mgrid{display:flex;flex-wrap:wrap;gap:14px;margin:0 0 14px}
+.mgrid>*{flex:1 1 calc(50% - 8px);min-width:0;margin:0}
+.mgrid>.wide{flex-basis:100%}
+.mgroup>.theme-label{margin:10px 0 10px 2px}
 
 .logout{display:flex;align-items:center;justify-content:center;gap:9px;
   width:100%;min-height:60px;margin-top:26px;border-radius:13px;
@@ -1130,6 +1140,11 @@ html.light .back:active{color:var(--lilac);border-color:var(--lilac)}
   transition:transform .14s var(--spring),box-shadow .14s var(--spring),background-color .14s ease}
 .logout:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--pop)}
 .logout.armed{border-color:var(--line)}
+.mgrid .pick{min-height:62px;margin:0;padding:12px 14px;font-size:17px;line-height:1.15}
+.mgrid .pick small{font-size:13px}
+.mgrid #mBio small{display:none}          /* the title says enough at half width */
+.mgrid .logout{min-height:62px;margin:0;padding:12px 14px;justify-content:flex-start;
+  font-family:var(--font-display);font-weight:500;font-size:17px;letter-spacing:.03em;line-height:1.15;text-align:left}
 .commission{border-radius:10px}
 .truck-chip{border-radius:999px}
 .brand{font-weight:700}
@@ -1173,6 +1188,26 @@ html.light{--brk:#A3410F}
 .duo.one{grid-template-columns:1fr}
 .ja-status.two{grid-template-columns:repeat(2,1fr)}
 .minor-link.del-link{color:var(--err-text)}
+
+/* ── right now: who is on the clock, for the office ── */
+#forceSheet .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
+.rn-card{margin:4px 0 22px;padding:14px 15px 6px;border-radius:14px;background:var(--sunk);
+  border:2px solid var(--card-line);box-shadow:4px 5px 0 var(--pop-soft)}
+.rn-card>b{display:block;margin-bottom:6px;font-family:var(--font-label);font-weight:700;font-size:13px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--lilac)}
+.rn-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1.5px solid var(--edge)}
+.rn-row:first-of-type{border-top:0}
+.rn-who{flex:1;min-width:0}
+.rn-who b{display:block;font-size:15.5px;color:var(--ink)}
+.rn-who span{display:block;margin-top:2px;font-size:13px;color:var(--haze)}
+.rn-who span.in{color:var(--good-text)}
+.rn-who span.brk{color:var(--brk)}
+.rn-who span.saving{color:var(--brk);font-style:italic}
+.rn-row button{flex:none;min-height:40px;padding:0 12px;border-radius:6px;border:2px solid var(--line-2);
+  box-shadow:2px 2px 0 var(--pop);font-family:var(--font-label);font-weight:700;font-size:13px;letter-spacing:.05em;
+  text-transform:uppercase;background:transparent;color:var(--ink)}
+.rn-row button.out{border-color:var(--danger);color:var(--err-text)}
+.rn-row button:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--pop)}
 
 /* ── the crew check at clock-out ── */
 .xc-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:13px 14px;border-radius:14px;
@@ -1295,6 +1330,47 @@ html.light{--brk:#A3410F}
   background:var(--ghost-bg);color:var(--ink);transition:transform .14s var(--spring),box-shadow .14s var(--spring)}
 .q-acts button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--pop)}
 .q-acts .won{background:var(--action);color:var(--on-action);border-color:var(--line)}
+/* following quotes up (v80) */
+.qf-stats{margin:0 0 20px;padding:14px 15px;border-radius:10px;background:var(--sunk);
+  border:2px solid var(--card-line);box-shadow:4px 5px 0 var(--pop-soft)}
+.qst-head{margin:0 0 10px;font-family:var(--font-label);font-weight:700;font-size:13.5px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--lilac)}
+.qst-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}
+.qst-nums b{display:block;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.qst-nums span{display:block;margin-top:3px;font-family:var(--font-label);font-weight:700;font-size:11.5px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--haze)}
+.qst-nums .won b{color:var(--good-text)}
+.qst-nums .lost b{color:var(--err-text)}
+.qf-stats p{margin:10px 0 0;font-size:13.5px;color:var(--haze);line-height:1.45}
+.qf-stats p b{color:var(--ink);font-weight:650}
+.qf-group{margin:24px 0 10px 2px;font-family:var(--font-label);font-weight:700;font-size:14px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--lilac)}
+#qfList>.qf-group:first-child{margin-top:0}
+.q-row{cursor:pointer}
+.q-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.q-tag{display:inline-block;padding:2px 8px;border-radius:3px;border:1.5px solid var(--edge);
+  font-family:var(--font-label);font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--haze)}
+.q-tag.due{border-color:var(--warn-text);color:var(--warn-text)}
+.q-tag.late{border-color:var(--danger);color:var(--err-text)}
+.q-tag.saving{border-style:dashed;border-color:var(--brk);color:var(--brk)}
+.q-last{margin:9px 0 0;font-size:14px;line-height:1.4;color:var(--ink);overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.q-last em{font-style:normal;color:var(--haze)}
+.q-acts.three{grid-template-columns:1.25fr 1fr 1fr}
+.q-acts .upd{background:var(--lilac);color:var(--on-lilac);border-color:var(--line)}
+.qs-two{grid-template-columns:1fr 1fr}
+.qs-two .pay,.qs-when .pay{min-height:50px;font-size:14px;text-align:center}
+#qsWho{margin:0 0 20px}
+.qs-now{margin:-4px 0 10px 2px;font-size:14px;color:var(--haze)}
+.qs-end{margin:28px 0 0;padding-top:20px;border-top:1.5px solid var(--edge)}
+.qs-end .q-acts{margin:0 0 6px}
+#qsLost{margin-top:18px}
+.qs-hist{margin-top:28px}
+.qs-log>div{padding:11px 0;border-top:1.5px solid var(--edge);font-size:15px;line-height:1.45;overflow-wrap:anywhere}
+.qs-log>div:first-child{border-top:0;padding-top:2px}
+.qs-log em{display:block;margin-bottom:2px;font-style:normal;font-family:var(--font-label);font-weight:700;
+  font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--haze)}
+.qs-log .pending em{color:var(--brk)}
 
 @media (max-height:720px){
   .punch{font-size:27px}
@@ -1650,8 +1726,72 @@ html.light{--brk:#A3410F}
   </button>
   <div class="inner">
     <h2 data-i18n="qf.title">Quotes to follow up</h2>
-    <p class="sub" id="qfSub" data-i18n="qf.sub">Every quote still open from the last 60 days, oldest first.</p>
+    <p class="sub" id="qfSub" data-i18n="qf.sub">Open quotes from the last 60 days, and any with a follow-up day. Tap one to add a note.</p>
+    <div class="qf-stats" id="qfStats" hidden></div>
     <div id="qfList"></div>
+  </div>
+</div>
+
+<!-- ═══ one quote, followed up: what happened, a note, who moves next, when ═══ -->
+<div class="overlay above" id="qSheet">
+  <button class="back" id="qsBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 id="qsTitle"></h2>
+    <p class="sub" id="qsSub"></p>
+    <p class="flabel" data-i18n="qe.what">What happened?</p>
+    <div class="pays qs-two" id="qsTry">
+      <button type="button" class="pay" data-k="noanswer"><span data-i18n="qt.noanswer">No answer</span></button>
+      <button type="button" class="pay" data-k="voicemail"><span data-i18n="qt.voicemail">Left a voicemail</span></button>
+      <button type="button" class="pay" data-k="texted"><span data-i18n="qt.texted">Texted them</span></button>
+      <button type="button" class="pay" data-k="talked"><span data-i18n="qt.talked">Talked to them</span></button>
+    </div>
+    <label class="field"><span data-i18n-html="qe.note">How did it go? <i>— optional</i></span>
+      <textarea id="qsNote" rows="3" maxlength="500" autocapitalize="sentences"></textarea></label>
+    <p class="flabel" data-i18n="qe.who">Who calls next?</p>
+    <div class="wk-switch" id="qsWho">
+      <button type="button" class="wk-opt" data-by="us" data-i18n="qf.us">We call them</button>
+      <button type="button" class="wk-opt" data-by="customer" data-i18n="qf.customer">They'll call us</button>
+    </div>
+    <p class="flabel" data-i18n="qe.when">Follow up again</p>
+    <p class="qs-now" id="qsNext"></p>
+    <div class="pays qs-when" id="qsWhen">
+      <button type="button" class="pay" data-d="1"><span data-i18n="qd.1">Tomorrow</span></button>
+      <button type="button" class="pay" data-d="2"><span data-i18n="qd.2">In 2 days</span></button>
+      <button type="button" class="pay" data-d="7"><span data-i18n="qd.7">In a week</span></button>
+      <button type="button" class="pay" data-d="pick"><span data-i18n="qd.pick">Pick a day</span></button>
+      <button type="button" class="pay" data-d="none"><span data-i18n="qd.none">No date</span></button>
+    </div>
+    <label class="field" id="qsDateWrap" hidden><span data-i18n="qe.day">Day</span>
+      <input id="qsDate" type="date"></label>
+    <p class="err" id="qsErr" hidden></p>
+    <button class="pick safe" id="qsSave" data-i18n="qe.save">Save</button>
+
+    <div class="qs-end">
+      <p class="flabel" data-i18n="qe.answer">Their answer</p>
+      <div class="q-acts">
+        <button type="button" class="won" id="qsWon" data-i18n="qs.won">Won</button>
+        <button type="button" id="qsLostBtn" data-i18n="qs.lost">Lost</button>
+      </div>
+      <div id="qsLost" hidden>
+        <p class="flabel qs-why-label" data-i18n="qe.why">Why was it lost?</p>
+        <div class="pays qs-two" id="qsWhy">
+        <button type="button" class="pay" data-w="price"><span data-i18n="lw.price">Price</span></button>
+        <button type="button" class="pay" data-w="elsewhere"><span data-i18n="lw.elsewhere">Went with someone else</span></button>
+        <button type="button" class="pay" data-w="diy"><span data-i18n="lw.diy">Did it themselves</span></button>
+        <button type="button" class="pay" data-w="noreply"><span data-i18n="lw.noreply">Never answered</span></button>
+        <button type="button" class="pay" data-w="notneeded"><span data-i18n="lw.notneeded">Not needed anymore</span></button>
+        <button type="button" class="pay" data-w="other"><span data-i18n="lw.other">Other</span></button>
+        </div>
+        <p class="err" id="qsLostErr" hidden></p>
+        <button class="pick danger" id="qsLostSave" data-i18n="qe.markLost">Mark lost</button>
+      </div>
+    </div>
+
+    <p class="flabel qs-hist" data-i18n="qe.history">History</p>
+    <div class="qs-log" id="qsLog"></div>
   </div>
 </div>
 
@@ -1758,20 +1898,40 @@ html.light{--brk:#A3410F}
   <h2 data-i18n="menu">Menu</h2>
   <p class="sub" id="menuWho"></p>
   <button class="pick safe" id="mSync" data-i18n="menu.clock">Go to clock</button>
-  <button class="pick" id="mOwner" data-i18n="menu.myHours">My hours</button>
-  <button class="pick" id="mMine" data-i18n="menu.myJobs">My jobs</button>
-  <button class="pick" id="mWork" hidden data-i18n="menu.work">Jobs &amp; quotes</button>
-  <button class="pick" id="mCrews" hidden data-i18n="menu.crews">Trucks &amp; crews</button>
-  <button class="pick" id="mWait" hidden><span data-i18n="wait.menu">Phones waiting</span><small id="mWaitN"></small></button>
-  <button class="pick" id="mPay" hidden data-i18n="pay.history">Payments</button>
-  <button class="pick" id="mComm" hidden data-i18n="menu.comm">Calculate commission</button>
-  <button class="pick" id="mQuotes" hidden data-i18n="menu.quotes">Quotes to follow up</button>
-  <button class="pick" id="mBio" hidden></button>
-  <button class="pick" id="mPin" data-i18n="menu.pin">Change passcode</button>
-  <button class="pick with-icon" id="mSwitch">
-    <svg class="pico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.9 20a7.1 7.1 0 0 1 14.2 0"/></svg>
-    <span data-i18n="menu.switch">Switch User</span>
-  </button>
+  <!-- Two across. A row's odd one out stretches to the full width by itself
+       (flex-wrap + grow), so a button that is hidden never leaves a hole. -->
+  <div class="mgrid">
+    <button class="pick" id="mOwner" data-i18n="menu.myHours">My hours</button>
+    <button class="pick" id="mMine" data-i18n="menu.myJobs">My jobs</button>
+  </div>
+  <div class="mgroup" id="mOffice" hidden>
+    <p class="theme-label" data-i18n="menu.office">Office</p>
+    <div class="mgrid">
+      <button class="pick wide" id="mWait" hidden><span data-i18n="wait.menu">Phones waiting</span><small id="mWaitN"></small></button>
+      <button class="pick" id="mWork" hidden data-i18n="menu.work">Jobs &amp; quotes</button>
+      <button class="pick" id="mQuotes" hidden data-i18n="menu.quotes">Quotes to follow up</button>
+      <button class="pick" id="mCrews" hidden data-i18n="menu.crews">Trucks &amp; crews</button>
+      <button class="pick" id="mPay" hidden data-i18n="pay.history">Payments</button>
+      <button class="pick" id="mComm" hidden data-i18n="menu.comm">Calculate commission</button>
+    </div>
+  </div>
+  <div class="mgroup">
+    <p class="theme-label" data-i18n="menu.account">Account</p>
+    <div class="mgrid">
+      <button class="pick" id="mBio" hidden></button>
+      <button class="pick" id="mPin" data-i18n="menu.pin">Change passcode</button>
+    </div>
+    <div class="mgrid">
+      <button class="pick with-icon" id="mSwitch">
+        <svg class="pico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.9 20a7.1 7.1 0 0 1 14.2 0"/></svg>
+        <span data-i18n="menu.switch">Switch User</span>
+      </button>
+      <button class="logout" id="mOut">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 20H5.5A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4h4"/><path d="M16 8.5l3.5 3.5-3.5 3.5"/><path d="M9.5 12h10"/></svg>
+        <span id="mOutLabel">Log out</span>
+      </button>
+    </div>
+  </div>
   <div class="theme-row">
     <p class="theme-label" data-i18n="menu.appear">Appearance</p>
     <div class="wk-switch theme-switch">
@@ -1787,10 +1947,6 @@ html.light{--brk:#A3410F}
     </div>
   </div>
   <p class="note" id="diag"></p>
-  <button class="logout" id="mOut">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 20H5.5A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4h4"/><path d="M16 8.5l3.5 3.5-3.5 3.5"/><path d="M9.5 12h10"/></svg>
-    <span id="mOutLabel">Log out</span>
-  </button>
   <p class="brand brand-foot"><img class="brand-mark" src="logo.png" alt="" width="18" height="18">The Junk <em>Heroes</em></p>
 </div></div>
 
@@ -1843,6 +1999,17 @@ html.light{--brk:#A3410F}
         <button type="button" class="pay" data-st="won"><span data-i18n="qs.won">Won</span></button>
         <button type="button" class="pay" data-st="lost"><span data-i18n="qs.lost">Lost</span></button>
       </div>
+      <div id="jaWhyWrap" hidden>
+        <p class="flabel" data-i18n="qe.whySave">Why was it lost? Pick one to save it.</p>
+        <div class="pays qs-two" id="jaWhy">
+        <button type="button" class="pay" data-w="price"><span data-i18n="lw.price">Price</span></button>
+        <button type="button" class="pay" data-w="elsewhere"><span data-i18n="lw.elsewhere">Went with someone else</span></button>
+        <button type="button" class="pay" data-w="diy"><span data-i18n="lw.diy">Did it themselves</span></button>
+        <button type="button" class="pay" data-w="noreply"><span data-i18n="lw.noreply">Never answered</span></button>
+        <button type="button" class="pay" data-w="notneeded"><span data-i18n="lw.notneeded">Not needed anymore</span></button>
+        <button type="button" class="pay" data-w="other"><span data-i18n="lw.other">Other</span></button>
+        </div>
+      </div>
     </div>
     <div id="jaEdit">
       <div class="duo">
@@ -1867,6 +2034,26 @@ html.light{--brk:#A3410F}
       <button class="pick safe" type="button" id="jaSave" data-i18n="ja.saveAll">Save the changes</button>
       <button class="pick danger" type="button" id="jaDel"></button>
     </div>
+  </div>
+</div>
+
+<!-- ═══ the office clocks somebody in or out ═══ -->
+<div class="overlay top" id="forceSheet">
+  <button class="back" id="fcBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 id="fcTitle"></h2>
+    <p class="sub" id="fcSub"></p>
+    <label class="field"><span data-i18n="fc.at">At</span>
+      <input id="fcTime" type="time" step="60"></label>
+    <div id="fcTruckWrap" hidden>
+      <p class="flabel" data-i18n="fc.truck">Which truck?</p>
+      <div class="pays" id="fcTrucks"></div>
+    </div>
+    <p class="err" id="fcErr" hidden></p>
+    <button class="pick safe" type="button" id="fcSave"></button>
   </div>
 </div>
 
@@ -1950,6 +2137,7 @@ html.light{--brk:#A3410F}
   <div class="inner">
     <h2 id="ownerTitle" data-i18n="menu.hours">Hours</h2>
     <p class="sub" id="ownerSub" data-i18n="loading">Loading…</p>
+    <div class="rn-card" id="rightNow" hidden></div>
 
     <div id="hoursTop" hidden>
       <div class="wk-switch">
@@ -2365,6 +2553,8 @@ const STRINGS = {
   'menu.work':   ['Jobs & quotes', 'Serviços e orçamentos'],
   'menu.crews':  ['Trucks & crews', 'Caminhões e duplas'],
   'menu.pin':    ['Change passcode', 'Mudar senha'],
+  'menu.office': ['Office', 'Escritório'],
+  'menu.account':['Account', 'Conta'],
   'menu.switch': ['Switch User', 'Trocar de usuário'],
   'menu.appear': ['Appearance', 'Aparência'],
   'menu.dark':   ['Dark', 'Escuro'],
@@ -2486,8 +2676,60 @@ const STRINGS = {
   'cc.note':     ["Worked out from the jobs each person logged themselves that week. Quotes and deleted jobs don't count.",
                   'Calculado com os serviços que cada pessoa registrou naquela semana. Orçamentos e serviços apagados não contam.'],
   'qf.title':    ['Quotes to follow up', 'Orçamentos para acompanhar'],
-  'qf.sub':      ['Every quote still open from the last 60 days, oldest first.',
-                  'Todo orçamento ainda aberto dos últimos 60 dias, o mais antigo primeiro.'],
+  'qf.sub':      ['Open quotes from the last 60 days, and any with a follow-up day. Tap one to add a note.',
+                  'Orçamentos abertos dos últimos 60 dias, e os que têm dia de retorno. Toque em um para anotar.'],
+  'qf.due':      ['To do now', 'Para fazer agora'],
+  'qf.nodate':   ['No follow-up day yet', 'Sem dia de retorno ainda'],
+  'qf.later':    ['Coming up', 'Mais pra frente'],
+  'qf.them':     ['Waiting on the customer', 'Esperando o cliente'],
+  'qf.dueToday': ['Due today', 'Para hoje'],
+  'qf.late1':    ['1 day late', '1 dia atrasado'],
+  'qf.lateN':    ['{0} days late', '{0} dias atrasado'],
+  'qf.on':       ['Follow up {0}', 'Retornar {0}'],
+  'qf.try1':     ['1 try', '1 tentativa'],
+  'qf.tryN':     ['{0} tries', '{0} tentativas'],
+  'qf.update':   ['Update', 'Atualizar'],
+  'qf.us':       ['We call them', 'Nós ligamos'],
+  'qf.customer': ["They'll call us", 'O cliente liga'],
+  'qt.noanswer': ['No answer', 'Não atendeu'],
+  'qt.voicemail':['Left a voicemail', 'Deixei recado'],
+  'qt.texted':   ['Texted them', 'Mandei mensagem'],
+  'qt.talked':   ['Talked to them', 'Falei com o cliente'],
+  'qd.1':        ['Tomorrow', 'Amanhã'],
+  'qd.2':        ['In 2 days', 'Em 2 dias'],
+  'qd.7':        ['In a week', 'Em uma semana'],
+  'qd.pick':     ['Pick a day', 'Escolher dia'],
+  'qd.none':     ['No date', 'Sem data'],
+  'qe.what':     ['What happened?', 'O que aconteceu?'],
+  'qe.note':     ['How did it go? <i>— optional</i>', 'Como foi? <i>— opcional</i>'],
+  'qe.who':      ['Who calls next?', 'Quem liga na próxima?'],
+  'qe.when':     ['Follow up again', 'Retornar de novo'],
+  'qe.day':      ['Day', 'Dia'],
+  'qe.save':     ['Save', 'Salvar'],
+  'qe.answer':   ['Their answer', 'Resposta do cliente'],
+  'qe.why':      ['Why was it lost?', 'Por que perdemos?'],
+  'qe.whySave':  ['Why was it lost? Pick one to save it.', 'Por que perdemos? Escolha um para salvar.'],
+  'qe.markLost': ['Mark lost', 'Marcar como perdido'],
+  'qe.pickWhy':  ['Pick why it was lost first.', 'Escolha primeiro por que perdemos.'],
+  'qe.history':  ['History', 'Histórico'],
+  'qe.quoted':   ['Quoted by {0}', 'Orçamento de {0}'],
+  'qe.next':     ['Now: {0}', 'Agora: {0}'],
+  'qe.noNext':   ['Now: no day set', 'Agora: sem dia marcado'],
+  'qe.badDate':  ['Pick the day for the follow-up.', 'Escolha o dia do retorno.'],
+  'lw.price':    ['Price', 'Preço'],
+  'lw.elsewhere':['Went with someone else', 'Fechou com outro'],
+  'lw.diy':      ['Did it themselves', 'Fez por conta própria'],
+  'lw.noreply':  ['Never answered', 'Nunca respondeu'],
+  'lw.notneeded':['Not needed anymore', 'Não precisa mais'],
+  'lw.other':    ['Other', 'Outro'],
+  'lw.unsaid':   ['No reason given', 'Sem motivo'],
+  'qst.title':   ['This month', 'Este mês'],
+  'qst.quotes':  ['Quotes', 'Orçamentos'],
+  'qst.wonAmt':  ['Won work worth {0}', 'Fechados valendo {0}'],
+  'qst.rate':    ['{0}% of the answered ones were won', '{0}% dos respondidos foram fechados'],
+  'qst.lostTo':  ['Lost to: {0}', 'Perdidos por: {0}'],
+  'qst.last':    ['Last month: {0} quotes, {1} won, {2}', 'Mês passado: {0} orçamentos, {1} fechados, {2}'],
+  'qst.lastPct': ['Last month: {0} quotes, {1} won ({3}%), {2}', 'Mês passado: {0} orçamentos, {1} fechados ({3}%), {2}'],
   'qf.none':     ['Nothing to follow up. Every quote has an answer.', 'Nada para acompanhar. Todo orçamento tem resposta.'],
   'qf.today':    ['today', 'hoje'],
   'qf.day1':     ['1 day old', '1 dia'],
@@ -2545,6 +2787,27 @@ const STRINGS = {
   'oq.pending':  ['saving', 'salvando'],
   'oq.day':      ['saving…', 'salvando…'],
   'xc.title':    ['Before you clock out', 'Antes de encerrar o dia'],
+  'rn.title':    ['Right now', 'Agora'],
+  'rn.in':       ['On the clock since {0}', 'Trabalhando desde {0}'],
+  'rn.break':    ['On a break since {0}', 'Em pausa desde {0}'],
+  'rn.out':      ['Off the clock', 'Fora do expediente'],
+  'rn.outAt':    ['Off since {0}', 'Saiu às {0}'],
+  'rn.saving':   ['Saving…', 'Salvando…'],
+  'rn.clockIn':  ['Clock in', 'Dar entrada'],
+  'rn.clockOut': ['Clock out', 'Dar saída'],
+  'fc.inTitle':  ['Clock {0} in', 'Dar entrada para {0}'],
+  'fc.outTitle': ['Clock {0} out', 'Dar saída para {0}'],
+  'fc.inSub':    ['Starts his shift as if he had tapped it himself. His phone will show it next time he opens the app.',
+                  'Começa o turno como se ele mesmo tivesse tocado. O telefone dele mostra na próxima vez que abrir o app.'],
+  'fc.outSub':   ['Ends his shift, and any break he is on. His phone will show it next time he opens the app.',
+                  'Encerra o turno, e a pausa se estiver em uma. O telefone dele mostra na próxima vez que abrir o app.'],
+  'fc.at':       ['At', 'Às'],
+  'fc.truck':    ['Which truck?', 'Qual caminhão?'],
+  'fc.noTruck':  ['No truck', 'Sem caminhão'],
+  'fc.badTime':  ['Pick a time that has already passed.', 'Escolha um horário que já passou.'],
+  'fc.beforeIn': ['That is before he clocked in ({0}).', 'Isso é antes da entrada dele ({0}).'],
+  'force.outMe': ['{0} clocked you out at {1}.', '{0} deu sua saída às {1}.'],
+  'force.inMe':  ['{0} clocked you in at {1}.', '{0} deu sua entrada às {1}.'],
   'xc.more':     ['Log a job that isn’t here', 'Registrar um serviço que não está aqui'],
   'day.week':    ['Week', 'Semana'],
   'hrs.onDay':   ['on the clock · {0}', 'no serviço · {0}'],
@@ -2814,6 +3077,7 @@ function paintMenu(){
   $('mComm').hidden = !isOwner();
   $('mQuotes').hidden = !isOwner() && !isJobAdmin();
   $('mWait').hidden = !isOwner() || !waitingNow.length;
+  $('mOffice').hidden = !isOwner() && !isJobAdmin();
   if (isOwner()) loadWaiting(true);
 
   const err = DB.get('jh.err', null), last = DB.get('jh.lastSync', null);
@@ -4015,9 +4279,10 @@ async function refreshHours(){
 function oqAll(){ return DB.get('jh.oq', []); }
 function oqMine(){ return oqAll().filter(function(i){ return i.by === worker; }); }
 let oqSending = false, oqTimer = null;
-function queueOffice(action, payload){
+function queueOffice(action, payload, where){
+  const w = where || { worker: dwWorker, weekStart: dwStart };
   const item = { eid: uid(), by: worker, action: action, payload: payload,
-                 worker: dwWorker, weekStart: dwStart, at: Date.now() };
+                 worker: w.worker, weekStart: w.weekStart, at: Date.now() };
   const q = oqAll(); q.push(item); DB.set('jh.oq', q);
   hoursDirty = true;
   applyLocal(item);
@@ -4026,7 +4291,7 @@ function queueOffice(action, payload){
   sendOffice();
 }
 function paintSaving(){
-  const n = worker ? oqMine().length : 0, pill = $('savePill');
+  const n = worker ? oqMine().length + qqMine().length : 0, pill = $('savePill');
   if (!n){ pill.hidden = true; return; }
   const off = !navigator.onLine;
   pill.textContent = off ? t(n === 1 ? 'oq.wait1' : 'oq.waitN', n) : t(n === 1 ? 'oq.one' : 'oq.many', n);
@@ -4034,6 +4299,7 @@ function paintSaving(){
   pill.hidden = false;
 }
 async function sendOffice(){
+  sendQuotes();                      // the follow-up list's changes travel at the same moments
   if (oqSending || !worker || isTest() || !unlocked) return;
   const mine = oqMine();
   paintSaving();
@@ -4076,6 +4342,7 @@ async function sendOffice(){
   } catch(e){ again = true; }
   finally { oqSending = false; paintSaving(); }
   if (settled && $('owner').classList.contains('open') && !$('dayWeek').classList.contains('open')) refreshHours();
+  if (settled && $('owner').classList.contains('open')) loadRightNow(false);
   if (oqMine().length){
     clearTimeout(oqTimer);
     oqTimer = setTimeout(sendOffice, again ? 6000 : 200);
@@ -4481,6 +4748,7 @@ async function sync(){
       if (d.speech && d.speech !== acctGet('speech', '')) acctSet({ speech: d.speech });
       loadCommission();                 // the server's own figure, now the queue is clear
       sendTicks();                      // and any job tick that was waiting on signal
+      if (!queue.some(function(e){ return e.worker === worker; })) checkMyState();
     } else DB.set('jh.err', ({ 'busy, retry': 'err.busy', 'could not save, try again': 'err.save',
                               'too many at once': 'err.tooMany', 'not allowed': 'err.denied' })[d && d.error] || 'err.rejected');
   } catch(e){ DB.set('jh.err', 'err.nonet'); }
@@ -4614,6 +4882,7 @@ function unlock(){
   paint(); sync(); loadSchedule();
   maybeAskBreak();
   sendOffice();                     // anything the office saved before the app was closed
+  checkMyState();                   // anything the office did for him while it was closed
 }
 async function offerBio(){
   if (!confirm(t('bio.ask', bioName()))) return;
@@ -6134,7 +6403,8 @@ function renderJobs(){
       }
       if (e.kind === 'quote' && e.status){
         const st = document.createElement('span');
-        st.className = 'jb-st ' + e.status; st.textContent = t('qs.' + e.status);
+        st.className = 'jb-st ' + e.status;
+        st.textContent = t('qs.' + e.status) + (e.status === 'lost' && e.lostWhy ? ' · ' + t('lw.' + e.lostWhy) : '');
         nm.appendChild(st);
       }
       const sub = document.createElement('span');
@@ -6166,6 +6436,151 @@ function renderJobs(){
   });
   $('jbHint').hidden = !d.canEdit;
 }
+
+/* ═══════════ right now ═══════════
+   Who is on the clock this minute, for a full admin, with a button to clock
+   each one in or out — the forgotten clock-out at the end of the day, the man
+   who started without tapping in. It goes through the same queue as every
+   other office change: saved on the phone at once, sent behind the scenes,
+   checked by the sheet. The man's own phone catches up the next time it is
+   opened. */
+let rnPeople = [], rnAsk = 0;
+function loadRightNow(useSaved){
+  if (!isOwner()){ $('rightNow').hidden = true; return; }
+  const mine = ++rnAsk;
+  const show = function(d){ rnPeople = d.people || []; renderRightNow(); };
+  const current = function(){ return mine === rnAsk && $('owner').classList.contains('open'); };
+  if (useSaved) return loadWithCopy('onclock', { action:'onclock' }, show, current, function(){});
+  ask({ action:'onclock' }).then(function(d){ if (d && d.ok){ keepCopy('onclock', d); if (current()) show(d); } })
+    .catch(function(){});
+}
+/* a clock-in or -out the office has saved but the sheet has not answered yet */
+function rnPending(name){
+  return oqMine().filter(function(i){
+    return i.action === 'addpunch' && i.payload.worker === name && (i.payload.type === 'in' || i.payload.type === 'out');
+  }).pop();
+}
+function renderRightNow(){
+  const box = $('rightNow'); box.innerHTML = '';
+  const people = rnPeople.filter(function(p){ return p.name && p.role !== 'test'; });
+  if (!people.length){ box.hidden = true; return; }
+  box.hidden = false;
+  const h = document.createElement('b'); h.textContent = t('rn.title'); box.appendChild(h);
+  const rank = { in: 0, break: 0, out: 1 };
+  people.slice().sort(function(a, b){ return (rank[a.status] - rank[b.status]) || a.name.localeCompare(b.name); })
+    .forEach(function(p){
+      const wait = rnPending(p.name);
+      const status = wait ? (wait.payload.type === 'in' ? 'in' : 'out') : p.status;
+      const row = document.createElement('div'); row.className = 'rn-row';
+      const who = document.createElement('div'); who.className = 'rn-who';
+      const nb = document.createElement('b'); nb.textContent = p.name;
+      const sp = document.createElement('span');
+      if (wait){ sp.className = 'saving'; sp.textContent = t('rn.saving'); }
+      else if (p.status === 'in'){
+        sp.className = 'in';
+        sp.textContent = [t('rn.in', fmtTime(p.since)), p.truck ? truckTag(p.truck).replace(/ /g, ' ') : ''].filter(Boolean).join('  ·  ');
+      } else if (p.status === 'break'){ sp.className = 'brk'; sp.textContent = t('rn.break', fmtTime(p.breakSince)); }
+      else {
+        const today = p.last && p.last.type === 'out' && new Date(p.last.at).toDateString() === new Date().toDateString();
+        sp.textContent = today ? t('rn.outAt', fmtTime(p.last.at)) : t('rn.out');
+      }
+      who.appendChild(nb); who.appendChild(sp); row.appendChild(who);
+      const go = document.createElement('button'); go.type = 'button';
+      const on = status !== 'out';
+      go.className = on ? 'out' : 'in';
+      go.textContent = t(on ? 'rn.clockOut' : 'rn.clockIn');
+      go.disabled = !!wait;
+      go.onclick = function(){ openForce(p, on ? 'out' : 'in'); buzz(12); };
+      row.appendChild(go);
+      box.appendChild(row);
+    });
+}
+/* the truck's short name on screen ("Truck 1"), its full name in the sheet */
+function truckTag(name){
+  const tr = (CONFIG.TRUCKS || []).filter(function(x){ return x.name === name; })[0];
+  return tr && typeof tagLabel === 'function' ? tagLabel(tr.tag) : (tr ? tr.tag : name);
+}
+let fc = null;                        // { person, type, truck }
+function openForce(p, type){
+  fc = { person: p, type: type, truck: '' };
+  $('fcTitle').textContent = t(type === 'in' ? 'fc.inTitle' : 'fc.outTitle', p.name);
+  $('fcSub').textContent = t(type === 'in' ? 'fc.inSub' : 'fc.outSub');
+  $('fcSave').textContent = t(type === 'in' ? 'rn.clockIn' : 'rn.clockOut');
+  $('fcTime').value = hhmm(Date.now()); $('fcTime').classList.remove('bad');
+  $('fcErr').hidden = true;
+  const trucks = CONFIG.TRUCKS || [];
+  $('fcTruckWrap').hidden = type !== 'in' || !trucks.length;
+  const box = $('fcTrucks'); box.innerHTML = '';
+  if (type === 'in'){
+    const pick = function(name){
+      fc.truck = name;
+      [].forEach.call(box.children, function(c){ c.classList.toggle('on', c.getAttribute('data-t') === name); });
+    };
+    trucks.concat([{ name: '', tag: '' }]).forEach(function(tr){
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'pay';
+      b.setAttribute('data-t', tr.name);
+      b.textContent = tr.name ? truckTag(tr.name) : t('fc.noTruck');
+      b.onclick = function(){ pick(tr.name); buzz(12); };
+      box.appendChild(b);
+    });
+    pick((p.last && p.last.type === 'in' && p.truck) || (trucks[0] && trucks[0].name) || '');
+  }
+  $('forceSheet').classList.add('open');
+  $('forceSheet').scrollTop = 0;
+}
+function closeForce(){ fc = null; $('forceSheet').classList.remove('open'); }
+$('fcBack').onclick = closeForce;
+$('fcSave').onclick = function(){
+  if (!fc) return;
+  const v = $('fcTime').value;
+  if (!/^\d{1,2}:\d{2}/.test(v)) return fcFail(t('fc.badTime'));
+  const now = new Date(), at = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+                                          Number(v.slice(0, 2)), Number(v.slice(3, 5)), 0).getTime();
+  if (at > Date.now() + 60000) return fcFail(t('fc.badTime'));
+  const p = fc.person;
+  if (fc.type === 'out' && p.since && at < p.since) return fcFail(t('fc.beforeIn', fmtTime(p.since)));
+  const day = ymd(now);
+  const payload = { worker: p.name, date: day, type: fc.type, time: v.slice(0, 5), pid: 'adm_' + uid() };
+  if (fc.type === 'in') payload.truck = fc.truck || '';
+  queueOffice('addpunch', payload, { worker: p.name, weekStart: weekStartISO(now) });
+  buzz(35);
+  closeForce();
+  renderRightNow();
+};
+function fcFail(msg){ $('fcTime').classList.add('bad'); $('fcErr').textContent = msg; $('fcErr').hidden = false; }
+
+/* ═══════════ the office clocked me in or out ═══════════
+   His phone asks where he stands whenever the app is opened (and every few
+   minutes while it is), and follows a clock-in or clock-out the office made
+   for him — so a forgotten clock-out does not keep counting on his screen, and
+   a later tap does not start a second shift. Only the office's own punches are
+   followed, and only once his own have all been sent. */
+async function checkMyState(){
+  if (isTest() || !worker || !unlocked || document.hidden) return;
+  if (queue.some(function(e){ return e.worker === worker; })) return;   // his own taps first
+  let d;
+  try { d = await ask({ action:'mystate' }); } catch(e){ return; }
+  const c = d && d.ok && d.clock;
+  if (!c || !c.last || !c.last.office) return;
+  if (queue.some(function(e){ return e.worker === worker; })) return;   // he tapped meanwhile
+  const by = c.last.by || t('admin');
+  if (st.status !== 'out' && c.status === 'out' && c.last.type === 'out' &&
+      c.last.at >= (st.shiftStart || 0) - 60000){
+    const onBreak = st.status === 'break' ? Math.max(0, c.last.at - (st.breakStart || c.last.at)) : 0;
+    const worked = Math.max(0, c.last.at - st.shiftStart - (st.breakMs || 0) - onBreak);
+    st = { status:'out', shiftStart:null, breakStart:null, breakMs:0, breaks:0,
+           last: worked, lastAt: c.last.at, lastBy: worker };
+    save(); paint();
+    toast(t('force.outMe', by, fmtTime(c.last.at)));
+  } else if (st.status === 'out' && c.status !== 'out' && c.last.type === 'in' && c.since &&
+             c.since > (st.lastAt || 0)){
+    st = { status: c.status === 'break' ? 'break' : 'in', shiftStart: c.since,
+           breakStart: c.status === 'break' ? c.breakSince : null, breakMs: 0, breaks: 0, truck: c.truck || '' };
+    save(); paint(); loadSchedule();
+    toast(t('force.inMe', by, fmtTime(c.since)));
+  }
+}
+setInterval(function(){ if (unlocked && !document.hidden) checkMyState(); }, 5 * 60000);
 
 /* The week's days as chips, each with what that day brought in (jobs, counted
    once however many of the crew logged them) or how many quotes went out. */
@@ -6311,6 +6726,8 @@ function openJobAct(e){
   // a quote's status, for anyone working the list
   $('jaStatusWrap').hidden = job;
   if (!job) paintJaStatus(e.status || 'open');
+  $('jaWhyWrap').hidden = job || e.status !== 'lost';
+  if (!job) paintJaWhy(e.status === 'lost' ? e.lostWhy : '');
   // everything else only for the full admins
   $('jaEdit').hidden = !full;
   $('jaFirst').value = e.first || ''; $('jaLast').value = e.last || ''; $('jaTown').value = e.town || '';
@@ -6343,24 +6760,36 @@ function jaWords(err){
 }
 
 $('jaBack').onclick = closeJobAct;
-/* Won, lost or open: saved the moment it is tapped. */
+/* Won or open: saved the moment it is tapped. Lost waits for the reason, and
+   the reason saves it. Either way it is kept on the phone first and sent
+   behind the scenes, with the follow-up list's changes. */
+function paintJaWhy(w){ qsMark('jaWhy', 'data-w', w || ''); }
 [].forEach.call($('jaStatus').children, function(btn){
-  btn.onclick = async function(){
+  btn.onclick = function(){
     const e = jaEntry, st = btn.getAttribute('data-st');
-    if (!e || jb.busy || e.status === st) return;
-    jb.busy = true;
-    const was = e.status || 'open';
+    if (!e || !e.id) return;
+    if (st === 'lost'){
+      paintJaStatus('lost'); $('jaWhyWrap').hidden = false; paintJaWhy(e.status === 'lost' ? e.lostWhy : '');
+      buzz(8);
+      return;
+    }
+    $('jaWhyWrap').hidden = true;
+    if (e.status === st){ paintJaStatus(st); return; }
+    e.status = st; e.lostWhy = '';
     paintJaStatus(st); buzz(12);
-    try {
-      const d = await ask({ action:'quotestatus', id: e.id, status: st });
-      if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
-      e.status = st;
-      toast(t('qs.saved', t('qs.' + st)));
-      loadJobs();
-    } catch(err){
-      if (jaEntry === e) { paintJaStatus(was); jaFail(jaWords(err && err.message)); }
-      else toast(jaWords(err && err.message));
-    } finally { jb.busy = false; }
+    queueQuote('qstatus', { id: e.id, status: st });
+    toast(t('qs.saved', t('qs.' + st)));
+  };
+});
+[].forEach.call($('jaWhy').children, function(btn){
+  btn.onclick = function(){
+    const e = jaEntry, w = btn.getAttribute('data-w');
+    if (!e || !e.id) return;
+    if (e.status === 'lost' && e.lostWhy === w) return;
+    e.status = 'lost'; e.lostWhy = w;
+    paintJaStatus('lost'); paintJaWhy(w); buzz(12);
+    queueQuote('qstatus', { id: e.id, status: 'lost', reason: w });
+    toast(t('qs.saved', t('qs.lost')));
   };
 });
 $('jaSave').onclick = async function(){
@@ -6459,72 +6888,393 @@ async function loadComm(){
 }
 
 /* ═══════════ quotes to follow up ═══════════
-   Every quote still open from the last 60 days, oldest first — the oldest is
-   the one going cold. Won or lost is one tap, and it leaves the list. */
-let qfBusy = false;
+   Open quotes from the last 60 days, plus any with a day set to follow up,
+   grouped by what needs doing: due (or late), never given a day, coming up,
+   and waiting on the customer. Above them, how quotes are turning out.
+   Everything said about a quote — what happened, a note, who calls next, the
+   next day, won, lost and why — is kept on the phone the moment it is saved,
+   drawn straight away, and sent behind the scenes, the way the office's hour
+   edits are. The sheet checks every change; the list comes back with its
+   answer. Full admins and Andy; the server says no to anybody else. */
+const qf = { data: null };              // { quotes, stats } as the sheet last said
+let qfAsk = 0;
+function qqAll(){ return DB.get('jh.qq', []); }
+function qqMine(){ return qqAll().filter(function(i){ return i.by === worker; }); }
+let qqSending = false, qqTimer = null;
+function queueQuote(action, payload){
+  const item = { eid: uid(), by: worker, action: action, payload: payload, at: Date.now() };
+  const q = qqAll(); q.push(item); DB.set('jh.qq', q);
+  paintQuotes(); paintSaving(); sendQuotes();
+}
+function qWords(err){
+  if (err === 'bad date') return t('qe.badDate');
+  if (err === 'not a quote') return t('srv.old');
+  return jaWords(err);
+}
+async function sendQuotes(){
+  if (qqSending || !worker || isTest() || !unlocked) return;
+  const mine = qqMine();
+  paintSaving();
+  if (!mine.length || !navigator.onLine) return;
+  qqSending = true;
+  const batch = mine.slice(0, 20);
+  let again = false, settled = false;
+  try {
+    const d = await ask({ action:'quotebatch',
+      edits: batch.map(function(i){ return Object.assign({ eid: i.eid, action: i.action }, i.payload); }) });
+    if (!d || !d.ok){
+      if (d && (d.error === 'not allowed' || d.error === 'unauthorized')){
+        const gone = {}; batch.forEach(function(i){ gone[i.eid] = 1; });
+        DB.set('jh.qq', qqAll().filter(function(i){ return !gone[i.eid]; }));
+        toast(t('oq.failed', qWords(d.error)));
+      } else again = true;
+    } else {
+      const done = {}, refused = [];
+      (d.results || []).forEach(function(x){
+        if (!x.ok && x.error === 'could not save, try again'){ again = true; return; }
+        done[x.eid] = 1;
+        if (!x.ok) refused.push(x);
+      });
+      DB.set('jh.qq', qqAll().filter(function(i){ return !done[i.eid]; }));
+      settled = true;
+      if (refused.length) toast(refused.length === 1 ? t('oq.failed', qWords(refused[0].error))
+                                                     : t('oq.failedN', qWords(refused[0].error), refused.length));
+      if (Array.isArray(d.quotes)){
+        qf.data = { quotes: d.quotes, stats: d.stats || null };
+        keepCopy('openquotes', { ok: true, quotes: d.quotes, stats: d.stats || null });
+      }
+    }
+  } catch(e){ again = true; }
+  finally { qqSending = false; paintSaving(); }
+  if (settled){
+    paintQuotes();
+    if ($('work').classList.contains('open')) loadJobs();
+  }
+  if (qqMine().length){
+    clearTimeout(qqTimer);
+    qqTimer = setTimeout(sendQuotes, again ? 6000 : 200);
+  }
+}
+
 $('mQuotes').onclick = function(){
   $('menu').classList.remove('open');
+  qf.data = null;
   $('quotes').classList.add('open'); $('quotes').scrollTop = 0;
   loadQuotes();
 };
 $('qfBack').onclick = function(){ $('quotes').classList.remove('open'); };
 async function loadQuotes(){
   $('qfSub').textContent = t('loading');
-  $('qfList').innerHTML = '';
-  let d;
-  try {
-    d = await ask({ action:'openquotes' });
-    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
-  } catch(e){ $('qfSub').textContent = e && e.message === 'bad request' ? t('srv.old') : t('net.fail'); return; }
-  $('qfSub').textContent = t('qf.sub');
-  const box = $('qfList');
-  if (!d.quotes.length){
+  $('qfList').innerHTML = ''; $('qfStats').hidden = true;
+  const mine = ++qfAsk;
+  await loadWithCopy('openquotes', { action:'openquotes' }, function(d){
+    qf.data = { quotes: d.quotes || [], stats: d.stats || null };
+    $('qfSub').textContent = t('qf.sub');
+    paintQuotes();
+  }, function(){ return mine === qfAsk && $('quotes').classList.contains('open'); },
+  function(e){ $('qfSub').textContent = e && e.message === 'bad request' ? t('srv.old') : t('net.fail'); });
+}
+
+/* The list as the sheet last said, with everything still on its way laid on
+   top: a note shows (marked saving), the day and who moves, a won or lost
+   quote leaves. */
+function quotesNow(){
+  if (!qf.data) return [];
+  const list = JSON.parse(JSON.stringify(qf.data.quotes || []));
+  const byId = Object.create(null);
+  list.forEach(function(q){
+    q.log = q.log || []; q.tries = q.tries || 0; q.fby = q.fby || ''; q.next = q.next || '';
+    byId[q.id] = q;
+  });
+  qqMine().forEach(function(i){
+    const p = i.payload || {}, q = byId[p.id];
+    if (!q) return;
+    q.saving = true;
+    if (i.action === 'qfollow'){
+      if ((p.kind || p.text) && !q.log.some(function(n){ return n.nid === p.nid; })){
+        q.log.push({ nid: p.nid, at: i.at, by: worker, kind: p.kind || 'note', text: p.text || '', pending: true });
+        if (p.kind && p.kind !== 'note') q.tries++;
+      }
+      if (p.by !== undefined) q.fby = p.by;
+      if (p.next !== undefined) q.next = p.next;
+    } else if (i.action === 'qstatus') q.gone = p.status !== 'open';
+  });
+  return list.filter(function(q){ return !q.gone; });
+}
+function quoteGroup(q, today){
+  if (q.next && q.next <= today) return 'due';
+  if (q.fby === 'customer' && !q.next) return 'them';
+  if (q.next) return 'later';
+  return 'nodate';
+}
+function quoteName(q){ return ((q.first || '') + (q.last ? ' ' + q.last : '')).trim() || t('mj.customer'); }
+function noteLine(n){ return [n.kind && n.kind !== 'note' ? t('qt.' + n.kind) : '', n.text || ''].filter(Boolean).join(' — '); }
+
+function paintQuotes(){
+  if (qsQuote && $('qSheet').classList.contains('open')) paintQsLog();
+  if (!$('quotes').classList.contains('open') || !qf.data) return;
+  paintQuoteStats(qf.data.stats);
+  const box = $('qfList'); box.innerHTML = '';
+  const list = quotesNow();
+  if (!list.length){
     const p = document.createElement('p'); p.className = 'note'; p.textContent = t('qf.none');
     box.appendChild(p); return;
   }
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  d.quotes.forEach(function(q){
-    const row = document.createElement('div'); row.className = 'q-row';
-    const top = document.createElement('div'); top.className = 'q-top';
-    const what = document.createElement('div'); what.className = 'q-what';
-    const b = document.createElement('b');
-    b.textContent = ((q.first || '') + (q.last ? ' ' + q.last : '')).trim() || t('mj.customer');
-    const sp = document.createElement('span');
-    sp.textContent = [fmtDay(q.whenMs), q.town, t('qf.by', q.worker)].filter(Boolean).join('  ·  ') +
-                     (q.notes ? '  ·  ' + q.notes : '');
-    const age = document.createElement('em'); age.className = 'q-age';
-    const days = Math.max(0, Math.round((today.getTime() - dayMs(q.date)) / 864e5));
-    age.textContent = days === 0 ? t('qf.today') : t(days === 1 ? 'qf.day1' : 'qf.dayN', days);
-    what.appendChild(b); what.appendChild(sp); what.appendChild(age);
-    const amt = document.createElement('div'); amt.className = 'q-amt';
-    amt.textContent = q.amount == null ? '—' : money(q.amount);
-    top.appendChild(what); top.appendChild(amt);
-    row.appendChild(top);
-    const acts = document.createElement('div'); acts.className = 'q-acts';
-    ['won', 'lost'].forEach(function(st){
-      const btn = document.createElement('button');
-      btn.type = 'button'; btn.className = st; btn.textContent = t('qs.' + st);
-      btn.onclick = async function(){
-        if (qfBusy) return;
-        qfBusy = true; buzz(12);
-        try {
-          const r = await ask({ action:'quotestatus', id: q.id, status: st });
-          if (!r || !r.ok) throw new Error((r && r.error) || 'failed');
-          row.remove();
-          toast(t('qs.saved', t('qs.' + st)));
-          if (!box.children.length){
-            const p = document.createElement('p'); p.className = 'note'; p.textContent = t('qf.none');
-            box.appendChild(p);
-          }
-        } catch(err){ toast(jaWords(err && err.message)); }
-        finally { qfBusy = false; }
-      };
-      acts.appendChild(btn);
-    });
-    row.appendChild(acts);
-    box.appendChild(row);
+  const today = ymd(new Date());
+  const groups = { due: [], nodate: [], later: [], them: [] };
+  list.forEach(function(q){ groups[quoteGroup(q, today)].push(q); });
+  const byNext = function(a, b){ return a.next < b.next ? -1 : a.next > b.next ? 1 : a.whenMs - b.whenMs; };
+  groups.due.sort(byNext); groups.later.sort(byNext);
+  ['due', 'nodate', 'later', 'them'].forEach(function(g){
+    if (!groups[g].length) return;
+    const h = document.createElement('p'); h.className = 'qf-group';
+    h.textContent = t('qf.' + g) + '  ·  ' + groups[g].length;
+    box.appendChild(h);
+    groups[g].forEach(function(q){ box.appendChild(quoteCard(q, today)); });
   });
 }
+
+function quoteCard(q, today){
+  const row = document.createElement('div'); row.className = 'q-row';
+  const top = document.createElement('div'); top.className = 'q-top';
+  const what = document.createElement('div'); what.className = 'q-what';
+  const b = document.createElement('b'); b.textContent = quoteName(q);
+  const sp = document.createElement('span');
+  sp.textContent = [fmtDay(q.whenMs), q.town, t('qf.by', q.worker)].filter(Boolean).join('  ·  ') +
+                   (q.notes ? '  ·  ' + q.notes : '');
+  const age = document.createElement('em'); age.className = 'q-age';
+  const days = Math.max(0, Math.round((dayMs(today) - dayMs(q.date)) / 864e5));
+  age.textContent = days === 0 ? t('qf.today') : t(days === 1 ? 'qf.day1' : 'qf.dayN', days);
+  what.appendChild(b); what.appendChild(sp); what.appendChild(age);
+  const amt = document.createElement('div'); amt.className = 'q-amt';
+  amt.textContent = q.amount == null ? '—' : money(q.amount);
+  top.appendChild(what); top.appendChild(amt);
+  row.appendChild(top);
+
+  const tags = document.createElement('div'); tags.className = 'q-tags';
+  const tag = function(cls, text){
+    const x = document.createElement('span'); x.className = 'q-tag' + (cls ? ' ' + cls : ''); x.textContent = text;
+    tags.appendChild(x);
+  };
+  if (q.next){
+    const late = Math.round((dayMs(today) - dayMs(q.next)) / 864e5);
+    if (late > 0) tag('late', t(late === 1 ? 'qf.late1' : 'qf.lateN', late));
+    else if (late === 0) tag('due', t('qf.dueToday'));
+    else tag('', t('qf.on', fmtDay(dayMs(q.next))));
+  }
+  if (q.fby === 'us' || q.fby === 'customer') tag('', t('qf.' + q.fby));
+  if (q.tries) tag('', t(q.tries === 1 ? 'qf.try1' : 'qf.tryN', q.tries));
+  if (q.saving) tag('saving', t('oq.day'));
+  if (tags.children.length) row.appendChild(tags);
+
+  const last = q.log.length ? q.log[q.log.length - 1] : null;
+  if (last){
+    const p = document.createElement('p'); p.className = 'q-last';
+    const em = document.createElement('em'); em.textContent = last.by + ', ' + fmtDayNum(last.at) + ': ';
+    p.appendChild(em); p.appendChild(document.createTextNode(noteLine(last)));
+    row.appendChild(p);
+  }
+
+  const acts = document.createElement('div'); acts.className = 'q-acts three';
+  const btn = function(cls, label, fn){
+    const x = document.createElement('button'); x.type = 'button'; x.className = cls; x.textContent = label;
+    x.onclick = function(ev){ ev.stopPropagation(); fn(); };
+    acts.appendChild(x);
+  };
+  btn('upd', t('qf.update'), function(){ openQs(q.id, ''); });
+  btn('won', t('qs.won'), function(){
+    buzz(12); queueQuote('qstatus', { id: q.id, status: 'won' }); toast(t('qs.saved', t('qs.won')));
+  });
+  btn('lost', t('qs.lost'), function(){ openQs(q.id, 'lost'); });
+  row.appendChild(acts);
+  row.onclick = function(){ openQs(q.id, ''); };
+  return row;
+}
+
+/* This month and last: how many were quoted, won, lost, still open; what the
+   won ones came to; why the lost ones went. */
+function paintQuoteStats(stats){
+  const box = $('qfStats');
+  if (!Array.isArray(stats) || !stats.length){ box.hidden = true; return; }
+  box.innerHTML = ''; box.hidden = false;
+  const m = stats[0], prev = stats[1];
+  const pct = function(x){ const said = x.won + x.lost; return said ? Math.round(x.won * 100 / said) : null; };
+  const h = document.createElement('p'); h.className = 'qst-head'; h.textContent = t('qst.title');
+  box.appendChild(h);
+  const nums = document.createElement('div'); nums.className = 'qst-nums';
+  [['', m.quotes, t('qst.quotes')], ['won', m.won, t('qs.won')], ['lost', m.lost, t('qs.lost')], ['', m.open, t('qs.open')]]
+    .forEach(function(c){
+      const d = document.createElement('div'); if (c[0]) d.className = c[0];
+      const bb = document.createElement('b'); bb.textContent = String(c[1]);
+      const ss = document.createElement('span'); ss.textContent = c[2];
+      d.appendChild(bb); d.appendChild(ss); nums.appendChild(d);
+    });
+  box.appendChild(nums);
+  const line = function(text){ const p = document.createElement('p'); p.textContent = text; box.appendChild(p); };
+  if (m.won) line(t('qst.wonAmt', money(m.wonAmount)) + (pct(m) != null ? '  ·  ' + t('qst.rate', pct(m)) : ''));
+  else if (pct(m) != null) line(t('qst.rate', pct(m)));
+  const why = Object.keys(m.why || {});
+  if (why.length){
+    why.sort(function(a, b){ return m.why[b] - m.why[a]; });
+    line(t('qst.lostTo', why.map(function(k){ return t('lw.' + k) + ' (' + m.why[k] + ')'; }).join('  ·  ')));
+  }
+  if (prev && prev.quotes){
+    const pp = pct(prev);
+    line(pp == null ? t('qst.last', prev.quotes, prev.won, money(prev.wonAmount))
+                    : t('qst.lastPct', prev.quotes, prev.won, money(prev.wonAmount), pp));
+  }
+}
+
+/* ── one quote: what happened, a note, who calls next, when; or its answer ── */
+let qsQuote = null;
+const qsState = { kind: '', by: null, when: null, whenAuto: false, why: '' };
+function qsFind(){ return quotesNow().filter(function(q){ return q.id === qsQuote; })[0] || null; }
+function qsMark(box, attr, v){
+  [].forEach.call($(box).children, function(c){
+    const on = v !== '' && v != null && c.getAttribute(attr) === v;
+    c.classList.toggle('on', on); c.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+function openQs(id, mode){
+  qsQuote = id;
+  const q = qsFind();
+  if (!q){ qsQuote = null; return; }
+  qsState.kind = ''; qsState.by = null; qsState.when = null; qsState.whenAuto = false; qsState.why = '';
+  $('qsTitle').textContent = quoteName(q);
+  $('qsSub').textContent = [q.amount == null ? '' : money(q.amount), q.town, fmtDay(q.whenMs)].filter(Boolean).join('  ·  ');
+  $('qsNote').value = ''; $('qsErr').hidden = true; $('qsLostErr').hidden = true;
+  $('qsDate').value = q.next || ''; $('qsDateWrap').hidden = true;
+  $('qsLost').hidden = mode !== 'lost';
+  paintQs(); paintQsLog();
+  $('qSheet').classList.add('open'); $('qSheet').scrollTop = 0;
+  if (mode === 'lost') setTimeout(function(){ $('qsLost').scrollIntoView({ block: 'center' }); }, 60);
+}
+function closeQs(){ qsQuote = null; $('qSheet').classList.remove('open'); }
+function paintQs(){
+  const q = qsFind();
+  qsMark('qsTry', 'data-k', qsState.kind);
+  qsMark('qsWho', 'data-by', qsState.by !== null ? qsState.by : (q ? q.fby : ''));
+  qsMark('qsWhen', 'data-d', qsState.when);
+  qsMark('qsWhy', 'data-w', qsState.why);
+  $('qsDateWrap').hidden = qsState.when !== 'pick';
+  $('qsNext').textContent = q && q.next ? t('qe.next', fmtDayLong(dayMs(q.next))) : t('qe.noNext');
+}
+function paintQsLog(){
+  const q = qsFind(), box = $('qsLog');
+  box.innerHTML = '';
+  if (!q) return;
+  const add = function(head, text, pending){
+    const d = document.createElement('div'); if (pending) d.className = 'pending';
+    const em = document.createElement('em'); em.textContent = head; d.appendChild(em);
+    if (text) d.appendChild(document.createTextNode(text));
+    box.appendChild(d);
+  };
+  q.log.slice().reverse().forEach(function(n){
+    add(fmtDay(n.at) + '  ·  ' + n.by + (n.pending ? '  ·  ' + t('oq.day') : ''), noteLine(n), n.pending);
+  });
+  add(fmtDay(q.whenMs) + '  ·  ' + t('qe.quoted', q.worker), q.notes || '', false);
+}
+$('qsBack').onclick = closeQs;
+[].forEach.call($('qsTry').children, function(b){
+  b.onclick = function(){
+    const k = b.getAttribute('data-k');
+    qsState.kind = qsState.kind === k ? '' : k;
+    /* Nobody picked up, or it was a message: try again in two days, unless a
+       day was already chosen by hand. Talking to them suggests nothing. */
+    if (qsState.when === null || qsState.whenAuto){
+      if (qsState.kind && qsState.kind !== 'talked'){ qsState.when = '2'; qsState.whenAuto = true; }
+      else if (qsState.whenAuto){ qsState.when = null; qsState.whenAuto = false; }
+    }
+    buzz(8); paintQs();
+  };
+});
+[].forEach.call($('qsWho').children, function(b){
+  b.onclick = function(){
+    const q = qsFind(), v = b.getAttribute('data-by');
+    const cur = qsState.by !== null ? qsState.by : (q ? q.fby : '');
+    qsState.by = cur === v ? '' : v;
+    buzz(8); paintQs();
+  };
+});
+[].forEach.call($('qsWhen').children, function(b){
+  b.onclick = function(){
+    const v = b.getAttribute('data-d');
+    qsState.whenAuto = false;
+    qsState.when = qsState.when === v ? null : v;
+    if (qsState.when === 'pick' && !$('qsDate').value){
+      const d = new Date(); d.setDate(d.getDate() + 3); $('qsDate').value = ymd(d);
+    }
+    $('qsErr').hidden = true;
+    buzz(8); paintQs();
+  };
+});
+[].forEach.call($('qsWhy').children, function(b){
+  b.onclick = function(){ qsState.why = b.getAttribute('data-w'); $('qsLostErr').hidden = true; buzz(8); paintQs(); };
+});
+/* The day the sheet should hold: undefined leaves it as it is, '' clears it,
+   null means the picked day is not a day. */
+function qsNextValue(){
+  const w = qsState.when;
+  if (w === null) return undefined;
+  if (w === 'none') return '';
+  if (w === 'pick') return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test($('qsDate').value) ? $('qsDate').value : null;
+  const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + Number(w));
+  return ymd(d);
+}
+function qsFail(msg){ $('qsErr').textContent = msg; $('qsErr').hidden = false; }
+/* What was said, as one change — null when nothing was, false when it cannot
+   be saved as it stands. */
+function qsPayload(q){
+  const text = $('qsNote').value.trim().slice(0, 500);
+  const next = qsNextValue();
+  if (next === null){ qsFail(t('qe.badDate')); return false; }
+  const p = { id: q.id };
+  let any = false;
+  if (qsState.kind || text){
+    p.nid = uid(); any = true;
+    if (qsState.kind) p.kind = qsState.kind;
+    if (text) p.text = text;
+  }
+  if (qsState.by !== null && qsState.by !== q.fby){ p.by = qsState.by; any = true; }
+  if (next !== undefined && next !== q.next){ p.next = next; any = true; }
+  return any ? p : null;
+}
+$('qsSave').onclick = function(){
+  const q = qsFind();
+  if (!q) return closeQs();
+  const p = qsPayload(q);
+  if (p === false) return;
+  buzz(12);
+  closeQs();
+  if (p) queueQuote('qfollow', p);
+};
+$('qsWon').onclick = function(){
+  const q = qsFind();
+  if (!q) return closeQs();
+  const p = qsPayload(q);
+  if (p === false) return;
+  buzz(12);
+  closeQs();
+  if (p) queueQuote('qfollow', p);           // whatever was written goes first
+  queueQuote('qstatus', { id: q.id, status: 'won' });
+  toast(t('qs.saved', t('qs.won')));
+};
+$('qsLostBtn').onclick = function(){
+  $('qsLost').hidden = false; buzz(8);
+  setTimeout(function(){ $('qsLost').scrollIntoView({ block: 'center' }); }, 30);
+};
+$('qsLostSave').onclick = function(){
+  const q = qsFind();
+  if (!q) return closeQs();
+  if (!qsState.why){ $('qsLostErr').textContent = t('qe.pickWhy'); $('qsLostErr').hidden = false; return; }
+  const p = qsPayload(q);
+  if (p === false) return;
+  buzz(12);
+  closeQs();
+  if (p) queueQuote('qfollow', p);
+  queueQuote('qstatus', { id: q.id, status: 'lost', reason: qsState.why });
+  toast(t('qs.saved', t('qs.lost')));
+};
 
 /* ═══════════ hours ═══════════ */
 $('mOwner').onclick = async function(){
@@ -6534,6 +7284,7 @@ $('mOwner').onclick = async function(){
   $('hoursTop').hidden = true;
   hoursData.sel = 0; hoursData.day = -1; $('wkNow').classList.add('on'); $('wkPrev').classList.remove('on');
   $('owner').classList.add('open');
+  loadRightNow(true);
   const mine = ++hoursAsk;
   await loadWithCopy('summary', { action:'summary', weeks:4 }, function(d){
     // The server decides the scope from the role on the sheet, so trust its
@@ -7003,7 +7754,7 @@ document.addEventListener('visibilitychange', function(){
   const mins = CONFIG.LOCK_AFTER_MINUTES;
   const gap = Date.now() - DB.get('jh.awayAt', Date.now());
   if (mins > 0 && gap > mins * 60000) lock();
-  else { paint(); sync(); loadCrew(); loadSchedule(); loadCommission(); maybeAskBreak(); sendOffice(); }
+  else { paint(); sync(); loadCrew(); loadSchedule(); loadCommission(); maybeAskBreak(); sendOffice(); checkMyState(); }
 });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
 
