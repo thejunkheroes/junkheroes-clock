@@ -27,7 +27,7 @@
 /* Which build this is. Shown faintly in the corner of the menu, so anybody can
    tell at a glance whether a phone has picked up the latest. Goes up by one
    every release, together with CACHE in sw.js. */
-const APP_VERSION = 73;
+const APP_VERSION = 79;
 
 /* ══════════════════════════════════════════════════════════════
    EDIT THIS BLOCK, THEN YOU'RE DONE.
@@ -77,6 +77,10 @@ const CONFIG = {
      is first set up and after somebody taps Log out — a man arriving at a job
      opens the app and punches in, nothing in the way. */
   LOCK_AFTER_MINUTES: 0,
+  /* A break running this long gets a "Still on break?" the next time the app
+     is looked at, so a man back at work is not left on break all afternoon.
+     Clocking out while on break asks how long it was from the same mark. */
+  BREAK_ASK_MINUTES: 30,
   ALLOW_BIOMETRICS: true      // false = passcode only, no Face ID offer
 };
 </script>
@@ -763,7 +767,7 @@ button.jb-row:active{transform:scale(.985);background:var(--tint)}
 #enrol .inner,#truckSheet .inner,#crews .inner,#myjobs .inner,#schedule .inner,#lockScreen.hasback .lock,#setup.hasback .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
 #myjobs .inner,#trackSheet .inner,#reviewSheet .inner,#confirmOut .inner,#work .inner,#owner .inner,
 #join .inner,#waitList .inner,#recent .inner,#dayWeek .inner,#payHist .inner,
-#jobAct .inner,#brkAdd .inner,#commCalc .inner,#quotes .inner{
+#jobAct .inner,#brkAdd .inner,#brkCheck .inner,#crewChk .inner,#commCalc .inner,#quotes .inner{
   padding-top:calc(env(safe-area-inset-top) + 88px)}
 h2{font-size:25px;font-weight:680;letter-spacing:.005em;margin:0 0 6px}
 .sub{color:var(--haze);margin:0 0 24px;font-size:16px;line-height:1.5}
@@ -1169,6 +1173,89 @@ html.light{--brk:#A3410F}
 .duo.one{grid-template-columns:1fr}
 .ja-status.two{grid-template-columns:repeat(2,1fr)}
 .minor-link.del-link{color:var(--err-text)}
+
+/* ── the crew check at clock-out ── */
+.xc-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:13px 14px;border-radius:14px;
+  background:var(--sunk);border:2px solid var(--card-line);box-shadow:4px 5px 0 var(--pop-soft)}
+.xc-row.done{opacity:.6}
+.xc-what{flex:1;min-width:0}
+.xc-what b{display:block;font-size:16px;color:var(--ink)}
+.xc-what span{display:block;margin-top:2px;font-size:13px;color:var(--haze)}
+.xc-row button{flex:none;min-height:44px;padding:0 14px;border-radius:6px;border:2.5px solid var(--line-2);
+  box-shadow:3px 3px 0 var(--pop);font-family:var(--font-display);font-weight:700;text-transform:uppercase;
+  letter-spacing:.04em;font-size:14px;background:var(--action);color:var(--on-action)}
+.xc-row button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--pop)}
+.xc-ok{flex:none;font-family:var(--font-label);font-weight:700;font-size:13px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--good-text)}
+#xcList{margin:6px 0 10px}
+/* what the crewmate put, small, under the box he is filling in himself */
+.hint-from{margin:-8px 0 16px;font-size:13.5px;font-style:italic;color:var(--haze)}
+#fPayWrap .hint-from{margin:-10px 0 16px}
+/* under the amount box, which is the right half of its row (.duo: two columns, 12px apart) */
+.hint-from.under-amt{margin-left:calc(50% + 6px)}
+
+/* ── a day inside the week: one chip each, with that day's figure on it ── */
+.day-chips{display:flex;gap:7px;overflow-x:auto;margin:0 calc(-1 * var(--pad)) 18px;
+  padding:2px var(--pad) 9px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.day-chips::-webkit-scrollbar{display:none}
+.day-chip{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  min-width:62px;min-height:54px;padding:6px 10px;border-radius:6px;background:var(--sunk);color:var(--ink);
+  border:2.5px solid var(--line-2);box-shadow:3px 4px 0 var(--pop);font-family:var(--font-label);font-weight:700;
+  font-size:14px;letter-spacing:.05em;text-transform:uppercase}
+.day-chip i{font-style:normal;font-size:12.5px;letter-spacing:.02em;text-transform:none;color:var(--haze);
+  font-variant-numeric:tabular-nums}
+.day-chip.idle{opacity:.5}
+.day-chip.on{background:var(--lilac);border-color:var(--line);color:var(--on-lilac);opacity:1}
+.day-chip.on i{color:var(--on-lilac);opacity:.85}
+.day-chip:active{transform:translate(2px,3px);box-shadow:1px 1px 0 var(--pop)}
+
+/* ── two answers for one job, on the office's jobs page ── */
+.jb-review{display:block;width:100%;margin:0 0 16px;padding:12px 14px;border-radius:6px;text-align:left;
+  font-family:var(--font-label);font-weight:700;font-size:15px;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--sunk);border:2.5px solid var(--brk);color:var(--brk);box-shadow:3px 3px 0 var(--pop)}
+.jb-review.on{border-color:var(--line-2);color:var(--ink)}
+.jb-review:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--pop)}
+.jb-rv{display:block;margin-top:4px;font-family:var(--font-label);font-weight:700;font-size:12px;
+  letter-spacing:.06em;text-transform:uppercase;font-style:normal}
+.jb-rv.agree{color:var(--good-text)}
+.jb-rv.differ{color:var(--brk)}
+.jb-rv.single{color:var(--haze)}
+.rv-card{margin-bottom:14px;padding:14px 15px;border-radius:14px;background:var(--sunk);
+  border:2px solid var(--brk);box-shadow:4px 5px 0 var(--pop-soft)}
+.rv-head b{display:block;font-size:17px;color:var(--ink)}
+.rv-head span{display:block;margin-top:2px;font-size:13px;color:var(--haze)}
+.rv-line{display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1.5px solid var(--edge)}
+.rv-who{flex:none;width:62px;font-family:var(--font-label);font-weight:700;font-size:13px;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--lilac)}
+.rv-vals{flex:1;min-width:0;font-size:14px;color:var(--ink);line-height:1.45}
+.rv-vals .bad{color:var(--brk);font-weight:700}
+.rv-line button{flex:none;min-height:40px;padding:0 12px;border-radius:6px;border:2px solid var(--line-2);
+  box-shadow:2px 2px 0 var(--pop);font-family:var(--font-label);font-weight:700;font-size:13px;letter-spacing:.05em;
+  text-transform:uppercase;background:var(--action);color:var(--on-action)}
+.rv-line button:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--pop)}
+
+/* ── the forgotten-break check ── */
+.bc-opts{grid-template-columns:repeat(2,1fr)}
+.bc-opts .pay{min-height:58px;font-size:16px}
+#bcOther{margin-top:4px}
+
+/* ── "updating": a saved copy is on screen and the fresh one is on its way ── */
+.fresh-pill{position:fixed;top:calc(env(safe-area-inset-top) + 24px);right:var(--pad);z-index:25;
+  padding:5px 11px;border-radius:999px;pointer-events:none;white-space:nowrap;
+  font-family:var(--font-label);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  background:var(--sunk);color:var(--lilac);border:2px solid var(--line-2)}
+.fresh-pill::before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;
+  background:currentColor;vertical-align:1px;animation:freshBlink 1s ease-in-out infinite alternate}
+@keyframes freshBlink{from{opacity:.25}to{opacity:1}}
+@media (prefers-reduced-motion: reduce){.fresh-pill::before{animation:none}}
+/* the office's changes on their way, just under the "updating" pill */
+.save-pill{top:calc(env(safe-area-inset-top) + 58px);color:var(--brk);border-color:var(--brk)}
+.save-pill.waiting::before{animation:none;opacity:.6}
+/* a line or a day the office has just changed, still on its way to the sheet */
+.dw-saving{display:block;margin-top:3px;font-family:var(--font-label);font-weight:700;font-size:12px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--brk)}
+.dw-day.pending .dw-hrs{opacity:.45}
+.dw-punch .mark.saving{background:transparent;border:1.5px solid var(--brk);color:var(--brk)}
 .dw-old{margin-top:8px;font-family:var(--font-label);font-weight:700;font-size:12.5px;letter-spacing:.07em;
   text-transform:uppercase;color:var(--haze)}
 .row .row-brk{display:inline-block;margin-left:8px;font-style:normal;font-family:var(--font-label);font-weight:700;
@@ -1291,6 +1378,8 @@ html.light{--brk:#A3410F}
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="fresh-pill" id="freshPill" hidden></div>
+<div class="fresh-pill save-pill" id="savePill" role="status" aria-live="polite" hidden></div>
 
 <!-- ═══ who's on this phone ═══ -->
 <div class="overlay" id="setup">
@@ -1414,10 +1503,12 @@ html.light{--brk:#A3410F}
       <label class="field"><span id="fValueLabel">Job total</span>
         <span class="money"><b>$</b><input id="fValue" type="text" inputmode="decimal" enterkeyhint="done"></span></label>
     </div>
+    <p class="hint-from under-amt" id="fHintAmt" hidden></p>
 
     <div id="fPayWrap">
       <p class="flabel" data-i18n="f.pay">How did they pay?</p>
       <div class="pays" id="pays"></div>
+      <p class="hint-from" id="fHintPay" hidden></p>
     </div>
 
     <label class="field" id="fNotesWrap" hidden><span data-i18n-html="f.notes">Notes <i>— optional</i></span>
@@ -1727,7 +1818,9 @@ html.light{--brk:#A3410F}
       <button class="wk-opt on" id="jbJobs" data-i18n="jb.jobs">Jobs</button>
       <button class="wk-opt" id="jbQuotes" data-i18n="jb.quotes">Quotes</button>
     </div>
+    <div class="day-chips" id="jbDays"></div>
 
+    <button class="jb-review" type="button" id="jbReview" hidden></button>
     <div class="jb-people" id="jbPeople"></div>
     <div id="workData"></div>
     <p class="note" id="jbHint" hidden data-i18n="jb.hint">Tap one to change what it came to, or to delete it.</p>
@@ -1777,6 +1870,48 @@ html.light{--brk:#A3410F}
   </div>
 </div>
 
+<!-- ═══ clocking out: what the crew logged that this person has not ═══ -->
+<div class="overlay top" id="crewChk">
+  <button class="back" id="xcBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 data-i18n="xc.title">Before you clock out</h2>
+    <p class="sub" id="xcSub"></p>
+    <div id="xcList"></div>
+    <button class="pick safe" type="button" id="xcDone" data-i18n="xc.done">Clock out</button>
+    <button class="minor-link" type="button" id="xcMore" data-i18n="xc.more">Log a job that isn’t here</button>
+  </div>
+</div>
+
+<!-- ═══ a break that never got ended: asked after a while, and at clock-out ═══ -->
+<div class="overlay top" id="brkCheck">
+  <button class="back" id="bcBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 id="bcTitle">Still on break?</h2>
+    <p class="sub" id="bcSub"></p>
+    <p class="flabel" id="bcAsk"></p>
+    <div class="pays bc-opts" id="bcOpts">
+      <button type="button" class="pay" data-m="now"><span data-i18n="bc.now">Just now</span></button>
+      <button type="button" class="pay" data-m="30"></button>
+      <button type="button" class="pay" data-m="45"></button>
+      <button type="button" class="pay" data-m="60"><span data-i18n="bc.hour">1 hour</span></button>
+      <button type="button" class="pay" data-m="other"><span data-i18n="bc.other">Other time</span></button>
+    </div>
+    <div id="bcOther" hidden>
+      <label class="field"><span data-i18n="bc.backAt">I got back to work at</span>
+        <input id="bcTime" type="time" step="60"></label>
+      <p class="err" id="bcErr" hidden></p>
+      <button class="pick safe" type="button" id="bcSave">Save</button>
+    </div>
+    <button class="minor-link" type="button" id="bcStill"></button>
+  </div>
+</div>
+
 <!-- ═══ one line of a day, changed or added: a clock-in, a clock-out or a break ═══ -->
 <div class="overlay top" id="brkAdd">
   <button class="back" id="baBack">
@@ -1822,6 +1957,7 @@ html.light{--brk:#A3410F}
         <button class="wk-opt" id="wkPrev" data-i18n="wk.last">Last week</button>
       </div>
       <p class="wk-range" id="wkRange"></p>
+      <div class="day-chips" id="hDays"></div>
 
       <div class="hero-num"><b id="hTotal">0h</b><span id="hTotalLabel" data-i18n="hrs.onClock">on the clock</span></div>
 
@@ -2398,6 +2534,82 @@ const STRINGS = {
   'ba.future':   ["That break hasn't happened yet.", 'Essa pausa ainda não aconteceu.'],
   'ba.added':    ['Break added.', 'Pausa adicionada.'],
   'day.addOne':  ['+ Add', '+ Adicionar'],
+  'saved.updating':['Updating', 'Atualizando'],
+  'oq.one':      ['Saving 1 change', 'Salvando 1 mudança'],
+  'oq.many':     ['Saving {0} changes', 'Salvando {0} mudanças'],
+  'oq.wait1':    ['1 change waiting for signal', '1 mudança esperando sinal'],
+  'oq.waitN':    ['{0} changes waiting for signal', '{0} mudanças esperando sinal'],
+  'oq.saved':    ['Saved.', 'Salvo.'],
+  'oq.failed':   ['One change didn’t go through: {0}', 'Uma mudança não foi salva: {0}'],
+  'oq.failedN':  ['{1} changes didn’t go through. The first: {0}', '{1} mudanças não foram salvas. A primeira: {0}'],
+  'oq.pending':  ['saving', 'salvando'],
+  'oq.day':      ['saving…', 'salvando…'],
+  'xc.title':    ['Before you clock out', 'Antes de encerrar o dia'],
+  'xc.more':     ['Log a job that isn’t here', 'Registrar um serviço que não está aqui'],
+  'day.week':    ['Week', 'Semana'],
+  'hrs.onDay':   ['on the clock · {0}', 'no serviço · {0}'],
+  'hrs.crewOnDay':['crew hours · {0}', 'horas da equipe · {0}'],
+  'hrs.noneDay': ['Nobody was on the clock that day.', 'Ninguém trabalhou nesse dia.'],
+  'hrs.noneDayMe':['You weren’t on the clock that day.', 'Você não trabalhou nesse dia.'],
+  'jb.noneDayJ': ['No jobs logged that day.', 'Nenhum serviço registrado nesse dia.'],
+  'jb.noneDayQ': ['No quotes logged that day.', 'Nenhum orçamento registrado nesse dia.'],
+  'xc.checking': ['Checking your crew’s jobs…', 'Conferindo os serviços da equipe…'],
+  'xc.sub':      ['Your crew logged jobs you haven’t. Confirm the ones you worked on, so the office has both answers.',
+                  'Sua equipe registrou serviços que você ainda não registrou. Confirme os que você fez, para o escritório ter as duas respostas.'],
+  'xc.subBoard': ['These jobs on today’s schedule haven’t been logged by anyone yet.',
+                  'Estes serviços da agenda de hoje ainda não foram registrados por ninguém.'],
+  'xc.allDone':  ['All done. Thank you!', 'Tudo certo. Obrigado!'],
+  'xc.by':       ['{0} logged it', '{0} registrou'],
+  'xc.board':    ['On the schedule, nobody logged it', 'Na agenda, ninguém registrou'],
+  'xc.confirm':  ['Confirm', 'Confirmar'],
+  'xc.log':      ['Log it', 'Registrar'],
+  'xc.doneRow':  ['✓ Done', '✓ Feito'],
+  'xc.done':     ['Clock out', 'Encerrar o dia'],
+  'xc.confirmT': ['{0}’s job: your answer', 'Serviço do {0}: sua resposta'],
+  'xc.confirmSub':['Type what you remember. {0}’s answers are shown small to help you.',
+                  'Digite o que você lembra. As respostas do {0} aparecem pequenas para ajudar.'],
+  'xc.theyPut':  ['{0} put {1}', '{0} colocou {1}'],
+  'xc.theyPaid': ['{0} picked {1}', '{0} escolheu {1}'],
+  'rv.count1':   ['1 job to check', '1 serviço para conferir'],
+  'rv.countN':   ['{0} jobs to check', '{0} serviços para conferir'],
+  'rv.back':     ['Show all jobs', 'Mostrar todos os serviços'],
+  'rv.sub':      ['Two people logged these jobs with different answers. Tap the right answer and the other entry is changed to match. Every change goes in the Edits tab.',
+                  'Duas pessoas registraram estes serviços com respostas diferentes. Toque na resposta certa e a outra é corrigida igual. Toda mudança fica na aba Edits.'],
+  'rv.subView':  ['Two people logged these jobs with different answers. Henrique or Filipe can pick the right one.',
+                  'Duas pessoas registraram estes serviços com respostas diferentes. Henrique ou Filipe podem escolher a certa.'],
+  'rv.none':     ['Nothing to check. Every job two people logged matches.',
+                  'Nada para conferir. Todo serviço registrado por duas pessoas bate.'],
+  'rv.diffs':    ['Different: {0}', 'Diferente: {0}'],
+  'rv.f.amount': ['amount', 'valor'],
+  'rv.f.method': ['payment', 'pagamento'],
+  'rv.f.first':  ['first name', 'nome'],
+  'rv.f.last':   ['last name', 'sobrenome'],
+  'rv.f.town':   ['town', 'cidade'],
+  'rv.use':      ['Use this', 'Usar esta'],
+  'rv.fixed':    ['Fixed. The other entry now matches {0}’s.', 'Corrigido. A outra entrada agora bate com a do {0}.'],
+  'rv.match':    ['Matches {0}', 'Bate com {0}'],
+  'rv.differs':  ['Differs from {0}', 'Diferente de {0}'],
+  'rv.single':   ['Nobody else on the crew logged it', 'Ninguém mais da equipe registrou'],
+  'bc.askTitle': ['Still on break?', 'Ainda na pausa?'],
+  'bc.outTitle': ['Forgot to clock back in?', 'Esqueceu de voltar da pausa?'],
+  'bc.since':    ['Your break started at {0}. That was {1} ago.', 'Sua pausa começou às {0}. Faz {1}.'],
+  'bc.askQ':     ['When did you get back to work?', 'Quando você voltou ao trabalho?'],
+  'bc.outQ':     ['How long was your break?', 'Quanto tempo durou sua pausa?'],
+  'bc.now':      ['Just now', 'Agora mesmo'],
+  'bc.min':      ['{0} min break', 'Pausa de {0} min'],
+  'bc.hour':     ['1 hour break', 'Pausa de 1 hora'],
+  'bc.other':    ['Other time', 'Outro horário'],
+  'bc.backAt':   ['I got back to work at', 'Voltei ao trabalho às'],
+  'bc.saveIn':   ['Save', 'Salvar'],
+  'bc.saveOut':  ['Save and clock out', 'Salvar e encerrar o dia'],
+  'bc.still':    ["I'm still on break", 'Ainda estou na pausa'],
+  'bc.untilNow': ['No, my break lasted until now', 'Não, minha pausa foi até agora'],
+  'bc.badTime':  ['Pick a time after your break started ({0}) and not later than now.',
+                  'Escolha um horário depois do início da pausa ({0}) e não depois de agora.'],
+  'bc.ended':    ['Break ended at {0}. Your hours are fixed.', 'Pausa encerrada às {0}. Suas horas foram corrigidas.'],
+  'day.late':    ['entered later', 'informado depois'],
+  'saved.old':   ["Couldn't refresh. Showing what this phone saved {0}.",
+                  'Não deu para atualizar. Mostrando o que este telefone salvou {0}.'],
   'day.changed': ['Punch changed.', 'Marcação alterada.'],
   'day.added':   ['Punch added.', 'Marcação adicionada.'],
   'tf.addTitle': ['Add to this day', 'Adicionar neste dia'],
@@ -2652,6 +2864,7 @@ function acctDel(name){
   const all = accounts();
   delete all[name];
   DB.set('jh.accounts', all);
+  dropCopies(name);
 }
 
 /* Older builds kept the one user's credentials in flat keys. Fold them in once
@@ -2765,11 +2978,262 @@ function clockOut(){
   buzz([30,60,30]);
   return worked;
 }
-function startBreak(){ st.status='break'; st.breakStart=Date.now(); punch('break_start'); buzz(35); }
+function startBreak(){ st.status='break'; st.breakStart=Date.now(); st.breakAskedAt=0; punch('break_start'); buzz(35); }
 function endBreak(){
   st.breakMs += Date.now() - st.breakStart; st.breaks++;
-  st.status='in'; st.breakStart=null; punch('break_end'); buzz(35);
+  st.status='in'; st.breakStart=null; st.breakAskedAt=0; punch('break_end'); buzz(35);
 }
+
+/* ═══════════ the crew check at clock-out ═══════════
+   On a busy day somebody on the truck forgets to log a job, or logs it wrong.
+   Clocking out, a man on a truck is shown what the rest of his crew logged
+   today that he has not, and each one is his to confirm: his own answer, typed
+   in himself, with his crewmate's shown small to jog his memory. The office
+   gets both answers, paired, and anything that differs is flagged for it.
+   Booked jobs nobody on the truck logged are listed too. Nothing here can hold
+   a clock-out up: no signal, or no answer in a few seconds, and he just goes. */
+function ymd(d){
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function foldFirst(s){
+  return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+/* The day his shift began — a night that runs past midnight is still that
+   day's work — and that day's bookings for his truck, from the board the
+   phone already holds. */
+function shiftDay(){ return ymd(new Date(st.shiftStart || Date.now())); }
+function boardToday(){
+  const today = shiftDay();
+  if (schedule.today && schedule.date === today) return schedule.jobs || [];
+  if (!schedule.today && schedule.todayDate === today) return schedule.alsoToday || [];
+  return [];
+}
+function confirmJob(e, after){
+  openTrack();
+  startTrack('job');
+  trkMatch = e; trkAfter = after;
+  $('trkTitle').textContent = t('xc.confirmT', e.worker);
+  $('trkSub').textContent = t('xc.confirmSub', loggedBy(e));
+  $('fFirst').value = e.first || ''; $('fLast').value = e.last || ''; $('fTown').value = e.town || '';
+  // the money and the payment are his to answer; the others' are only a reminder
+  const all = [{ worker: e.worker, amount: e.amount, method: e.method }].concat(e.also || []);
+  const amts = all.filter(function(x){ return x.amount != null; })
+                  .map(function(x){ return t('xc.theyPut', x.worker, money(x.amount)); });
+  const pays = all.filter(function(x){ return !!x.method; })
+                  .map(function(x){ return t('xc.theyPaid', x.worker, payName(x.method)); });
+  if (amts.length){ $('fHintAmt').textContent = amts.join('  ·  '); $('fHintAmt').hidden = false; }
+  if (pays.length){ $('fHintPay').textContent = pays.join('  ·  '); $('fHintPay').hidden = false; }
+}
+/* "Paulo", or "Paulo & Rey" when both of them logged it */
+function loggedBy(e){
+  return [e.worker].concat((e.also || []).map(function(x){ return x.worker; }))
+    .filter(function(v, i, a){ return a.indexOf(v) === i; }).join(' & ');
+}
+function logBoardJob(j, after){
+  openTrack();
+  startTrack('job');
+  trkJob = j; trkAfter = after;
+  // logged after the fact: it goes on the booking's day, even past midnight
+  trkWhen = j.startMs && j.startMs < Date.now() ? j.startMs : null;
+  const town = townFromAddress(j.where), who = nameFromTitle(j.title, town);
+  $('fFirst').value = who.first; $('fLast').value = who.last; $('fTown').value = town;
+}
+let xc = null;                         // { items, then, loading }
+async function crewCheckThen(then){
+  const truck = st.truck || '';
+  if (isTest() || !worker || truckMode(worker) === 'none' || !truck || truck === officeName()){ then(); return; }
+  const mine = xc = { items: [], then: then, loading: true };
+  paintCrewCheck();
+  $('crewChk').classList.add('open'); $('crewChk').scrollTop = 0;
+  let d = null;
+  try {
+    d = await Promise.race([ask({ action:'crewcheck', truck: truck, date: shiftDay() }),
+                            new Promise(function(r){ setTimeout(function(){ r(null); }, 7000); })]);
+  } catch(e){ d = null; }
+  if (xc !== mine) return;             // he backed out while it was on its way
+  const items = [], known = Object.create(null);
+  if (d && d.ok){
+    (d.entries || []).forEach(function(e){
+      known[foldFirst(e.first)] = 1;
+      if (!e.mine && e.during) items.push({ kind:'confirm', e:e, done:false });
+    });
+    (d.mine || []).forEach(function(m){ known[foldFirst(m.first)] = 1; });
+    (d.logged || []).forEach(function(n){ known[foldFirst(n)] = 1; });   // by anybody, either truck
+  }
+  boardToday().forEach(function(j){
+    if (j.done || loggedHere(j)) return;
+    const town = townFromAddress(j.where), who = nameFromTitle(j.title, town);
+    if (who.first && known[foldFirst(who.first)]) return;    // somebody logged it under that name
+    items.push({ kind:'board', j:j, who:who, town:town, done:false });
+  });
+  mine.loading = false; mine.items = items;
+  if (!items.length){ xc = null; closeCrewCheck(); then(); return; }
+  paintCrewCheck(); buzz([20, 40, 20]);
+}
+function closeCrewCheck(){ $('crewChk').classList.remove('open'); }
+function paintCrewCheck(){
+  const box = $('xcList'); box.innerHTML = '';
+  if (!xc) return;
+  if (xc.loading){ $('xcSub').textContent = t('xc.checking'); $('xcDone').hidden = true; $('xcMore').hidden = true; return; }
+  $('xcDone').hidden = false; $('xcMore').hidden = false;
+  const left = xc.items.filter(function(i){ return !i.done; }).length;
+  const asking = xc.items.some(function(i){ return i.kind === 'confirm' && !i.done; });
+  $('xcSub').textContent = !left ? t('xc.allDone') : t(asking ? 'xc.sub' : 'xc.subBoard');
+  xc.items.forEach(function(it){
+    const row = document.createElement('div'); row.className = 'xc-row' + (it.done ? ' done' : '');
+    const what = document.createElement('div'); what.className = 'xc-what';
+    const b = document.createElement('b'), sp = document.createElement('span');
+    if (it.kind === 'confirm'){
+      b.textContent = ((it.e.first || '') + (it.e.last ? ' ' + it.e.last : '')).trim() || t('mj.customer');
+      sp.textContent = [t('xc.by', loggedBy(it.e)), it.e.whenMs ? fmtTime(it.e.whenMs) : '', it.e.town]
+        .filter(Boolean).join('  ·  ');
+    } else {
+      b.textContent = ((it.who.first || '') + (it.who.last ? ' ' + it.who.last : '')).trim() || it.j.title;
+      sp.textContent = [t('xc.board'), it.j.when || '', it.town].filter(Boolean).join('  ·  ');
+    }
+    what.appendChild(b); what.appendChild(sp); row.appendChild(what);
+    if (it.done){
+      const ok = document.createElement('span'); ok.className = 'xc-ok'; ok.textContent = t('xc.doneRow');
+      row.appendChild(ok);
+    } else {
+      const go = document.createElement('button'); go.type = 'button';
+      go.textContent = t(it.kind === 'confirm' ? 'xc.confirm' : 'xc.log');
+      go.onclick = function(){
+        const list = xc;
+        closeCrewCheck();
+        const back = function(saved){
+          if (saved) it.done = true;
+          if (xc === list){ paintCrewCheck(); $('crewChk').classList.add('open'); }
+        };
+        if (it.kind === 'confirm') confirmJob(it.e, back); else logBoardJob(it.j, back);
+        buzz(12);
+      };
+      row.appendChild(go);
+    }
+    box.appendChild(row);
+  });
+}
+$('xcDone').onclick = function(){
+  const then = xc && xc.then;
+  xc = null; closeCrewCheck();
+  if (then) then();
+};
+/* A job he did that nobody has logged and that was not booked: the ordinary
+   job or quote form, and back to the list after. */
+$('xcMore').onclick = function(){
+  const list = xc;
+  if (!list) return;
+  closeCrewCheck();
+  openTrack();
+  trkAfter = function(){ if (xc === list){ paintCrewCheck(); $('crewChk').classList.add('open'); } };
+  buzz(12);
+};
+// backing out leaves him clocked in, as "Never mind" does
+$('xcBack').onclick = function(){ xc = null; closeCrewCheck(); paint(); };
+function finishClockOut(){ const worked = clockOut(); paint(); showThanks(worked); }
+
+/* ═══════════ the forgotten break ═══════════
+   Busy days, a man starts his break, goes back to work and never taps that he
+   is back — and finds out at clock-out that he was "on break" all afternoon.
+   Two catches. After BREAK_ASK_MINUTES the app asks "Still on break?" when it
+   is looked at; and clocking out while on break asks how long the break was.
+   Either way the break is closed at the time he says, marked as entered later
+   so the office can see it was filled in after the fact. */
+function breakLong(){
+  return st.status === 'break' && !!st.breakStart &&
+         Date.now() - st.breakStart >= (CONFIG.BREAK_ASK_MINUTES || 30) * 60000;
+}
+const BREAK_SNOOZE_MS = 15 * 60000;        // "still on break" — ask again after this
+function maybeAskBreak(){
+  if (!unlocked || document.hidden || !breakLong()) return;
+  if (Date.now() - (st.breakAskedAt || 0) < BREAK_SNOOZE_MS) return;
+  if (document.querySelector('.overlay.open')) return;   // never on top of something he is doing
+  openBreakCheck('ask');
+}
+/* The break ends at backMs, which is in the past. */
+function endBreakAt(backMs, why){
+  if (st.status !== 'break' || !st.breakStart) return;
+  backMs = Math.max(st.breakStart + 60000, Math.min(Date.now(), backMs));
+  st.breakMs += backMs - st.breakStart; st.breaks++;
+  st.status = 'in'; st.breakStart = null; st.breakAskedAt = 0;
+  punch('break_end', { ts: new Date(backMs).toISOString(), late: why });
+  buzz(35);
+}
+let bcMode = null, bcThen = null;
+function openBreakCheck(mode, then){
+  bcMode = mode; bcThen = then || null;
+  const start = st.breakStart, gone = Date.now() - start;
+  $('bcTitle').textContent = t(mode === 'out' ? 'bc.outTitle' : 'bc.askTitle');
+  $('bcSub').textContent = t('bc.since', fmtTime(start), human(gone));
+  $('bcAsk').textContent = t(mode === 'out' ? 'bc.outQ' : 'bc.askQ');
+  [].forEach.call($('bcOpts').children, function(b){
+    const m = b.getAttribute('data-m');
+    if (m === '30' || m === '45') b.textContent = t('bc.min', m);
+    if (m === 'now') b.hidden = mode === 'out';
+    else if (m !== 'other') b.hidden = Number(m) * 60000 >= gone;   // no break longer than it has been
+  });
+  $('bcOther').hidden = true; $('bcErr').hidden = true;
+  $('bcTime').classList.remove('bad');
+  $('bcTime').value = hhmm(Math.min(Date.now(), start + 30 * 60000));
+  $('bcSave').textContent = t(mode === 'out' ? 'bc.saveOut' : 'bc.saveIn');
+  $('bcStill').textContent = t(mode === 'out' ? 'bc.untilNow' : 'bc.still');
+  $('brkCheck').classList.add('open');
+  $('brkCheck').scrollTop = 0;
+  buzz([20, 40, 20]);
+}
+function closeBreakCheck(){ $('brkCheck').classList.remove('open'); bcMode = null; bcThen = null; }
+/* back: a time he got back, 'now', or null for "still on break" / "until now" */
+function answerBreakCheck(back){
+  const mode = bcMode, then = bcThen;
+  closeBreakCheck();
+  if (mode === 'out'){
+    if (back) endBreakAt(back, 'out');
+    paint();
+    crewCheckThen(finishClockOut);
+    return;
+  }
+  if (back === 'now'){ endBreak(); toast(t('bc.ended', fmtTime(Date.now()))); }
+  else if (back){ endBreakAt(back, 'ask'); toast(t('bc.ended', fmtTime(back))); }
+  else { st.breakAskedAt = Date.now(); save(); }
+  paint();
+  if (then) then();
+}
+[].forEach.call($('bcOpts').children, function(btn){
+  btn.onclick = function(){
+    if (st.status !== 'break' || !st.breakStart){ closeBreakCheck(); paint(); return; }
+    const m = btn.getAttribute('data-m');
+    if (m === 'other'){
+      $('bcOther').hidden = false; buzz(12);
+      try { $('bcTime').focus(); } catch(e){}
+      return;
+    }
+    answerBreakCheck(m === 'now' ? 'now' : st.breakStart + Number(m) * 60000);
+  };
+});
+$('bcSave').onclick = function(){
+  if (st.status !== 'break' || !st.breakStart){ closeBreakCheck(); paint(); return; }
+  const v = $('bcTime').value;                       // 'HH:MM'
+  const start = st.breakStart;
+  let back = null;
+  if (/^\d{1,2}:\d{2}/.test(v)){
+    const d = new Date(start);
+    d.setHours(Number(v.slice(0, 2)), Number(v.slice(3, 5)), 0, 0);
+    if (d.getTime() <= start) d.setDate(d.getDate() + 1);   // a break that ran past midnight
+    back = d.getTime();
+  }
+  if (!back || back <= start || back > Date.now() + 30000){
+    $('bcTime').classList.add('bad');
+    $('bcErr').textContent = t('bc.badTime', fmtTime(start)); $('bcErr').hidden = false;
+    return;
+  }
+  answerBreakCheck(back);
+};
+$('bcStill').onclick = function(){ answerBreakCheck(null); };
+$('bcBack').onclick = function(){
+  // backing out of the clock-out question leaves him clocked in and on break
+  if (bcMode === 'ask'){ st.breakAskedAt = Date.now(); save(); }
+  closeBreakCheck(); paint();
+};
 
 /* ═══════════ trucks and crews ═══════════ */
 /* Nobody pairs anybody. Pick a truck, and whoever else picked it that day is
@@ -2898,12 +3362,12 @@ $('mCrews').onclick = async function(){
   $('menu').classList.remove('open');
   $('crewsData').innerHTML = ''; $('crewsSub').textContent = t('loading');
   $('crews').classList.add('open');
-  try {
-    const d = await ask({ action:'crews', days:14 });
-    if (!d.ok) throw new Error(d.error || 'failed');
-    renderCrews(d.days || []);
-  } catch(e){ $('crewsSub').textContent = t('crews.fail'); }
+  const mine = ++crewsAsk;
+  await loadWithCopy('crews', { action:'crews', days:14 }, function(d){ renderCrews(d.days || []); },
+    function(){ return mine === crewsAsk && $('crews').classList.contains('open'); },
+    function(){ $('crewsSub').textContent = t('crews.fail'); });
 };
+let crewsAsk = 0;
 
 /* ═══════════ what's next ═══════════
    The round comes off the company calendar by way of the script — no phone ever
@@ -2949,6 +3413,82 @@ function townFromAddress(where){
   }
   return '';
 }
+
+/* NAME-START */
+/* "Maria Silva - 2 loads (garage)" → { first: "Maria", last: "Silva" }. The
+   board shows the calendar title, and the office writes the customer's name in
+   it. Whatever does not read as a name is left out rather than guessed, so the
+   worst case is the box the crew would have typed in anyway. */
+const NOT_NAME = new RegExp('^(junk|removal|remove|pick|pickup|haul|hauling|estimate|est|quote|quoted|' +
+  'cleanout|clean|cleanup|job|jobs|couch|sofa|sectional|furniture|appliance|appliances|mattress|' +
+  'mattresses|demo|demolition|garage|basement|attic|yard|shed|debris|trash|load|loads|truck|half|full|' +
+  'quarter|min|minimum|call|called|callback|cancelled|canceled|tentative|confirmed|booked|follow|' +
+  'followup|the|a|an|for|at|in|on|of|to|with|from|by|new|old|tbd|tba|piano|hot|tub|carpet|tv|fridge|' +
+  'refrigerator|washer|dryer|dresser|bed|table|chairs|boxes|stuff|items|misc|office|apartment|apt|house|' +
+  'home|unit|storage|move|moving|out|eviction|estate|hoarder|commercial|residential|recurring|repeat|' +
+  'customer|client|paid|unpaid|deposit|cash|card|check|venmo|zelle|st|street|rd|road|ave|avenue|ln|lane|' +
+  'blvd|way|ct|court|pl|place|dr|drive|ter|terrace|hwy|route|rte|ma|nh|me|ri|ct|ny|vt|usa|am|pm|' +
+  'morning|afternoon|evening|today|tomorrow|asap|urgent|same|day|week|weekend|back|done|no|show|noshow|' +
+  'left|message|voicemail|vm|text|texted|reschedule|rescheduled|maybe|hold|pending|need|needs|info|' +
+  'price|pricing|lunch|break|meeting|team|crew|dump|run|transfer|station|gas|fuel|donation|donate|' +
+  'recycling|recycle|drop|dropoff|bins?|dumpster|rental|swap|off|up|over|ok|get|pickups?)$', 'i');
+const NAME_WORD = /^[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’.\-]*$/;
+const HONORIFIC = /^(mr|mrs|ms|miss|mx|sr|sra|dona)\.?$/i;
+const STREET = /^(st|street|rd|road|ave|avenue|ln|lane|blvd|way|ct|court|pl|place|dr|drive|ter|terrace)$/i;
+/* Towns the business serves. A title that is only a town is not a customer;
+   a surname that happens to be one ("John Reading") still is. */
+const SERVED_TOWNS = ('Salem|Swampscott|Marblehead|Lynn|Peabody|Beverly|Hamilton|Georgetown|Saugus|Danvers|' +
+  'Essex|Revere|Woburn|Winthrop|Andover|Topsfield|Everett|Manchester|Medford|Gloucester|Wilmington|' +
+  'Reading|Nahant|Middleton|Malden|Lynnfield|Boxford|Burlington|Rowley|Ipswich|Melrose|Wenham|' +
+  'Wakefield|Newburyport|Stoneham|North Reading|Chelsea|Winchester|Rockport|North Andover|Haverhill|' +
+  'Tewksbury|Methuen|Lexington|Lawrence|Boston').toLowerCase().split('|');
+function nameFromTitle(title, town){
+  const none = { first: '', last: '' };
+  const cap = function(w){ return w.charAt(0).toUpperCase() + w.slice(1); };
+  const isTown = function(words){
+    const s = words.join(' ').toLowerCase();
+    return SERVED_TOWNS.indexOf(s) !== -1 || (!!town && s === String(town).trim().toLowerCase());
+  };
+  // asides in brackets go, then the title falls apart at its separators
+  const plain = String(title || '').replace(/[(\[{][^)\]}]*[)\]}]?/g, ' ');
+  const parts = plain.split(/\s[-–—]+\s|\s[-–—]+|[-–—]+\s|[|:•·\/,;#@]+/);
+  for (let i = 0; i < parts.length; i++){
+    const words = parts[i].trim().split(/\s+/).filter(Boolean)
+      .map(function(w){ return /^(and|e)$/i.test(w) || w === '+' ? '&' : w; });
+    // the first run of name-like words, as long as it does not follow a number
+    // or a street word ("12 Elm St" is somewhere, not someone)
+    let run = [], after = '';
+    for (let k = 0; k < words.length && !run.length; k++){
+      const w = words[k];
+      const ok = w !== '&' && NAME_WORD.test(w) && !NOT_NAME.test(w.replace(/[.'’]/g, ''));
+      if (!ok){ after = w; continue; }
+      if (/\d/.test(after) || STREET.test(after.replace(/\./g, ''))){
+        after = w; continue;
+      }
+      let j = k;
+      while (j < words.length && (words[j] === '&' ||
+             (NAME_WORD.test(words[j]) && !NOT_NAME.test(words[j].replace(/[.'’]/g, ''))))) j++;
+      run = words.slice(k, j);
+    }
+    while (run.length && run[run.length - 1] === '&') run.pop();
+    let lead = 0;
+    while (lead < run.length && HONORIFIC.test(run[lead])) lead++;
+    const titled = lead > 0;
+    run = run.slice(lead).map(function(w){ return w.replace(/\.+$/, ''); }).filter(Boolean);
+    if (!run.length || run.length > 4 || run[0] === '&' || isTown(run)) continue;
+    const amp = run.indexOf('&');
+    // a couple: "John & Mary Smith" is John, of the Smiths
+    if (amp !== -1){
+      const tail = run.slice(amp + 1);
+      return { first: cap(run[0]), last: tail.length > 1 ? cap(tail[tail.length - 1]) : '' };
+    }
+    // "Mrs. Johnson" is a surname with nobody's first name in front of it
+    if (titled && run.length === 1) return { first: '', last: cap(run[0]) };
+    return { first: cap(run[0]), last: run.slice(1).map(cap).join(' ') };
+  }
+  return none;
+}
+/* NAME-END */
 
 /* Ticking a job off. The board is updated at once so it feels immediate, and
    the sheet is told after — a tick that fails to send is put back. */
@@ -3182,14 +3722,20 @@ function noteLogged(j){
   DB.set('jh.logged', keep);
 }
 
-/* Straight from the board into the same form the crew already knows — the town
-   filled in from the address, and the job ticked off when it saves. */
+/* Straight from the board into the same form the crew already knows — the
+   customer's name read off the booking's title, the town from its address, and
+   the job ticked off when it saves. */
 function completeJob(j){
+  if (breakLong()){ closeSchedule(); openBreakCheck('ask', function(){ completeJob(j); }); return; }
   closeSchedule();
   openTrack();                      // clears any previous link
   startTrack('job');
   trkJob = j;                       // ...so this comes after it
-  $('fTown').value = townFromAddress(j.where);
+  const town = townFromAddress(j.where);
+  const who = nameFromTitle(j.title, town);
+  $('fFirst').value = who.first;
+  $('fLast').value  = who.last;
+  $('fTown').value  = town;
 }
 
 function openSchedule(){ schedView = 'day'; renderSchedule(); $('schedule').classList.add('open'); }
@@ -3261,18 +3807,26 @@ async function openWeekDetail(worker, weekStart){
   $('dwRange').textContent = t('loading');
   $('dwDays').innerHTML = '';
   $('dayWeek').classList.add('open');
-  await loadWeekDetail();
+  await loadWeekDetail(true);
 }
 function self(){ return worker; }
 function closeWeekDetail(){ $('dayWeek').classList.remove('open'); }
 
-async function loadWeekDetail(){
+async function loadWeekDetail(useSaved){
+  const who = dwWorker, start = dwStart, what = 'week|' + who + '|' + start;
+  const current = function(){ return dwWorker === who && dwStart === start; };
+  const show = function(d, fresh){ dwData = Object.assign({}, d, { stale: !fresh }); reapplyLocal(); renderWeekDetail(); };
+  if (useSaved){
+    await loadWithCopy(what, { action:'week', worker: who, weekStart: start }, show, current,
+      function(){ $('dwRange').textContent = t('hrs.fail'); });
+    return;
+  }
   try {
-    const d = await ask({ action:'week', worker: dwWorker, weekStart: dwStart });
+    const d = await ask({ action:'week', worker: who, weekStart: start });
     if (!d || !d.ok) throw new Error('failed');
-    dwData = d;
-  } catch(e){ $('dwRange').textContent = t('hrs.fail'); return; }
-  renderWeekDetail();
+    keepCopy(what, d);
+    if (current()) show(d, true);
+  } catch(e){ if (current()) $('dwRange').textContent = t('hrs.fail'); }
 }
 
 function renderWeekDetail(){
@@ -3289,14 +3843,15 @@ function renderWeekDetail(){
       (d.paidBy ? '  ·  ' + t('pay.by', d.paidBy) : '');
   } else paidLine.hidden = true;
 
-  $('dwMark').hidden   = !d.canEdit || d.paid;
-  $('dwUnlock').hidden = !d.canEdit || !d.paid;
+  $('dwMark').hidden   = !d.canEdit || d.paid || d.stale;
+  $('dwUnlock').hidden = !d.canEdit || !d.paid || d.stale;
 
   const box = $('dwDays'); box.innerHTML = '';
   const names = dayNames();
   d.days.forEach(function(day, i){
     // a day moved to its month tab is history: shown, never changed
-    const canChange = d.canEdit && !d.paid && !day.archived;
+    // nor while a saved copy is up: the fresh one may already differ
+    const canChange = d.canEdit && !d.paid && !day.archived && !d.stale;
     const card = document.createElement('div');
     card.className = 'dw-day' + (day.hours ? '' : ' empty');
 
@@ -3310,8 +3865,13 @@ function renderWeekDetail(){
     hrs.className = 'dw-hrs';
     hrs.textContent = day.hours ? hrsText(day.hours) : '0h';
     sum.appendChild(hrs);
+    if (day.pending){
+      const sv = document.createElement('span'); sv.className = 'dw-saving'; sv.textContent = t('oq.day');
+      sum.appendChild(sv);
+      card.classList.add('pending');
+    }
     const brkMin = (day.shifts || []).reduce(function(a, x){ return a + (x.breakMin || 0); }, 0);
-    if (brkMin > 0){
+    if (brkMin > 0 && !day.pending){
       const bt = document.createElement('span'); bt.className = 'dw-brk-tot';
       bt.textContent = t('day.brkTot', human(brkMin * 60000));
       sum.appendChild(bt);
@@ -3360,9 +3920,10 @@ function renderWeekDetail(){
         const tm = document.createElement('span'); tm.className = 'tm';
         tm.textContent = fmtTime(p.ms) || p.time;
         row.appendChild(lbl); row.appendChild(tm);
-        if (p.edited){
+        if (p.pending || p.edited){
           const mk = document.createElement('span');
-          mk.className = 'mark'; mk.textContent = t('day.edited');
+          mk.className = 'mark' + (p.pending ? ' saving' : '');
+          mk.textContent = t(p.pending ? 'oq.pending' : 'day.edited');
           row.appendChild(mk);
         }
         chevron(row);
@@ -3375,10 +3936,11 @@ function renderWeekDetail(){
       const span = document.createElement('span'); span.className = 'span';
       span.textContent = fmtTime(b.startMs) + ' → ' +
         (b.endMs && !b.toClockOut ? fmtTime(b.endMs) : (b.toClockOut ? fmtTime(b.endMs) : '…'));
-      if (!b.endMs || b.toClockOut || b.edited){
+      if (!b.endMs || b.toClockOut || b.edited || b.late || b.pending){
         const why = document.createElement('em');
-        why.textContent = [!b.endMs ? t('day.brkOpen') : '', b.toClockOut ? t('day.brkToOut') : '',
-                           b.edited ? t('day.edited') : ''].filter(Boolean).join('  ·  ');
+        why.textContent = b.pending ? t('oq.pending')
+          : [!b.endMs ? t('day.brkOpen') : '', b.toClockOut ? t('day.brkToOut') : '',
+             b.late ? t('day.late') : '', b.edited && !b.late ? t('day.edited') : ''].filter(Boolean).join('  ·  ');
         span.appendChild(why);
       }
       blk.appendChild(lbl); blk.appendChild(span);
@@ -3439,9 +4001,126 @@ async function refreshHours(){
   if (!$('owner').classList.contains('open')) return;
   try {
     const d = await ask({ action:'summary', weeks:4 });
-    if (d && d.ok) render(d.summary, d.scope === 'all');
+    if (d && d.ok){ keepCopy('summary', d); render(d.summary, d.scope === 'all'); }
   } catch(e){ /* no signal: the old figures stay until it is reopened */ }
 }
+/* ═══════════ the office's changes, saved on the phone first ═══════════
+   Correcting hours used to mean waiting on Google for every change, and
+   leaving the app before it answered could lose it. Now a change is kept on
+   the phone the moment it is saved, shown straight away (marked "saving"), and
+   sent behind the scenes — several at once when there are several. Closing the
+   app, switching to another, or losing signal only delays it: it goes the next
+   time the app is open. The sheet still checks every change, and anything it
+   refuses comes back with the reason and the week as it really stands. */
+function oqAll(){ return DB.get('jh.oq', []); }
+function oqMine(){ return oqAll().filter(function(i){ return i.by === worker; }); }
+let oqSending = false, oqTimer = null;
+function queueOffice(action, payload){
+  const item = { eid: uid(), by: worker, action: action, payload: payload,
+                 worker: dwWorker, weekStart: dwStart, at: Date.now() };
+  const q = oqAll(); q.push(item); DB.set('jh.oq', q);
+  hoursDirty = true;
+  applyLocal(item);
+  renderWeekDetail();
+  paintSaving();
+  sendOffice();
+}
+function paintSaving(){
+  const n = worker ? oqMine().length : 0, pill = $('savePill');
+  if (!n){ pill.hidden = true; return; }
+  const off = !navigator.onLine;
+  pill.textContent = off ? t(n === 1 ? 'oq.wait1' : 'oq.waitN', n) : t(n === 1 ? 'oq.one' : 'oq.many', n);
+  pill.classList.toggle('waiting', off);
+  pill.hidden = false;
+}
+async function sendOffice(){
+  if (oqSending || !worker || isTest() || !unlocked) return;
+  const mine = oqMine();
+  paintSaving();
+  if (!mine.length || !navigator.onLine) return;
+  oqSending = true;
+  const batch = mine.slice(0, 20);
+  const want = $('dayWeek').classList.contains('open') && dwWorker && dwStart
+    ? { worker: dwWorker, weekStart: dwStart } : null;
+  let again = false, settled = false;
+  try {
+    const d = await ask({ action:'batchedit', week: want,
+      edits: batch.map(function(i){ return Object.assign({ eid: i.eid, action: i.action }, i.payload); }) });
+    if (!d || !d.ok){
+      if (d && (d.error === 'not allowed' || d.error === 'unauthorized')){
+        // nothing this account sends will ever be taken: let them go, say so
+        const gone = {}; batch.forEach(function(i){ gone[i.eid] = 1; });
+        DB.set('jh.oq', oqAll().filter(function(i){ return !gone[i.eid]; }));
+        toast(t('oq.failed', dayWords(d.error)));
+      } else again = true;
+    } else {
+      const done = {}, refused = [];
+      (d.results || []).forEach(function(x){
+        if (!x.ok && x.error === 'could not save, try again'){ again = true; return; }
+        done[x.eid] = 1;
+        if (!x.ok) refused.push(x);
+      });
+      DB.set('jh.oq', oqAll().filter(function(i){ return !done[i.eid]; }));
+      settled = true;
+      if (refused.length) toast(refused.length === 1 ? t('oq.failed', dayWords(refused[0].error))
+                                                     : t('oq.failedN', dayWords(refused[0].error), refused.length));
+      else if (!oqMine().length) toast(t('oq.saved'));
+      // the week as it now really stands, with anything still queued laid on top
+      if (d.week && d.week.ok && want && dwWorker === want.worker && dwStart === d.week.weekStart){
+        keepCopy('week|' + want.worker + '|' + want.weekStart, d.week);
+        dwData = Object.assign({}, d.week, { stale: false });
+        reapplyLocal();
+        renderWeekDetail();
+      } else if ($('dayWeek').classList.contains('open')) loadWeekDetail();
+    }
+  } catch(e){ again = true; }
+  finally { oqSending = false; paintSaving(); }
+  if (settled && $('owner').classList.contains('open') && !$('dayWeek').classList.contains('open')) refreshHours();
+  if (oqMine().length){
+    clearTimeout(oqTimer);
+    oqTimer = setTimeout(sendOffice, again ? 6000 : 200);
+  }
+}
+/* What a change will look like once the sheet has it, drawn on the week now:
+   the time moved, the line gone, the new line there — each marked as saving.
+   The day's hours wait for the sheet to work them out. */
+function localMs(date, hhmm){
+  const p = String(date).split('-').map(Number), h = String(hhmm).split(':').map(Number);
+  return new Date(p[0], p[1] - 1, p[2], h[0], h[1] || 0).getTime();
+}
+function applyLocal(item){
+  const d = dwData;
+  if (!d || !d.days || dwWorker !== item.worker || dwStart !== item.weekStart) return;
+  if (!d.__own){ d.days = JSON.parse(JSON.stringify(d.days)); d.__own = true; }   // never the saved copy
+  const p = item.payload;
+  const day = d.days.filter(function(x){ return x.date === p.date; })[0];
+  if (!day) return;
+  day.punches = day.punches || []; day.breaks = day.breaks || [];
+  const mins = function(a, b){ return Math.round((b - a) / 60000); };
+  if (item.action === 'editpunch'){
+    const x = day.punches.filter(function(q){ return q.id === p.id; })[0];
+    if (x){ x.ms = localMs(p.date, p.time); x.time = ''; x.pending = true; }
+  } else if (item.action === 'voidpunch'){
+    day.punches = day.punches.filter(function(q){ return q.id !== p.id; });
+  } else if (item.action === 'addpunch'){
+    day.punches.push({ id: p.pid, type: p.type, ms: localMs(p.date, p.time), time: '', pending: true });
+  } else if (item.action === 'addbreak'){
+    const a = localMs(p.date, p.from), b = localMs(p.date, p.to);
+    day.breaks.push({ startId: p.startPid, endId: p.endPid, startMs: a, endMs: b, minutes: mins(a, b), pending: true });
+  } else if (item.action === 'editbreak'){
+    const x = day.breaks.filter(function(q){ return q.startId === p.startId; })[0];
+    if (x){
+      x.startMs = localMs(p.date, p.from); x.endMs = localMs(p.date, p.to);
+      x.minutes = mins(x.startMs, x.endMs); x.toClockOut = false; x.pending = true;
+    }
+  } else if (item.action === 'voidbreak'){
+    day.breaks = day.breaks.filter(function(q){ return q.startId !== p.startId; });
+  }
+  day.pending = true;
+}
+function reapplyLocal(){ oqMine().forEach(applyLocal); }
+window.addEventListener('online', sendOffice);
+
 /* What the sheet is working on: the break or the punch being changed, or what
    kind of line is being added ('in', 'out' or 'break'). */
 let baEdit = null, baPunch = null, baKind = null;
@@ -3531,49 +4210,31 @@ $('baSave').onclick = async function(){
   $('baFrom').classList.toggle('bad', !from); $('baTo').classList.toggle('bad', brk && !to);
   if (!from || (brk && !to)) return baFail(t(brk ? 'ba.bad' : 'tf.badTime'));
   if (brk && to <= from){ $('baTo').classList.add('bad'); return baFail(t('ba.order')); }
-  baBusy = true; this.disabled = true; $('baDel').disabled = true;
   const day = baDate, who = dwWorker, edit = baEdit, punch = baPunch, kind = baKind;
-  const mine = function(){                                     // see jaSave
-    return baDate === day && dwWorker === who && baEdit === edit && baPunch === punch && baKind === kind;
-  };
-  const req = punch ? { action:'editpunch', id: punch.id, time: from.slice(0, 5) }
-    : edit ? { action:'editbreak', worker: who, date: day, startId: edit.startId, endId: edit.endId,
-               from: from.slice(0, 5), to: to.slice(0, 5) }
-    : brk ? { action:'addbreak', worker: who, date: day, from: from.slice(0, 5), to: to.slice(0, 5) }
-    : { action:'addpunch', worker: who, date: day, type: kind, time: from.slice(0, 5) };
-  const done = punch ? 'day.changed' : edit ? 'ba.changed' : brk ? 'ba.added' : 'day.added';
-  try {
-    const d = await ask(req);
-    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
-    buzz(35); if (mine()) closeAddBreak(); toast(t(done));
-    hoursDirty = true;
-    if (dwWorker === who) loadWeekDetail();
-  } catch(err){
-    const msg = baWords(err && err.message, brk);
-    if (mine()) baFail(msg); else toast(msg);
-  }
-  finally { baBusy = false; $('baSave').disabled = false; $('baDel').disabled = false; }
+  const f = from.slice(0, 5), tt = to.slice(0, 5);
+  // a new punch gets its id here, so sending it twice can never make two
+  if (punch) queueOffice('editpunch', { id: punch.id, time: f, date: day });
+  else if (edit) queueOffice('editbreak', { worker: who, date: day, startId: edit.startId, endId: edit.endId, from: f, to: tt });
+  else if (brk) queueOffice('addbreak', { worker: who, date: day, from: f, to: tt,
+                                          startPid: 'adm_' + uid(), endPid: 'adm_' + uid() });
+  else queueOffice('addpunch', { worker: who, date: day, type: kind, time: f, pid: 'adm_' + uid() });
+  buzz(35);
+  closeAddBreak();
 };
-$('baDel').onclick = async function(){
+$('baDel').onclick = function(){
   const edit = baEdit, punch = baPunch, day = baDate, who = dwWorker;
-  if ((!edit && !punch) || baBusy) return;
+  if (!edit && !punch) return;
   if (!confirm(t(punch ? 'day.askDel' : 'ba.askDel'))) return;
-  baBusy = true; this.disabled = true; $('baSave').disabled = true;
-  const mine = function(){ return baEdit === edit && baPunch === punch; };
-  try {
-    const d = await ask(punch ? { action:'voidpunch', id: punch.id }
-      : { action:'voidbreak', worker: who, date: day, startId: edit.startId, endId: edit.endId });
-    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
-    buzz([30,60,30]); if (mine()) closeAddBreak(); toast(t(punch ? 'day.deleted' : 'ba.deleted'));
-    hoursDirty = true;
-    if (dwWorker === who) loadWeekDetail();
-  } catch(err){ if (mine()) baFail(dayWords(err && err.message)); else toast(dayWords(err && err.message)); }
-  finally { baBusy = false; $('baSave').disabled = false; $('baDel').disabled = false; }
+  // a break never ended has no end to delete; its start goes, and that is all of it
+  if (punch) queueOffice('voidpunch', { id: punch.id, date: day });
+  else queueOffice('voidbreak', { worker: who, date: day, startId: edit.startId, endId: edit.endId || null });
+  buzz([30,60,30]);
+  closeAddBreak();
 };
 
 $('dwBack').onclick = function(){ closeWeekDetail(); if (hoursDirty) refreshHours(); };
-$('dwPrev').onclick = function(){ dwStart = shiftWeekISO(dwStart, 1); loadWeekDetail(); buzz(12); };
-$('dwNext').onclick = function(){ dwStart = shiftWeekISO(dwStart, -1); loadWeekDetail(); buzz(12); };
+$('dwPrev').onclick = function(){ dwStart = shiftWeekISO(dwStart, 1); loadWeekDetail(true); buzz(12); };
+$('dwNext').onclick = function(){ dwStart = shiftWeekISO(dwStart, -1); loadWeekDetail(true); buzz(12); };
 
 $('dwMark').onclick = async function(){
   if (!confirm(t('pay.askMark', dwWorker))) return;
@@ -3805,6 +4466,7 @@ async function sync(){
          again, and everybody else on this handset carries on. */
       const acc = accounts();
       if (acc[owner]){ acc[owner].token = null; DB.set('jh.accounts', acc); }
+      dropCopies(owner);
       DB.set('jh.err', 'err.setup');
       syncing = false; paint();
       if (owner === worker) needsEnrol();
@@ -3950,6 +4612,8 @@ function unlock(){
   document.body.classList.remove('locked'); mirrorRoot();
   $('lockScreen').classList.remove('open');
   paint(); sync(); loadSchedule();
+  maybeAskBreak();
+  sendOffice();                     // anything the office saved before the app was closed
 }
 async function offerBio(){
   if (!confirm(t('bio.ask', bioName()))) return;
@@ -4072,6 +4736,7 @@ setInterval(function(){
   if (!unlocked) return;
   stamp();
   if (st.status !== 'out') tick();
+  if (st.status === 'break') maybeAskBreak();       // left open on the clock past the mark
 }, 1000);
 
 /* ═══════════ wiring ═══════════ */
@@ -4123,7 +4788,16 @@ $('brk').onclick = function(){
 };
 $('cNo').onclick       = function(){ closeOut(); };
 $('outBackTop').onclick = function(){ closeOut(); };   // same as Never mind, timer and all
-$('cYes').onclick   = function(){ closeOut(); const worked = clockOut(); paint(); showThanks(worked); };
+$('cYes').onclick   = function(){
+  closeOut();
+  // on break past the mark: did he forget to come back from it? A shorter
+  // break than that is just a break, and clocking out ends it as it always did.
+  if (breakLong()){
+    openBreakCheck('out');
+    return;
+  }
+  crewCheckThen(finishClockOut);
+};
 $('cBreak').onclick = function(){ closeOut(); startBreak(); paint(); };
 
 $('who').onclick = function(){
@@ -4766,17 +5440,26 @@ function openReview(){
 }
 function closeReview(){ micStop(); formGen++; revEdit = null; $('reviewSheet').classList.remove('open'); }
 
+/* Confirming a crewmate's job from the clock-out check: his entry, and where
+   to go back to once this one is saved or abandoned. */
+let trkMatch = null, trkAfter = null, trkWhen = null;
 function openTrack(){
   micStop();
   micTarget = MIC_TARGETS.track;
   saidSoFar = '';                   // a fresh form has heard nothing yet
   trkEdit = null;
   trkJob = null;                    // a plain open is not tied to any booking
+  trkMatch = null; trkAfter = null; trkWhen = null;
   $('trkForm').hidden = true;
   $('trkPick').hidden = false;
   $('trackSheet').classList.add('open');
 }
-function closeTrack(){ micStop(); formGen++; trkJob = null; trkEdit = null; $('trackSheet').classList.remove('open'); }
+function closeTrack(){
+  micStop(); formGen++; trkJob = null; trkEdit = null; trkMatch = null;
+  $('trackSheet').classList.remove('open');
+  const after = trkAfter; trkAfter = null;
+  if (after) after(false);          // backed out of one from the crew check: back to the list
+}
 
 function startTrack(kind){
   trkKind = kind;
@@ -4804,6 +5487,8 @@ function startTrack(kind){
     $(id).value = ''; $(id).classList.remove('bad');
   });
   buildPays();
+  $('fHintAmt').hidden = true; $('fHintPay').hidden = true;
+  $('trkSub').textContent = t('trk.fill');
   $('heardBox').hidden = true;
   $('trkErr').hidden = true;
   $('trkPick').hidden = true;
@@ -4853,11 +5538,16 @@ $('revForm').onsubmit = function(e){
   toast(fixing ? t('edit.saved') : t('saved.rev', first));
 };
 
-$('track').onclick      = openTrack;
+$('track').onclick      = function(){
+  if (breakLong()) openBreakCheck('ask', openTrack); else openTrack();
+};
 $('trkBackTop').onclick = closeTrack;   // straight out to the clock from either step
 $('trkJobBtn').onclick  = function(){ startTrack('job'); };
 $('trkQuoteBtn').onclick= function(){ startTrack('quote'); };
-$('trkBack').onclick    = function(){ $('trkForm').hidden = true; $('trkPick').hidden = false; };
+$('trkBack').onclick    = function(){
+  if (trkAfter){ closeTrack(); return; }     // from the crew check there is no picker to go back to
+  $('trkForm').hidden = true; $('trkPick').hidden = false;
+};
 
 /* Saving never waits on the network. It used to ask the office first whether
    somebody else had logged the same job, and on a weak signal that wait was
@@ -4894,11 +5584,18 @@ $('trkForm').onsubmit = function(e){
 
   if (trkEdit){ rec.id = trkEdit; rec.edit = true; }   // land on the original row
   else rec.id = trkDraft;
+  /* A crewmate's job, confirmed at clock-out: it points at his entry, so the
+     office sees the two answers side by side, and it sits at his entry's time. */
+  if (trkMatch && !trkEdit){
+    rec.matches = trkMatch.id;
+    if (trkMatch.whenMs) rec.ts = new Date(trkMatch.whenMs).toISOString();
+  } else if (trkWhen && !trkEdit) rec.ts = new Date(trkWhen).toISOString();
   trkDraft = null;
   const fixing = !!trkEdit;
   punch(trkKind, rec);
   buzz(35);
   const booked = trkJob;            // closeTrack clears it
+  const after = trkAfter; trkAfter = null;      // saved, not backed out of
   closeTrack();
   toast(fixing ? t('edit.saved') : t(job ? 'saved.job' : 'saved.quote', first));
   if (booked && job){
@@ -4907,6 +5604,7 @@ $('trkForm').onsubmit = function(e){
     if (!booked.done) markDone(booked, true, true);
     else { renderSchedule(); paintNext(); }
   }
+  if (after) after(true);
 };
 
 /* MIC-START */
@@ -5187,10 +5885,69 @@ function ask(payload){
     if (payload.action === 'summary') return Promise.resolve({ ok:true, scope:'self', summary:[] });
     return Promise.resolve({ ok:true, day:null, days:[], work:[] });
   }
+  const who = worker;
   return fetch(CONFIG.ENDPOINT, {
     method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' },
     body: JSON.stringify(Object.assign({ who:worker, token:acctGet('token', null) }, payload))
-  }).then(function(r){ return r.json(); });
+  }).then(function(r){ return r.json(); }).then(function(d){
+    // the server no longer knows this phone: what it saved for him goes too
+    if (d && d.error === 'unauthorized' && who) dropCopies(who);
+    return d;
+  });
+}
+
+/* ═══════════ saved copies ═══════════
+   The last hours and jobs this phone was shown, kept so a screen opens at once
+   instead of waiting on Google. The fresh answer always replaces it a few
+   seconds later, and while a saved copy is up nothing on it can be changed.
+   Only ever what this person was allowed to see, filed under their name, and
+   wiped when their account leaves the phone or the server stops knowing it. */
+const SAVED_MAX = 24;
+function savedKey(name, what){ return 'jh.saved.' + name + '|' + what; }
+function keepCopy(what, data){
+  if (!worker || isTest() || !data || !data.ok) return;
+  const k = savedKey(worker, what);
+  const idx = DB.get('jh.savedIdx', []).filter(function(x){ return x !== k; });
+  idx.push(k);
+  while (idx.length > SAVED_MAX) DB.del(idx.shift());
+  DB.set(k, { at: Date.now(), data: data });
+  DB.set('jh.savedIdx', idx);
+}
+function savedCopy(what){
+  if (!worker || isTest()) return null;
+  const s = DB.get(savedKey(worker, what), null);
+  return s && s.data ? s : null;
+}
+function dropCopies(name){
+  const pre = 'jh.saved.' + name + '|';
+  const idx = DB.get('jh.savedIdx', []);
+  idx.forEach(function(k){ if (k.indexOf(pre) === 0) DB.del(k); });
+  DB.set('jh.savedIdx', idx.filter(function(k){ return k.indexOf(pre) !== 0; }));
+}
+let freshN = 0;
+function freshOn(){ freshN++; $('freshPill').textContent = t('saved.updating'); $('freshPill').hidden = false; }
+function freshOff(){ freshN = Math.max(0, freshN - 1); if (!freshN) $('freshPill').hidden = true; }
+function savedWhen(ms){
+  const d = new Date(ms), now = new Date();
+  return d.toDateString() === now.toDateString() ? fmtTime(ms) : fmtDay(ms) + ' ' + fmtTime(ms);
+}
+/* Draws the saved copy straight away when there is one, then the fresh answer.
+   show(d, fresh) draws; current() says whether the screen still wants this
+   answer (a man can flip to another week while it is on its way). */
+async function loadWithCopy(what, payload, show, current, failed){
+  const saved = savedCopy(what);
+  if (saved){ show(saved.data, false); freshOn(); }
+  try {
+    const d = await ask(payload);
+    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+    keepCopy(what, d);
+    if (current()) show(d, true);
+  } catch(e){
+    if (current()){
+      if (saved) toast(t('saved.old', savedWhen(saved.at)));
+      else failed(e);
+    }
+  } finally { if (saved) freshOff(); }
 }
 
 /* ═══════════ jobs & quotes ═══════════ */
@@ -5204,41 +5961,48 @@ const jb = { week: null, kind: 'job', who: '', data: null, busy: false };
 $('workBack').onclick = function(){ $('work').classList.remove('open'); };
 $('mWork').onclick = function(){
   $('menu').classList.remove('open');
-  jb.week = weekStartISO(new Date()); jb.kind = 'job'; jb.who = ''; jb.data = null;
+  jb.week = weekStartISO(new Date()); jb.kind = 'job'; jb.who = ''; jb.data = null; jb.review = false; jb.day = '';
   $('jbJobs').classList.add('on'); $('jbQuotes').classList.remove('on');
   $('work').classList.add('open');
   $('work').scrollTop = 0;
-  loadJobs();
+  loadJobs(true);
 };
-$('jbPrev').onclick = function(){ jb.week = shiftWeekISO(jb.week, 1); loadJobs(); buzz(12); };
+$('jbPrev').onclick = function(){ jb.week = shiftWeekISO(jb.week, 1); jb.day = ''; loadJobs(true); buzz(12); };
 $('jbNext').onclick = function(){
   if (jb.week >= weekStartISO(new Date())) return;       // nothing logged in the future
-  jb.week = shiftWeekISO(jb.week, -1); loadJobs(); buzz(12);
+  jb.week = shiftWeekISO(jb.week, -1); jb.day = ''; loadJobs(true); buzz(12);
 };
 $('jbJobs').onclick = function(){ jb.kind = 'job'; this.classList.add('on');
   $('jbQuotes').classList.remove('on'); renderJobs(); };
 $('jbQuotes').onclick = function(){ jb.kind = 'quote'; this.classList.add('on');
   $('jbJobs').classList.remove('on'); renderJobs(); };
 
-async function loadJobs(){
+/* useSaved: opening the page or flipping weeks. Never right after a change —
+   the saved copy would flash the figures from before it. */
+async function loadJobs(useSaved){
   const want = jb.week;
-  $('workSub').textContent = t('loading');
-  $('workData').innerHTML = ''; $('jbPeople').innerHTML = '';
-  $('jbTotal').textContent = '—'; $('jbCount').textContent = '';
-  $('jbHint').hidden = true;
   $('jbNext').disabled = jb.week >= weekStartISO(new Date());
-  let d;
-  try {
-    d = await ask({ action:'jobs', weekStart: want });
-    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
-  } catch(e){
-    if (jb.week === want)
-      $('workSub').textContent = t(e && e.message === 'bad request' ? 'srv.old' : 'work.fail');
+  const show = function(d, fresh){ jb.data = Object.assign({}, d, { stale: !fresh }); renderJobs(); };
+  const current = function(){ return jb.week === want; };   // tapped on to another week meanwhile
+  const failed = function(e){
+    $('workSub').textContent = t(e && e.message === 'bad request' ? 'srv.old' : 'work.fail');
+  };
+  if (useSaved){
+    if (!savedCopy('jobs|' + want)){
+      $('workSub').textContent = t('loading');
+      $('workData').innerHTML = ''; $('jbPeople').innerHTML = '';
+      $('jbTotal').textContent = '—'; $('jbCount').textContent = '';
+      $('jbHint').hidden = true;
+    }
+    await loadWithCopy('jobs|' + want, { action:'jobs', weekStart: want }, show, current, failed);
     return;
   }
-  if (jb.week !== want) return;                           // tapped on to another week meanwhile
-  jb.data = d;
-  renderJobs();
+  try {
+    const d = await ask({ action:'jobs', weekStart: want });
+    if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+    keepCopy('jobs|' + want, d);
+    if (current()) show(d, true);
+  } catch(e){ if (current()) failed(e); }
 }
 
 /* The same person, the same customer, the same money, the same day: almost
@@ -5278,7 +6042,19 @@ function renderJobs(){
   if (!d) return;
   $('workSub').textContent = weekLabel(d.weekStart) || '';
   const job = jb.kind === 'job';
-  const all = (d.entries || []).filter(function(e){ return e.kind === jb.kind; });
+  /* Jobs two people logged with different answers. Quotes are never paired. */
+  const nRev = d.toReview || 0;
+  const rvb = $('jbReview');
+  rvb.hidden = !job || (!nRev && !jb.review);
+  rvb.textContent = jb.review ? t('rv.back') : t(nRev === 1 ? 'rv.count1' : 'rv.countN', nRev);
+  rvb.classList.toggle('on', !!jb.review);
+  $('jbDays').hidden = !!(jb.review && job);
+  if (jb.review && job){ renderReview(d); return; }
+  const weekAll = (d.entries || []).filter(function(e){ return e.kind === jb.kind; });
+  paintJobDays(d.weekStart, jb.who ? weekAll.filter(function(e){ return e.worker === jb.who; }) : weekAll, job);
+  // one day of the week, when a day is picked
+  const all = jb.day ? weekAll.filter(function(e){ return e.date === jb.day; }) : weekAll;
+  if (jb.day) $('workSub').textContent = fmtDayLong(dayMs(jb.day));
 
   const byWho = {};
   all.forEach(function(e){ (byWho[e.worker] = byWho[e.worker] || []).push(e); });
@@ -5324,7 +6100,8 @@ function renderJobs(){
   const box = $('workData'); box.innerHTML = '';
   if (!shown.length){
     const p = document.createElement('p');
-    p.className = 'note'; p.textContent = t(job ? 'jb.noneJ' : 'jb.noneQ');
+    p.className = 'note';
+    p.textContent = t(jb.day ? (job ? 'jb.noneDayJ' : 'jb.noneDayQ') : (job ? 'jb.noneJ' : 'jb.noneQ'));
     box.appendChild(p);
     $('jbHint').hidden = true;
     return;
@@ -5342,7 +6119,7 @@ function renderJobs(){
 
     list.forEach(function(e){
       // a full admin edits anything; Andy can only say how a quote went
-      const canTap = !!e.id && (d.canEdit || e.kind === 'quote');
+      const canTap = !!e.id && (d.canEdit || e.kind === 'quote') && !d.stale;
       const row = document.createElement(canTap ? 'button' : 'div');
       if (canTap) row.type = 'button';
       row.className = 'jb-row';
@@ -5364,6 +6141,15 @@ function renderJobs(){
       sub.textContent = [fmtDay(e.whenMs), e.town, payName(e.method)].filter(Boolean).join('  ·  ') +
                         (e.notes ? '  ·  ' + e.notes : '');
       what.appendChild(nm); what.appendChild(sub);
+      // did the rest of the crew log it too, and do the answers agree?
+      if (e.kind === 'job' && e.review){
+        const others = (e.review.partners || []).map(function(p){ return p.worker; })
+          .filter(function(v, i, a){ return a.indexOf(v) === i; }).join(', ');
+        const rv = document.createElement('em'); rv.className = 'jb-rv ' + e.review.state;
+        rv.textContent = e.review.state === 'agree' ? t('rv.match', others)
+                       : e.review.state === 'differ' ? t('rv.differs', others) : t('rv.single');
+        what.appendChild(rv);
+      }
 
       const amt = document.createElement('div'); amt.className = 'jb-amt';
       amt.textContent = e.amount == null ? '—' : money(e.amount);
@@ -5380,6 +6166,112 @@ function renderJobs(){
   });
   $('jbHint').hidden = !d.canEdit;
 }
+
+/* The week's days as chips, each with what that day brought in (jobs, counted
+   once however many of the crew logged them) or how many quotes went out. */
+function isoPlus(iso, n){
+  const p = String(iso).split('-').map(Number);
+  return ymd(new Date(p[0], p[1] - 1, p[2] + n));
+}
+function dayChip(box, label, value, on, idle, pick){
+  const c = document.createElement('button');
+  c.type = 'button'; c.className = 'day-chip' + (on ? ' on' : '') + (idle ? ' idle' : '');
+  c.appendChild(document.createTextNode(label));
+  const i = document.createElement('i'); i.textContent = value; c.appendChild(i);
+  c.setAttribute('aria-pressed', on ? 'true' : 'false');
+  c.onclick = function(){ pick(); buzz(12); };
+  box.appendChild(c);
+}
+function dayLabel(iso, i){
+  return dayNames()[i].slice(0, 3) + ' ' + new Date(dayMs(iso)).getDate();
+}
+function paintJobDays(weekStart, list, job){
+  const box = $('jbDays'); box.innerHTML = '';
+  if (!weekStart) return;
+  const say = function(l){ return job ? money(oneEach(l).total) : String(l.length); };
+  dayChip(box, t('day.week'), say(list), !jb.day, false, function(){ jb.day = ''; renderJobs(); });
+  for (let i = 0; i < 7; i++){
+    const k = isoPlus(weekStart, i);
+    const dl = list.filter(function(e){ return e.date === k; });
+    dayChip(box, dayLabel(k, i), dl.length ? say(dl) : '—', jb.day === k, !dl.length,
+            function(){ jb.day = k; renderJobs(); });
+  }
+}
+
+/* The jobs whose two answers differ, one card each: every person's answer on a
+   line, what disagrees marked, and (for a full admin) a button to say which
+   one is right — the others are changed to match it, each change in Edits. */
+function renderReview(d){
+  const box = $('workData'); box.innerHTML = '';
+  $('jbPeople').innerHTML = ''; $('jbHint').hidden = true;
+  const seen = Object.create(null), cards = [];
+  (d.entries || []).forEach(function(e){
+    if (e.kind !== 'job' || !e.review || e.review.state !== 'differ') return;
+    const all = [{ id: e.id || '', worker: e.worker, first: e.first, last: e.last, town: e.town,
+                   amount: e.amount, method: e.method }].concat(e.review.partners || []);
+    const k = all.map(function(x){ return x.id || (x.worker + '|' + x.first); }).sort().join('|');
+    if (seen[k]) return;
+    seen[k] = 1;
+    cards.push({ all: all, diff: e.review.diff || [], whenMs: e.whenMs });
+  });
+  const note = document.createElement('p'); note.className = 'note';
+  if (!cards.length){ note.textContent = t('rv.none'); box.appendChild(note); return; }
+  const canFix = !!d.canEdit && !d.stale;
+  note.textContent = t(canFix ? 'rv.sub' : 'rv.subView');
+  box.appendChild(note);
+  cards.forEach(function(c){
+    const card = document.createElement('div'); card.className = 'rv-card';
+    const head = document.createElement('div'); head.className = 'rv-head';
+    const hb = document.createElement('b');
+    hb.textContent = ((c.all[0].first || '') + (c.all[0].last ? ' ' + c.all[0].last : '')).trim() || t('mj.customer');
+    const hs = document.createElement('span');
+    hs.textContent = [fmtDay(c.whenMs), t('rv.diffs', c.diff.map(function(f){ return t('rv.f.' + f); }).join(', '))]
+      .filter(Boolean).join('  ·  ');
+    head.appendChild(hb); head.appendChild(hs); card.appendChild(head);
+    const fixable = canFix && c.all.every(function(x){ return !!x.id; });
+    c.all.forEach(function(x){
+      const line = document.createElement('div'); line.className = 'rv-line';
+      const who = document.createElement('span'); who.className = 'rv-who'; who.textContent = x.worker;
+      const vals = document.createElement('span'); vals.className = 'rv-vals';
+      [['amount', x.amount == null ? '—' : money(x.amount)],
+       ['method', payName(x.method) || '—'],
+       ['first', ((x.first || '') + (x.last ? ' ' + x.last : '')).trim()],
+       ['town', x.town || '']].forEach(function(p, i){
+        if (!p[1]) return;
+        if (vals.childNodes.length) vals.appendChild(document.createTextNode('  ·  '));
+        const v = document.createElement('span');
+        const off = c.diff.indexOf(p[0]) !== -1 || (p[0] === 'first' && c.diff.indexOf('last') !== -1);
+        if (off) v.className = 'bad';
+        v.textContent = p[1];
+        vals.appendChild(v);
+      });
+      line.appendChild(who); line.appendChild(vals);
+      if (fixable){
+        const use = document.createElement('button'); use.type = 'button'; use.textContent = t('rv.use');
+        use.onclick = function(){ useAnswer(x, c.all); };
+        line.appendChild(use);
+      }
+      card.appendChild(line);
+    });
+    box.appendChild(card);
+  });
+}
+async function useAnswer(pick, all){
+  if (jb.busy) return;
+  jb.busy = true;
+  try {
+    for (let i = 0; i < all.length; i++){
+      const x = all[i];
+      if (x.id === pick.id) continue;
+      const d = await ask({ action:'editjob', id: x.id, first: pick.first, last: pick.last || '',
+                            town: pick.town, amount: pick.amount, method: pick.method });
+      if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
+    }
+    buzz(35); toast(t('rv.fixed', pick.worker));
+  } catch(err){ toast(jaWords(err && err.message)); }
+  finally { jb.busy = false; loadJobs(); }
+}
+$('jbReview').onclick = function(){ jb.review = !jb.review; renderJobs(); $('work').scrollTop = 0; buzz(12); };
 
 /* the office's payment buttons, the same set the crew's form uses */
 let jaPay = null;
@@ -5640,22 +6532,23 @@ $('mOwner').onclick = async function(){
   $('ownerTitle').textContent = t(isOwner() ? 'menu.hours' : 'menu.myHours');
   $('ownerData').innerHTML = ''; $('ownerSub').textContent = t('loading');
   $('hoursTop').hidden = true;
-  hoursData.sel = 0; $('wkNow').classList.add('on'); $('wkPrev').classList.remove('on');
+  hoursData.sel = 0; hoursData.day = -1; $('wkNow').classList.add('on'); $('wkPrev').classList.remove('on');
   $('owner').classList.add('open');
-  try {
-    const d = await ask({ action:'summary', weeks:4 });
-    if (!d.ok) throw new Error(d.error || 'failed');
+  const mine = ++hoursAsk;
+  await loadWithCopy('summary', { action:'summary', weeks:4 }, function(d){
     // The server decides the scope from the role on the sheet, so trust its
     // answer over anything this phone thinks it is.
     $('ownerTitle').textContent = t(d.scope === 'all' ? 'menu.hours' : 'menu.myHours');
     render(d.summary, d.scope === 'all');
-  } catch(e){ $('ownerSub').textContent = t('hrs.fail'); }
+  }, function(){ return mine === hoursAsk && $('owner').classList.contains('open'); },
+  function(){ $('ownerSub').textContent = t('hrs.fail'); });
 };
+let hoursAsk = 0;
 $('oClose').onclick = function(){ $('owner').classList.remove('open'); };
-$('wkNow').onclick  = function(){ hoursData.sel = 0; this.classList.add('on');
-  $('wkPrev').classList.remove('on'); paintHours(); };
-$('wkPrev').onclick = function(){ hoursData.sel = 1; this.classList.add('on');
-  $('wkNow').classList.remove('on'); paintHours(); };
+$('wkNow').onclick  = function(){ hoursData.sel = 0; hoursData.day = -1; this.classList.add('on');
+  $('wkPrev').classList.remove('on'); paintHours(); paintHoursList(); };
+$('wkPrev').onclick = function(){ hoursData.sel = 1; hoursData.day = -1; this.classList.add('on');
+  $('wkNow').classList.remove('on'); paintHours(); paintHoursList(); };
 
 function render(weeks, everyone){
   $('ownerSub').textContent = weekWords(everyone ? 'hrs.weekAll' : 'hrs.week');
@@ -5675,11 +6568,18 @@ function render(weeks, everyone){
   hoursData.older     = foldWeek(find(backISO));
   hoursData.nowLabel  = weekLabel(nowISO) || t('wk.this');
   hoursData.prevLabel = weekLabel(prevISO) || t('wk.last');
-  $('hTotalLabel').textContent = t(everyone ? 'hrs.crewOn' : 'hrs.onClock');
+  hoursData.list = list; hoursData.nowISO = nowISO; hoursData.prevISO = prevISO;
+  if (hoursData.day == null) hoursData.day = -1;
   $('hoursTop').hidden = false;
   paintHours();
+  paintHoursList();
+}
 
+/* Everybody's weeks, unpaid first — or, with a day picked, who worked that day. */
+function paintHoursList(){
+  const list = hoursData.list || [], everyone = hoursData.everyone;
   const box = $('ownerData'); box.innerHTML = '';
+  if (hoursData.day >= 0){ paintDayList(box, list, everyone); return; }
   if (!list.length){
     const note = document.createElement('p');
     note.className = 'note';
@@ -5891,9 +6791,17 @@ function drawStats(cur, other){
 function paintHours(){
   const cur   = hoursData.sel === 0 ? hoursData.now : hoursData.prev;
   const other = hoursData.sel === 0 ? hoursData.prev : hoursData.older;
+  const day   = hoursData.day == null ? -1 : hoursData.day;
+  paintHourDays(cur);
 
   $('wkRange').textContent = hoursData.sel === 0 ? hoursData.nowLabel : hoursData.prevLabel;
-  $('hTotal').textContent = hrsText(cur.total);
+  // one day: its hours up top; overtime and the week's stats are week things
+  $('hTotal').textContent = hrsText(day >= 0 ? (cur.days[day] || 0) : cur.total);
+  $('hTotalLabel').textContent = day >= 0
+    ? t(hoursData.everyone ? 'hrs.crewOnDay' : 'hrs.onDay', dayNames()[day])
+    : t(hoursData.everyone ? 'hrs.crewOn' : 'hrs.onClock');
+  document.querySelector('#hoursTop .split').hidden = day >= 0;
+  $('stats').hidden = day >= 0;
   $('hReg').textContent   = hrsText(cur.regular);
   $('hOt').textContent    = cur.overtime > 0 ? hrsText(cur.overtime) : t('hrs.none');
   $('hOtCard').classList.toggle('none', !(cur.overtime > 0));
@@ -5911,6 +6819,45 @@ function paintHours(){
   $('legPrev').textContent = hoursData.sel === 0 ? t('wk.last') : t('wk.before');
 
   drawStats(cur, other);
+}
+function paintHourDays(cur){
+  const box = $('hDays'); box.innerHTML = '';
+  const iso = hoursData.sel === 0 ? hoursData.nowISO : hoursData.prevISO;
+  if (!iso) return;
+  const pick = function(i){ hoursData.day = i; paintHours(); paintHoursList(); };
+  dayChip(box, t('day.week'), hrsText(cur.total), hoursData.day < 0, false, function(){ pick(-1); });
+  for (let i = 0; i < 7; i++){
+    const h = cur.days[i] || 0;
+    dayChip(box, dayLabel(isoPlus(iso, i), i), h > 0 ? hrsText(h) : '—', hoursData.day === i, !(h > 0),
+            (function(n){ return function(){ pick(n); }; })(i));
+  }
+}
+/* Who was on the clock on the picked day, most hours first; a tap opens his
+   week, the same as the week list does. */
+function paintDayList(box, list, everyone){
+  const iso = hoursData.sel === 0 ? hoursData.nowISO : hoursData.prevISO;
+  const i = hoursData.day;
+  const w = list.filter(function(x){ return x.start === iso; })[0];
+  const h = document.createElement('p'); h.className = 'wk';
+  h.textContent = fmtDayLong(dayMs(isoPlus(iso, i)));
+  box.appendChild(h);
+  const rows = w ? w.rows.filter(function(r){ return ((r.days || [])[i] || 0) > 0; })
+                         .sort(function(a, b){ return b.days[i] - a.days[i]; }) : [];
+  if (!rows.length){
+    const note = document.createElement('p'); note.className = 'note';
+    note.textContent = t(everyone ? 'hrs.noneDay' : 'hrs.noneDayMe');
+    box.appendChild(note);
+    return;
+  }
+  rows.forEach(function(rw){
+    const el = document.createElement('div');
+    el.className = 'row tappable';
+    el.innerHTML = '<span></span><b></b>';
+    el.firstChild.textContent = everyone ? rw.worker : t('hrs.worked');
+    el.lastChild.textContent = fmtNum(rw.days[i], 2) + ' ' + t('hrs.hrs');
+    el.onclick = function(){ openWeekDetail(rw.worker, iso); };
+    box.appendChild(el);
+  });
 }
 /* HOURS-END */
 
@@ -6026,9 +6973,8 @@ $('mMine').onclick = async function(){
   $('mjSub').textContent = t('loading');
   mjData.sel = 0; $('mjNow').classList.add('on'); $('mjPrev').classList.remove('on');
   $('myjobs').classList.add('open');
-  try {
-    const d = await ask({ action:'myjobs', weeks:4 });
-    if (!d.ok) throw new Error(d.error || 'failed');
+  const mineAsk = ++mjAsk;
+  await loadWithCopy('myjobs', { action:'myjobs', weeks:4 }, function(d){
     const list = d.weeks || [];
     const at = function(i){ return list[i] ? Object.assign({}, emptyWeek, list[i]) : emptyWeek; };
     const nowISO = weekStartISO(new Date());
@@ -6042,8 +6988,10 @@ $('mMine').onclick = async function(){
     $('mjSub').textContent = weekWords('mj.sub');
     $('mjTop').hidden = false;
     paintMyJobs();
-  } catch(e){ $('mjSub').textContent = t('mj.fail'); }
+  }, function(){ return mineAsk === mjAsk && $('myjobs').classList.contains('open'); },
+  function(){ $('mjSub').textContent = t('mj.fail'); });
 };
+let mjAsk = 0;
 
 /* ═══════════ boot ═══════════ */
 window.addEventListener('online', sync);
@@ -6055,7 +7003,7 @@ document.addEventListener('visibilitychange', function(){
   const mins = CONFIG.LOCK_AFTER_MINUTES;
   const gap = Date.now() - DB.get('jh.awayAt', Date.now());
   if (mins > 0 && gap > mins * 60000) lock();
-  else { paint(); sync(); loadCrew(); loadSchedule(); loadCommission(); }
+  else { paint(); sync(); loadCrew(); loadSchedule(); loadCommission(); maybeAskBreak(); sendOffice(); }
 });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
 

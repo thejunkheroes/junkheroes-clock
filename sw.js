@@ -1,7 +1,7 @@
 /* Bump CACHE whenever you edit index.html, then reload twice on each phone.
    Keep the number the same as APP_VERSION in index.html — that is the one
    shown in the corner of the menu. */
-const CACHE = 'jh-clock-v73';
+const CACHE = 'jh-clock-v79';
 const FILES = [
   './', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png', './logo.png',
