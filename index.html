@@ -27,7 +27,7 @@
 /* Which build this is. Shown faintly in the corner of the menu, so anybody can
    tell at a glance whether a phone has picked up the latest. Goes up by one
    every release, together with CACHE in sw.js. */
-const APP_VERSION = 80;
+const APP_VERSION = 81;
 
 /* ══════════════════════════════════════════════════════════════
    EDIT THIS BLOCK, THEN YOU'RE DONE.
@@ -45,7 +45,7 @@ const CONFIG = {
     { group: "Admins", key: "grp.admins", admin: true, pair: true, names: ["Henrique", "Filipe"] },
     { group: "Main truck crew",      key: "grp.main",     names: ["Rey", "Paulo"] },
     { group: "Assistant & Dispatch", key: "grp.dispatch", names: ["Andy"] },
-    { group: "Extra crew",           key: "grp.extra",    names: ["Ryan", "Ethan"] }
+    { group: "Extra crew",           key: "grp.extra",    names: ["Ryan", "Ethan", "Chase"] }
   ],
 
   // 6. The trucks a man can be on. Two people who pick the same one on the same
@@ -615,7 +615,11 @@ body:not(.locked) .minor,body:not(.locked) .track{animation:riseIn .34s var(--ea
   transition:transform .09s ease,filter .09s ease}
 .job-actions button:active{transform:scale(.975)}
 .job-actions .fin{background:var(--lilac);color:var(--on-lilac)}
+.job-actions .qt{background:var(--sunk);border:1.5px solid var(--lilac);color:var(--lilac)}
 .job-actions .tickall{background:var(--sunk);border:1.5px solid var(--edge);color:var(--ink)}
+.job-actions button{padding:4px 6px;line-height:1.15}
+.log-both{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin:-2px 0 14px}
+.log-both .log-too{margin:0}
 .done-by{margin:-4px 0 12px 2px;font-size:13px;color:var(--haze)}
 
 /* a quiet way out of a sheet, for the thing most people will never need */
@@ -765,9 +769,9 @@ button.jb-row:active{transform:scale(.985);background:var(--tint)}
 .back svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.1;
   stroke-linecap:round;stroke-linejoin:round;flex:none}
 #enrol .inner,#truckSheet .inner,#crews .inner,#myjobs .inner,#schedule .inner,#lockScreen.hasback .lock,#setup.hasback .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
-#myjobs .inner,#trackSheet .inner,#reviewSheet .inner,#confirmOut .inner,#work .inner,#owner .inner,
+#myjobs .inner,#trackSheet .inner,#reviewSheet .inner,#work .inner,#owner .inner,
 #join .inner,#waitList .inner,#recent .inner,#dayWeek .inner,#payHist .inner,
-#jobAct .inner,#brkAdd .inner,#brkCheck .inner,#crewChk .inner,#commCalc .inner,#quotes .inner,#qSheet .inner{
+#jobAct .inner,#brkAdd .inner,#brkCheck .inner,#crewChk .inner,#commCalc .inner,#quotes .inner,#qSheet .inner,#copyBrk .inner{
   padding-top:calc(env(safe-area-inset-top) + 88px)}
 h2{font-size:25px;font-weight:680;letter-spacing:.005em;margin:0 0 6px}
 .sub{color:var(--haze);margin:0 0 24px;font-size:16px;line-height:1.5}
@@ -788,14 +792,6 @@ h2{font-size:25px;font-weight:680;letter-spacing:.005em;margin:0 0 6px}
 .pick.calm small{color:var(--on-solid);opacity:.7}
 .pick.calm:active{background:var(--calm);filter:brightness(.93)}
 
-/* ── the clock-out check: three solid choices, centred in the sheet ── */
-#confirmOut h2{font-size:27px}
-#confirmOut .sub{margin-bottom:30px}
-#confirmOut .pick{min-height:96px;border:0;border-radius:19px;font-size:21px;font-weight:680;
-  padding:20px 26px;margin-bottom:15px;transition:transform .09s ease,filter .09s ease}
-#confirmOut .pick:last-child{margin-bottom:0}
-#confirmOut .pick small{font-size:15px;margin-top:5px}
-#confirmOut .pick:active{transform:scale(.985)}
 
 /* ── track a job or a quote ── */
 .flabel{margin:0 0 9px;font-size:14.5px;font-weight:600;color:var(--haze)}
@@ -970,7 +966,6 @@ body:not(.locked) .punch,body:not(.locked) .minor,body:not(.locked) .track,
 
 /* ── lettering ── */
 h2{font-weight:500;text-transform:uppercase;font-size:28px;line-height:1.04;letter-spacing:.015em;margin:0 0 8px}
-#confirmOut h2{font-size:30px}
 .thanks h2{font-size:34px;line-height:1.06;max-width:14ch}
 .lock-name,#whoName,.jb-head b{font-family:var(--font-display);font-weight:500;text-transform:uppercase;letter-spacing:.03em}
 .lock-name{font-size:30px}
@@ -1045,8 +1040,6 @@ html.light body[data-state="in"] .clock,html.light body[data-state="break"] .clo
 #mSync,#cBreak{background:var(--lilac);color:var(--on-lilac);border-color:var(--line)}
 #mSync small,#cBreak small{color:var(--on-lilac)}
 #mSync:active,#cBreak:active{background:var(--lilac)}
-#confirmOut .pick{border-radius:6px;border-width:3px;transition:transform .14s var(--spring),box-shadow .14s var(--spring)}
-#confirmOut .pick:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--pop)}
 .pick.test-user{box-shadow:none;border-style:dashed}
 .pair .pick{margin-bottom:14px}
 
@@ -1098,7 +1091,16 @@ html.light .back:active{color:var(--lilac);border-color:var(--lilac)}
 .jb-chip.on,.pay.on{background:var(--lilac);color:var(--on-lilac);border-color:var(--line)}
 .jb-chip.on i{color:var(--on-lilac)}
 .pays.bad .pay{border-color:var(--danger)}
-.jb-people{padding-bottom:9px}
+.jb-people{display:grid;grid-template-columns:1fr 1fr;gap:10px;overflow:visible;margin:0 0 20px;padding:0}
+.jb-tile{display:block;min-width:0;padding:10px 12px;border-radius:6px;text-align:left;background:var(--sunk);color:var(--ink);
+  border:2.5px solid var(--line-2);box-shadow:3px 4px 0 var(--pop);transition:transform .12s var(--spring),box-shadow .12s var(--spring)}
+.jb-tile:active{transform:translate(2px,3px);box-shadow:1px 1px 0 var(--pop)}
+.jb-tile .nm{display:block;font-family:var(--font-label);font-weight:700;font-size:14px;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--lilac)}
+.jb-tile b{display:block;margin-top:1px;font-size:21px;font-weight:730;font-variant-numeric:tabular-nums;line-height:1.2}
+.jb-tile i{display:block;font-style:normal;font-size:12.5px;color:var(--haze)}
+.jb-tile.on{background:var(--lilac);color:var(--on-lilac);border-color:var(--line)}
+.jb-tile.on .nm,.jb-tile.on i{color:var(--on-lilac)}
 
 /* ── small inked buttons inside cards ── */
 .tick,.next-go,.dw-arrow{border:2.5px solid var(--line-2);box-shadow:3px 3px 0 var(--pop);
@@ -1125,6 +1127,10 @@ html.light .back:active{color:var(--lilac);border-color:var(--lilac)}
 .field input:focus,.field textarea:focus{background:var(--field);border-color:var(--brand);box-shadow:4px 4px 0 var(--brand)}
 .field input::placeholder,.field textarea::placeholder{color:var(--field-muted);opacity:1}
 .field input.bad,.field textarea.bad{border-color:var(--danger);box-shadow:4px 4px 0 var(--danger)}
+.duo>.field{min-width:0}
+#jaDay,#jaTime{min-width:0;padding-left:11px;padding-right:6px;font-size:16px}
+.field select{width:100%;min-height:58px;padding:15px 17px;border-radius:6px;background:var(--field);color:var(--field-ink);
+  border:3px solid var(--line);font-family:inherit;font-size:17px;color-scheme:light}
 .money b{color:var(--field-muted)}
 
 /* the voice button keeps the pulsing purple glow it was asked for, drawn heavier */
@@ -1210,10 +1216,16 @@ html.light{--brk:#A3410F}
 .rn-row button:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--pop)}
 
 /* ── the crew check at clock-out ── */
+#xcDone{position:sticky;bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:2;margin:6px 0 0}
+#crewChk .sub{margin-bottom:10px}
+#crewChk .xc-sub{margin-bottom:18px}
+.xc-two{flex:none;display:flex;gap:6px}
+.xc-row{flex-wrap:wrap}
+.xc-what{flex:1 1 130px}
 .xc-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:13px 14px;border-radius:14px;
   background:var(--sunk);border:2px solid var(--card-line);box-shadow:4px 5px 0 var(--pop-soft)}
 .xc-row.done{opacity:.6}
-.xc-what{flex:1;min-width:0}
+.xc-what{min-width:0}
 .xc-what b{display:block;font-size:16px;color:var(--ink)}
 .xc-what span{display:block;margin-top:2px;font-size:13px;color:var(--haze)}
 .xc-row button{flex:none;min-height:44px;padding:0 14px;border-radius:6px;border:2.5px solid var(--line-2);
@@ -1330,6 +1342,25 @@ html.light{--brk:#A3410F}
   background:var(--ghost-bg);color:var(--ink);transition:transform .14s var(--spring),box-shadow .14s var(--spring)}
 .q-acts button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--pop)}
 .q-acts .won{background:var(--action);color:var(--on-action);border-color:var(--line)}
+/* a day card's truck and crew; his own edits; copying a break (v81) */
+.dw-crew{margin:6px 0 2px;font-size:13.5px;line-height:1.4;color:var(--haze)}
+.dw-crew b{font-weight:650;color:var(--ink)}
+.dw-self{margin:0 0 16px;padding:12px 14px;border-radius:6px;background:var(--sunk);border:2.5px solid var(--brk)}
+.dw-self>b{display:block;margin-bottom:6px;font-family:var(--font-label);font-weight:700;font-size:14.5px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--brk)}
+.dw-self p{margin:3px 0 0;font-size:13.5px;line-height:1.4;color:var(--ink)}
+.row .row-self{display:block;margin-top:3px;font-style:normal;font-family:var(--font-label);font-weight:700;
+  font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--brk)}
+.dw-copy{margin-left:16px}
+.cb-row{display:grid;grid-template-columns:1fr auto;gap:3px 10px;width:100%;margin-bottom:12px;padding:13px 14px;border-radius:6px;
+  text-align:left;background:var(--sunk);color:var(--ink);border:2.5px solid var(--line-2);box-shadow:3px 4px 0 var(--pop);
+  transition:transform .12s var(--spring),box-shadow .12s var(--spring)}
+.cb-row:active{transform:translate(2px,3px);box-shadow:1px 1px 0 var(--pop)}
+.cb-row .who b{font-size:16px;font-weight:650}
+.cb-row .who i{margin-left:8px;font-style:normal;font-family:var(--font-label);font-weight:700;font-size:12px;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--lilac)}
+.cb-row .when{grid-column:1;font-size:14px;color:var(--haze)}
+.cb-row .mins{grid-column:2;grid-row:1 / span 2;align-self:center;font-weight:700;font-variant-numeric:tabular-nums}
 /* following quotes up (v80) */
 .qf-stats{margin:0 0 20px;padding:14px 15px;border-radius:10px;background:var(--sunk);
   border:2px solid var(--card-line);box-shadow:4px 5px 0 var(--pop-soft)}
@@ -1523,19 +1554,6 @@ html.light{--brk:#A3410F}
 </div>
 
 <!-- ═══ clock-out check ═══ -->
-<div class="overlay" id="confirmOut">
-  <button class="back" id="outBackTop">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
-    <span data-i18n="back">Go back</span>
-  </button>
-  <div class="inner">
-  <h2 data-i18n="out.title">Clock out for the day?</h2>
-  <p class="sub" id="confirmSub"></p>
-  <button class="pick safe" id="cBreak" data-i18n-html="out.brkFull">Start a break instead<small>Pauses the clock. The shift keeps running.</small></button>
-  <button class="pick danger" id="cYes" data-i18n-html="out.yesFull">Yes, clock out<small>Ends the shift for the day</small></button>
-  <button class="pick calm" id="cNo" data-i18n="out.no">Never mind</button>
-</div></div>
-
 <!-- ═══ track a job or a quote ═══ -->
 <div class="overlay" id="trackSheet">
   <button class="back" id="trkBackTop">
@@ -1676,6 +1694,7 @@ html.light{--brk:#A3410F}
   </div>
 
   <p class="pay-state" id="dwPaid" hidden></p>
+  <div class="dw-self" id="dwSelf" hidden></div>
   <div id="dwDays"></div>
   <button class="pick safe" id="dwMark" hidden data-i18n="pay.mark">Mark this week paid</button>
   <button class="minor-link" type="button" id="dwUnlock" hidden data-i18n="pay.unlock">Unlock this week</button>
@@ -1792,6 +1811,7 @@ html.light{--brk:#A3410F}
 
     <p class="flabel qs-hist" data-i18n="qe.history">History</p>
     <div class="qs-log" id="qsLog"></div>
+    <button class="minor-link" type="button" id="qsEdit" hidden data-i18n="qe.edit">Change the name, town, amount or anything else</button>
   </div>
 </div>
 
@@ -2012,6 +2032,10 @@ html.light{--brk:#A3410F}
       </div>
     </div>
     <div id="jaEdit">
+      <div class="wk-switch" id="jaKind">
+        <button type="button" class="wk-opt" data-k="job" data-i18n="jb.jobOne">Job</button>
+        <button type="button" class="wk-opt" data-k="quote" data-i18n="jb.quoteOne">Quote</button>
+      </div>
       <div class="duo">
         <label class="field"><span data-i18n="f.first">First name</span>
           <input id="jaFirst" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="next"></label>
@@ -2030,10 +2054,31 @@ html.light{--brk:#A3410F}
       </div>
       <label class="field" id="jaNotesWrap"><span data-i18n-html="f.notes">Notes <i>— optional</i></span>
         <textarea id="jaNotes" autocapitalize="sentences"></textarea></label>
+      <div class="duo">
+        <label class="field"><span data-i18n="ja.day">Day</span>
+          <input id="jaDay" type="date"></label>
+        <label class="field"><span data-i18n="tf.time">Time</span>
+          <input id="jaTime" type="time"></label>
+      </div>
+      <label class="field"><span data-i18n="ja.who">Logged by</span>
+        <select id="jaWho"></select></label>
       <p class="err" id="jaErr" hidden></p>
       <button class="pick safe" type="button" id="jaSave" data-i18n="ja.saveAll">Save the changes</button>
       <button class="pick danger" type="button" id="jaDel"></button>
     </div>
+  </div>
+</div>
+
+<!-- ═══ a break somebody else took, copied onto this person ═══ -->
+<div class="overlay top" id="copyBrk">
+  <button class="back" id="cbBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 id="cbTitle"></h2>
+    <p class="sub" id="cbSub"></p>
+    <div id="cbList"></div>
   </div>
 </div>
 
@@ -2065,10 +2110,11 @@ html.light{--brk:#A3410F}
   </button>
   <div class="inner">
     <h2 data-i18n="xc.title">Before you clock out</h2>
-    <p class="sub" id="xcSub"></p>
+    <p class="sub" id="xcHours"></p>
+    <p class="sub xc-sub" id="xcSub"></p>
     <div id="xcList"></div>
-    <button class="pick safe" type="button" id="xcDone" data-i18n="xc.done">Clock out</button>
     <button class="minor-link" type="button" id="xcMore" data-i18n="xc.more">Log a job that isn’t here</button>
+    <button class="pick danger" type="button" id="xcDone" data-i18n="xc.done">Clock out</button>
   </div>
 </div>
 
@@ -2171,6 +2217,99 @@ html.light{--brk:#A3410F}
 </div>
 
 <script>
+/* TZ-START */
+/* ═══════════ one clock: Eastern ═══════════
+   The business runs on Boston time, so the app does too. Whatever zone a phone
+   is set to — in Brazil, on a plane, set wrong — every time and date it shows or
+   works out is New York's, daylight saving and all. A moment (Date.now(), a
+   punch's timestamp) is the same everywhere; only turning one into a wall clock
+   or a calendar day needs a zone, and everything that does comes through here.
+   The phone's own zone is never asked. A plain day is a 'yyyy-MM-dd' string, and
+   arithmetic on those is done on the calendar, not on hours. */
+const CLOCK_ZONE = 'America/New_York';
+let zoneFmt = null;
+try {
+  zoneFmt = new Intl.DateTimeFormat('en-US', { timeZone: CLOCK_ZONE, hour12: false, year: 'numeric',
+    month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
+} catch(e){ /* a phone this old shows its own time rather than no app at all */ }
+function zoneParts(ms){
+  if (!zoneFmt){
+    const x = new Date(ms);
+    return { y: x.getFullYear(), mo: x.getMonth() + 1, d: x.getDate(), h: x.getHours(),
+             mi: x.getMinutes(), s: x.getSeconds(), wd: x.getDay() };
+  }
+  const o = {};
+  zoneFmt.formatToParts(new Date(ms)).forEach(function(x){ o[x.type] = Number(x.value); });
+  return { y: o.year, mo: o.month, d: o.day, h: o.hour % 24, mi: o.minute, s: o.second,
+           wd: new Date(Date.UTC(o.year, o.month - 1, o.day)).getUTCDay() };
+}
+/* The moment the wall clock in New York reads this. Its offset depends on the
+   moment, so it is found by checking the answer and correcting it. */
+function zoneMs(y, mo, d, h, mi){
+  const want = Date.UTC(y, mo - 1, d, h || 0, mi || 0);
+  let ms = want;
+  for (let i = 0; i < 3; i++){
+    const p = zoneParts(ms);
+    const off = want - Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi);
+    if (!off) break;
+    ms += off;
+  }
+  return ms;
+}
+function pad2(n){ return String(n).padStart(2, '0'); }
+/* The day a moment falls on, in New York. */
+function ymd(d){
+  const p = zoneParts(typeof d === 'number' ? d : d.getTime());
+  return p.y + '-' + pad2(p.mo) + '-' + pad2(p.d);
+}
+function isoPlus(iso, n){
+  const p = String(iso).split('-').map(Number);
+  return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10);
+}
+/* 'yyyy-MM-dd' as the day it names, at midnight in New York */
+function dayMs(iso){
+  const p = String(iso || '').split('-').map(Number);
+  if (p.length !== 3 || !p[0]) return NaN;
+  return zoneMs(p[0], p[1], p[2], 0, 0);
+}
+/* The work week a plain day is in, and the one a moment is in. */
+function isoWeekStart(iso){
+  const p = String(iso).split('-').map(Number);
+  const wd = new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
+  return isoPlus(iso, -((wd + (7 - WEEK_STARTS_ON) % 7) % 7));
+}
+function weekStartISO(d){ return isoWeekStart(ymd(d)); }
+function shiftWeekISO(iso, backWeeks){ return isoWeekStart(isoPlus(iso, -7 * backWeeks)); }
+/* Today's place in the week: 0 is the first day of the work week. */
+function todayIndex(){ return (zoneParts(Date.now()).wd + (7 - WEEK_STARTS_ON) % 7) % 7; }
+/* 'HH:mm' on a plain day, as a moment; and a moment as 'HH:mm' */
+function localMs(date, hhmm){
+  const p = String(date).split('-').map(Number), h = String(hhmm).split(':').map(Number);
+  return zoneMs(p[0], p[1], p[2], h[0], h[1] || 0);
+}
+function hhmm(ms){
+  const p = zoneParts(ms);
+  return pad2(p.h) + ':' + pad2(p.mi);
+}
+function fmtTime(ms){
+  try { return new Date(ms).toLocaleTimeString(locale(), { timeZone: CLOCK_ZONE, hour:'numeric', minute:'2-digit' }); }
+  catch(e){ return ''; }
+}
+function fmtDay(ms){
+  try { return new Date(ms).toLocaleDateString(locale(), { timeZone: CLOCK_ZONE, weekday:'short', month:'short', day:'numeric' }); }
+  catch(e){ return ''; }
+}
+/* Just the month and the day — the weekday is already on the row. */
+function fmtDayNum(ms){
+  try { return new Date(ms).toLocaleDateString(locale(), { timeZone: CLOCK_ZONE, month:'short', day:'numeric' }); }
+  catch(e){ return ''; }
+}
+function fmtDayLong(ms){
+  try { return new Date(ms).toLocaleDateString(locale(), { timeZone: CLOCK_ZONE, weekday:'long', month:'short', day:'numeric' }); }
+  catch(e){ return ''; }
+}
+/* TZ-END */
+
 /* ═══════════ storage ═══════════ */
 const mem = {};
 const DB = {
@@ -2422,10 +2561,12 @@ const STRINGS = {
   'sched.all':   ['Every truck', 'Todos os caminhões'],
   'sched.done':  ['Done', 'Feito'],
   'sched.doneBy':['Done by {0}', 'Feito por {0}'],
-  'sched.finish':['Complete job', 'Concluir serviço'],
-  'sched.tick':  ['Just mark it done', 'Só marcar como feito'],
+  'sched.finish':['Track job', 'Registrar serviço'],
+  'sched.quote': ['Track quote', 'Registrar orçamento'],
+  'sched.tick':  ['Mark as done', 'Marcar como feito'],
   'sched.undo':  ['Not done after all', 'Não foi feito ainda'],
-  'sched.logToo':['Log it too', 'Registrar também'],
+  'sched.logToo':['Log job too', 'Registrar serviço também'],
+  'sched.logQtToo':['Log quote too', 'Registrar orçamento também'],
   'sched.allDone':['Everything on the board is done. Nice one.',
                   'Tudo do quadro está feito. Muito bem.'],
   'sched.saving':['Saving…', 'Salvando…'],
@@ -2455,18 +2596,10 @@ const STRINGS = {
   'and':         ['and', 'e'],
 
   /* clocking out */
-  'out.title':   ['Clock out for the day?', 'Encerrar o dia?'],
   'out.brk':     ['Start a break instead', 'Fazer uma pausa'],
   'out.brkSub':  ['Pauses the clock. The shift keeps running.', 'Pausa o relógio. O turno continua.'],
   'out.yes':     ['Yes, clock out', 'Sim, encerrar'],
   'out.yesSub':  ['Ends the shift for the day', 'Encerra o turno do dia'],
-  'out.no':      ['Never mind', 'Deixa pra lá'],
-  'out.brkFull': ['Start a break instead<small>Pauses the clock. The shift keeps running.</small>',
-                  'Fazer uma pausa<small>Pausa o relógio. O turno continua.</small>'],
-  'out.yesFull': ['Yes, clock out<small>Ends the shift for the day</small>',
-                  'Sim, encerrar<small>Encerra o turno do dia</small>'],
-  'out.noIn':    ['Never mind<small>Going back in {0}s</small>',
-                  'Deixa pra lá<small>Voltando em {0}s</small>'],
   'out.sub':     ['{0} on the clock so far today.', '{0} trabalhados hoje até agora.'],
   'out.subBrk':  ['On break. {0} on the clock so far today.', 'Em pausa. {0} trabalhados hoje até agora.'],
 
@@ -2573,6 +2706,24 @@ const STRINGS = {
   'day.break':   ['{0} of breaks', '{0} de pausa'],
   'day.open':    ['still on the clock', 'ainda trabalhando'],
   'day.edited':  ['corrected', 'corrigido'],
+  'day.editedBy':['{0} edited', '{0} editou'],
+  'day.with':    ['with {0}', 'com {0}'],
+  'day.noOneElse':['no one else', 'ninguém mais'],
+  'day.copyBrk': ['Copy a break', 'Copiar uma pausa'],
+  'hrs.selfEdited':['{0} edited his hours', '{0} editou as próprias horas'],
+  'se.inTime':   ['Moved his clock-in', 'Mudou a entrada'],
+  'se.outTime':  ['Moved his clock-out', 'Mudou a saída'],
+  'se.addIn':    ['Added a clock-in', 'Adicionou uma entrada'],
+  'se.addOut':   ['Added a clock-out', 'Adicionou uma saída'],
+  'se.delIn':    ['Deleted a clock-in', 'Apagou uma entrada'],
+  'se.delOut':   ['Deleted a clock-out', 'Apagou uma saída'],
+  'se.addBrk':   ['Added a break', 'Adicionou uma pausa'],
+  'se.chgBrk':   ['Changed a break', 'Mudou uma pausa'],
+  'se.delBrk':   ['Deleted a break', 'Apagou uma pausa'],
+  'cb.title':    ['Copy a break onto {0}', 'Copiar uma pausa para {0}'],
+  'cb.sub':      ['Tap the one to copy. These are breaks taken while they were clocked in.',
+                  'Toque na pausa para copiar. São pausas feitas enquanto a pessoa estava trabalhando.'],
+  'cb.sameTruck':['same truck', 'mesmo caminhão'],
   'day.total':   ['Week total', 'Total da semana'],
   'day.askDel':  ['Delete this punch? The row stays in the sheet, marked.',
                   'Apagar esta marcação? A linha fica na planilha, marcada.'],
@@ -2604,13 +2755,14 @@ const STRINGS = {
                   'Não consegui carregar os serviços e orçamentos. Verifique a conexão e tente de novo.'],
   'jb.jobs':     ['Jobs', 'Serviços'],
   'jb.quotes':   ['Quotes', 'Orçamentos'],
-  'jb.all':      ['Everyone', 'Todos'],
+  'jb.tracked':  ['Tracked', 'Registrado'],
+  'jb.perPerson':['by each person', 'por cada pessoa'],
   'jb.qt1':      ['{0} quote', '{0} orçamento'],
   'jb.qtN':      ['{0} quotes', '{0} orçamentos'],
   'jb.noneJ':    ['No jobs logged this week.', 'Nenhum serviço registrado nesta semana.'],
   'jb.noneQ':    ['No quotes logged this week.', 'Nenhum orçamento registrado nesta semana.'],
-  'jb.hint':     ['Tap one to change what it came to, or to delete it.',
-                  'Toque em um para mudar o valor ou apagar.'],
+  'jb.hint':     ['Tap one to change anything on it, or to delete it.',
+                  'Toque em um para mudar qualquer coisa ou apagar.'],
   'jb.double':   ['double?', 'duplicado?'],
   /* v70 */
   'admin':       ['Admin', 'Administrador'],
@@ -2745,11 +2897,17 @@ const STRINGS = {
   'ja.badFirst': ['A first name is needed.', 'O nome é obrigatório.'],
   'ja.badTown':  ['A town is needed.', 'A cidade é obrigatória.'],
   'ja.badPay':   ['Pick how they paid.', 'Escolha como pagou.'],
-  'jb.logged':   ['{0} entries', '{0} registros'],
   'srv.old':     ['This needs the new Code.gs. Deploy the new version in Apps Script, then try again.',
                   'Isto precisa do novo Code.gs. Publique a nova versão no Apps Script e tente de novo.'],
   'jb.was':      ['was {0}', 'era {0}'],
   'ja.amount':   ['What it came to', 'Valor'],
+  'ja.day':      ['Day', 'Dia'],
+  'ja.who':      ['Logged by', 'Registrado por'],
+  'ja.badDay':   ['Pick a day, today or earlier.', 'Escolha um dia, hoje ou antes.'],
+  'ja.badWho':   ['That person isn’t on the roster.', 'Essa pessoa não está na lista.'],
+  'jb.jobOne':   ['Job', 'Serviço'],
+  'jb.quoteOne': ['Quote', 'Orçamento'],
+  'qe.edit':     ['Change the name, town, amount or anything else', 'Mudar nome, cidade, valor ou outra coisa'],
   'ja.save':     ['Save the new amount', 'Salvar o novo valor'],
   'ja.delJ':     ['Delete this job', 'Apagar este serviço'],
   'ja.delQ':     ['Delete this quote', 'Apagar este orçamento'],
@@ -2808,6 +2966,8 @@ const STRINGS = {
   'fc.beforeIn': ['That is before he clocked in ({0}).', 'Isso é antes da entrada dele ({0}).'],
   'force.outMe': ['{0} clocked you out at {1}.', '{0} deu sua saída às {1}.'],
   'force.inMe':  ['{0} clocked you in at {1}.', '{0} deu sua entrada às {1}.'],
+  'force.outSelf':['Clocked out at {0}.', 'Saída às {0}.'],
+  'force.inSelf':['Clocked in at {0}.', 'Entrada às {0}.'],
   'xc.more':     ['Log a job that isn’t here', 'Registrar um serviço que não está aqui'],
   'day.week':    ['Week', 'Semana'],
   'hrs.onDay':   ['on the clock · {0}', 'no serviço · {0}'],
@@ -2825,7 +2985,9 @@ const STRINGS = {
   'xc.by':       ['{0} logged it', '{0} registrou'],
   'xc.board':    ['On the schedule, nobody logged it', 'Na agenda, ninguém registrou'],
   'xc.confirm':  ['Confirm', 'Confirmar'],
-  'xc.log':      ['Log it', 'Registrar'],
+  'xc.logJob':   ['Job', 'Serviço'],
+  'xc.logQuote': ['Quote', 'Orçamento'],
+  'xc.nothing':  ['Nothing left to log. You’re all set.', 'Nada mais para registrar. Tudo certo.'],
   'xc.doneRow':  ['✓ Done', '✓ Feito'],
   'xc.done':     ['Clock out', 'Encerrar o dia'],
   'xc.confirmT': ['{0}’s job: your answer', 'Serviço do {0}: sua resposta'],
@@ -2987,47 +3149,24 @@ let lang = 'en';
 
 /* t('key') for a plain string, t('key', x) to fill {0}. Anything missing falls
    back to English rather than showing a key. */
-function t(key, a, b){
+function t(key){
   const row = STRINGS[key];
   if (!row) return key;
   let out = (lang === 'pt' ? row[1] : row[0]) || row[0];
-  if (a !== undefined) out = out.split('{0}').join(a);
-  if (b !== undefined) out = out.split('{1}').join(b);
+  for (let i = 1; i < arguments.length; i++){
+    if (arguments[i] !== undefined) out = out.split('{' + (i - 1) + '}').join(arguments[i]);
+  }
   return out;
 }
 function langOf(){ return lang; }
 function locale(){ return LOCALES[lang] || 'en-US'; }
 
-function fmtTime(ms){
-  try { return new Date(ms).toLocaleTimeString(locale(), { hour:'numeric', minute:'2-digit' }); }
-  catch(e){ return ''; }
-}
-function fmtDay(ms){
-  try { return new Date(ms).toLocaleDateString(locale(), { weekday:'short', month:'short', day:'numeric' }); }
-  catch(e){ return ''; }
-}
-/* Just the month and the day — the weekday is already on the row. */
-function fmtDayNum(ms){
-  try { return new Date(ms).toLocaleDateString(locale(), { month:'short', day:'numeric' }); }
-  catch(e){ return ''; }
-}
-function fmtDayLong(ms){
-  try { return new Date(ms).toLocaleDateString(locale(), { weekday:'long', month:'short', day:'numeric' }); }
-  catch(e){ return ''; }
-}
-/* 'yyyy-MM-dd' as the day it names, at local midnight */
-function dayMs(iso){
-  const p = String(iso || '').split('-').map(Number);
-  if (p.length !== 3 || !p[0]) return NaN;
-  return new Date(p[0], p[1] - 1, p[2]).getTime();
-}
-/* A work week, Tuesday to Monday. setDate rather than adding six days of
-   milliseconds, so the week the clocks change is still seven days long. */
+/* A work week, first day to last, counted on the calendar so the week the
+   clocks change is still seven days long. */
 function weekLabel(startIso){
   const a = dayMs(startIso);
   if (isNaN(a)) return '';
-  const b = new Date(a); b.setDate(b.getDate() + 6);
-  return fmtDay(a) + ' – ' + fmtDay(b.getTime());
+  return fmtDay(a) + ' – ' + fmtDay(dayMs(isoPlus(startIso, 6)));
 }
 
 /* Everything written into the markup carries its key, so a switch is one pass
@@ -3083,7 +3222,7 @@ function paintMenu(){
   const err = DB.get('jh.err', null), last = DB.get('jh.lastSync', null);
   $('diag').textContent =
     (queue.length ? t('diag.waiting', queue.length) : t('diag.clear')) + ' ' +
-    (last ? t('diag.last', new Date(last).toLocaleString(LOCALES[langOf()])) + ' ' : '') +
+    (last ? t('diag.last', fmtDay(last) + ' ' + fmtTime(last)) + ' ' : '') +
     (err ? t('diag.problem', /^err./.test(err) ? t(err) : err) : '');
 }
 
@@ -3211,8 +3350,7 @@ function human(ms){
 
 /* ═══════════ punching ═══════════ */
 function punch(type, extra){
-  const ev = { id:uid(), ts:new Date().toISOString(), worker:worker, type:type,
-               tzOffset:new Date().getTimezoneOffset(), lat:null, lng:null };
+  const ev = { id:uid(), ts:new Date().toISOString(), worker:worker, type:type, lat:null, lng:null };
   if (extra) Object.keys(extra).forEach(function(k){ ev[k] = extra[k]; });
   /* One id, one entry. Anything already waiting under the same id is replaced
      rather than sent twice — a correction made before the first copy got out
@@ -3256,9 +3394,6 @@ function endBreak(){
    gets both answers, paired, and anything that differs is flagged for it.
    Booked jobs nobody on the truck logged are listed too. Nothing here can hold
    a clock-out up: no signal, or no answer in a few seconds, and he just goes. */
-function ymd(d){
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
 function foldFirst(s){
   return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
@@ -3293,56 +3428,93 @@ function loggedBy(e){
   return [e.worker].concat((e.also || []).map(function(x){ return x.worker; }))
     .filter(function(v, i, a){ return a.indexOf(v) === i; }).join(' & ');
 }
-function logBoardJob(j, after){
+function logBoardJob(j, after, kind){
   openTrack();
-  startTrack('job');
+  startTrack(kind || 'job');
   trkJob = j; trkAfter = after;
   // logged after the fact: it goes on the booking's day, even past midnight
   trkWhen = j.startMs && j.startMs < Date.now() ? j.startMs : null;
   const town = townFromAddress(j.where), who = nameFromTitle(j.title, town);
   $('fFirst').value = who.first; $('fLast').value = who.last; $('fTown').value = town;
 }
-let xc = null;                         // { items, then, loading }
-async function crewCheckThen(then){
+/* The list and the Clock out button are on screen the moment the round button is
+   tapped. What the phone already knows goes up at once: today's board, and the
+   crew's jobs as they stood when the app last asked. The sheet's latest comes in
+   behind, and nothing waits for it: he can clock out whenever he likes. */
+let xc = null;                         // { items, then, loading, done }
+let xcMemo = null;                     // { who, day, truck, d } the last answer
+function xcRides(){
   const truck = st.truck || '';
-  if (isTest() || !worker || truckMode(worker) === 'none' || !truck || truck === officeName()){ then(); return; }
-  const mine = xc = { items: [], then: then, loading: true };
-  paintCrewCheck();
-  $('crewChk').classList.add('open'); $('crewChk').scrollTop = 0;
-  let d = null;
-  try {
-    d = await Promise.race([ask({ action:'crewcheck', truck: truck, date: shiftDay() }),
-                            new Promise(function(r){ setTimeout(function(){ r(null); }, 7000); })]);
-  } catch(e){ d = null; }
-  if (xc !== mine) return;             // he backed out while it was on its way
+  return !isTest() && !!worker && truckMode(worker) !== 'none' && !!truck && truck !== officeName();
+}
+function xcItems(d, done){
   const items = [], known = Object.create(null);
   if (d && d.ok){
     (d.entries || []).forEach(function(e){
       known[foldFirst(e.first)] = 1;
-      if (!e.mine && e.during) items.push({ kind:'confirm', e:e, done:false });
+      if (!e.mine && e.during){
+        const key = 'c|' + (e.id || e.worker + '|' + e.first + '|' + e.whenMs);
+        items.push({ key: key, kind:'confirm', e:e, done: !!done[key] });
+      }
     });
     (d.mine || []).forEach(function(m){ known[foldFirst(m.first)] = 1; });
     (d.logged || []).forEach(function(n){ known[foldFirst(n)] = 1; });   // by anybody, either truck
   }
   boardToday().forEach(function(j){
-    if (j.done || loggedHere(j)) return;
+    const key = 'b|' + j.id;
+    if (!done[key] && (j.done || loggedHere(j))) return;
     const town = townFromAddress(j.where), who = nameFromTitle(j.title, town);
-    if (who.first && known[foldFirst(who.first)]) return;    // somebody logged it under that name
-    items.push({ kind:'board', j:j, who:who, town:town, done:false });
+    if (!done[key] && who.first && known[foldFirst(who.first)]) return;    // somebody logged it under that name
+    items.push({ key: key, kind:'board', j:j, who:who, town:town, done: !!done[key] });
   });
-  mine.loading = false; mine.items = items;
-  if (!items.length){ xc = null; closeCrewCheck(); then(); return; }
-  paintCrewCheck(); buzz([20, 40, 20]);
+  return items;
+}
+/* Asked whenever the app is opened during a shift, so the list is usually
+   complete the moment it is needed. */
+async function xcWarm(){
+  if (st.status === 'out' || !xcRides() || !unlocked || document.hidden) return;
+  const truck = st.truck, day = shiftDay(), who = worker;
+  try {
+    const d = await ask({ action:'crewcheck', truck: truck, date: day });
+    if (d && d.ok) xcMemo = { who: who, day: day, truck: truck, d: d };
+  } catch(e){ /* no signal: the list makes do with the board */ }
+}
+function startClockOut(){
+  // on break past the mark: did he forget to come back from it? A shorter break
+  // than that is just a break, and clocking out ends it as it always did.
+  if (breakLong()){ openBreakCheck('out'); return; }
+  crewCheckThen(finishClockOut);
+}
+async function crewCheckThen(then){
+  const rides = xcRides(), truck = st.truck || '', day = shiftDay();
+  const memo = xcMemo && xcMemo.who === worker && xcMemo.day === day && xcMemo.truck === truck ? xcMemo.d : null;
+  const mine = xc = { items: [], then: then, loading: rides, done: Object.create(null) };
+  mine.items = rides ? xcItems(memo, mine.done) : [];
+  const worked = Date.now() - st.shiftStart - st.breakMs - (st.status === 'break' ? Date.now() - st.breakStart : 0);
+  $('xcHours').textContent = t(st.status === 'break' ? 'out.onBrk' : 'out.onNow', human(worked));
+  paintCrewCheck();
+  $('crewChk').classList.add('open'); $('crewChk').scrollTop = 0;
+  if (mine.items.length) buzz([20, 40, 20]);
+  if (!rides) return;
+  let d = null;
+  try {
+    d = await Promise.race([ask({ action:'crewcheck', truck: truck, date: day }),
+                            new Promise(function(r){ setTimeout(function(){ r(null); }, 7000); })]);
+  } catch(e){ d = null; }
+  if (xc !== mine) return;             // he clocked out or backed out meanwhile
+  if (d && d.ok) xcMemo = { who: worker, day: day, truck: truck, d: d };
+  mine.loading = false;
+  if (d && d.ok) mine.items = xcItems(d, mine.done);
+  paintCrewCheck();
 }
 function closeCrewCheck(){ $('crewChk').classList.remove('open'); }
 function paintCrewCheck(){
   const box = $('xcList'); box.innerHTML = '';
   if (!xc) return;
-  if (xc.loading){ $('xcSub').textContent = t('xc.checking'); $('xcDone').hidden = true; $('xcMore').hidden = true; return; }
-  $('xcDone').hidden = false; $('xcMore').hidden = false;
   const left = xc.items.filter(function(i){ return !i.done; }).length;
   const asking = xc.items.some(function(i){ return i.kind === 'confirm' && !i.done; });
-  $('xcSub').textContent = !left ? t('xc.allDone') : t(asking ? 'xc.sub' : 'xc.subBoard');
+  $('xcSub').textContent = left ? t(asking ? 'xc.sub' : 'xc.subBoard')
+    : xc.items.length ? t('xc.allDone') : xc.loading ? t('xc.checking') : t('xc.nothing');
   xc.items.forEach(function(it){
     const row = document.createElement('div'); row.className = 'xc-row' + (it.done ? ' done' : '');
     const what = document.createElement('div'); what.className = 'xc-what';
@@ -3360,19 +3532,27 @@ function paintCrewCheck(){
       const ok = document.createElement('span'); ok.className = 'xc-ok'; ok.textContent = t('xc.doneRow');
       row.appendChild(ok);
     } else {
-      const go = document.createElement('button'); go.type = 'button';
-      go.textContent = t(it.kind === 'confirm' ? 'xc.confirm' : 'xc.log');
-      go.onclick = function(){
-        const list = xc;
-        closeCrewCheck();
-        const back = function(saved){
-          if (saved) it.done = true;
-          if (xc === list){ paintCrewCheck(); $('crewChk').classList.add('open'); }
+      const go = function(kind, label){
+        const b = document.createElement('button'); b.type = 'button';
+        b.textContent = t(label);
+        b.onclick = function(){
+          const list = xc;
+          closeCrewCheck();
+          const back = function(saved){
+            if (saved && list){ list.done[it.key] = true; it.done = true; }
+            if (xc === list){ paintCrewCheck(); $('crewChk').classList.add('open'); }
+          };
+          if (it.kind === 'confirm') confirmJob(it.e, back); else logBoardJob(it.j, back, kind);
+          buzz(12);
         };
-        if (it.kind === 'confirm') confirmJob(it.e, back); else logBoardJob(it.j, back);
-        buzz(12);
+        return b;
       };
-      row.appendChild(go);
+      if (it.kind === 'confirm') row.appendChild(go('job', 'xc.confirm'));
+      else {
+        const two = document.createElement('div'); two.className = 'xc-two';
+        two.appendChild(go('job', 'xc.logJob')); two.appendChild(go('quote', 'xc.logQuote'));
+        row.appendChild(two);
+      }
     }
     box.appendChild(row);
   });
@@ -3394,7 +3574,10 @@ $('xcMore').onclick = function(){
 };
 // backing out leaves him clocked in, as "Never mind" does
 $('xcBack').onclick = function(){ xc = null; closeCrewCheck(); paint(); };
-function finishClockOut(){ const worked = clockOut(); paint(); showThanks(worked); }
+function finishClockOut(){
+  if (st.status === 'out'){ paint(); return; }     // the office already did
+  const worked = clockOut(); paint(); showThanks(worked);
+}
 
 /* ═══════════ the forgotten break ═══════════
    Busy days, a man starts his break, goes back to work and never taps that he
@@ -3480,10 +3663,9 @@ $('bcSave').onclick = function(){
   const start = st.breakStart;
   let back = null;
   if (/^\d{1,2}:\d{2}/.test(v)){
-    const d = new Date(start);
-    d.setHours(Number(v.slice(0, 2)), Number(v.slice(3, 5)), 0, 0);
-    if (d.getTime() <= start) d.setDate(d.getDate() + 1);   // a break that ran past midnight
-    back = d.getTime();
+    const day = ymd(start), at = v.slice(0, 5);
+    back = localMs(day, at);
+    if (back <= start) back = localMs(isoPlus(day, 1), at);   // a break that ran past midnight
   }
   if (!back || back <= start || back > Date.now() + 30000){
     $('bcTime').classList.add('bad');
@@ -3939,31 +4121,41 @@ function renderSchedule(){
          one it is off the "now" card, so this is the way in for everyone else
          — the same form, the town already filled in. */
       if (!loggedHere(j)){
-        const also = document.createElement('button');
-        also.type = 'button'; also.className = 'log-too';
-        also.textContent = t('sched.logToo');
-        also.onclick = function(){ completeJob(j); };
-        box.appendChild(also);
+        const both = document.createElement('div'); both.className = 'log-both';
+        [['job', 'sched.logToo'], ['quote', 'sched.logQtToo']].forEach(function(x){
+          const also = document.createElement('button');
+          also.type = 'button'; also.className = 'log-too';
+          also.textContent = t(x[1]);
+          also.onclick = function(){ completeJob(j, x[0]); };
+          both.appendChild(also);
+        });
+        box.appendChild(both);
       }
     }
 
-    /* The job in hand gets its two ways out: log what it was worth, or just
-       tick it off. Only one card carries these, so the board stays readable. */
-    if (isCur){
+    /* Three ways out of a job: it was done (log what it came to), it was priced
+       and not done (log the quote), or just tick it off. On every job still open
+       today, and on the next one up when today is finished. */
+    if (!j.done && (isToday || isCur)){
       const acts = document.createElement('div');
       acts.className = 'job-actions';
 
       const fin = document.createElement('button');
       fin.type = 'button'; fin.className = 'fin';
       fin.textContent = t('sched.finish');
-      fin.onclick = function(){ completeJob(j); };
+      fin.onclick = function(){ completeJob(j, 'job'); };
+
+      const qt = document.createElement('button');
+      qt.type = 'button'; qt.className = 'qt';
+      qt.textContent = t('sched.quote');
+      qt.onclick = function(){ completeJob(j, 'quote'); };
 
       const only = document.createElement('button');
       only.type = 'button'; only.className = 'tickall';
       only.textContent = t('sched.tick');
       only.onclick = function(){ markDone(j, true); };
 
-      acts.appendChild(fin); acts.appendChild(only);
+      acts.appendChild(fin); acts.appendChild(qt); acts.appendChild(only);
       box.appendChild(acts);
     }
   });
@@ -3989,17 +4181,19 @@ function noteLogged(j){
 /* Straight from the board into the same form the crew already knows — the
    customer's name read off the booking's title, the town from its address, and
    the job ticked off when it saves. */
-function completeJob(j){
-  if (breakLong()){ closeSchedule(); openBreakCheck('ask', function(){ completeJob(j); }); return; }
+function completeJob(j, kind){
+  if (breakLong()){ closeSchedule(); openBreakCheck('ask', function(){ completeJob(j, kind); }); return; }
   closeSchedule();
   openTrack();                      // clears any previous link
-  startTrack('job');
+  startTrack(kind || 'job');
   trkJob = j;                       // ...so this comes after it
   const town = townFromAddress(j.where);
   const who = nameFromTitle(j.title, town);
   $('fFirst').value = who.first;
   $('fLast').value  = who.last;
   $('fTown').value  = town;
+  // the name and town are there: the money is all that is left to type
+  if (who.first && town) $('fValue').focus();
 }
 
 function openSchedule(){ schedView = 'day'; renderSchedule(); $('schedule').classList.add('open'); }
@@ -4107,8 +4301,12 @@ function renderWeekDetail(){
       (d.paidBy ? '  ·  ' + t('pay.by', d.paidBy) : '');
   } else paidLine.hidden = true;
 
-  $('dwMark').hidden   = !d.canEdit || d.paid || d.stale;
-  $('dwUnlock').hidden = !d.canEdit || !d.paid || d.stale;
+  // Rey may correct his own hours; only the office pays. A copy saved before
+  // this version has no canPay, and there canEdit meant the office.
+  const canPay = d.canPay != null ? d.canPay : d.canEdit;
+  $('dwMark').hidden   = !canPay || d.paid || d.stale;
+  $('dwUnlock').hidden = !canPay || !d.paid || d.stale;
+  paintSelfEdits(d);
 
   const box = $('dwDays'); box.innerHTML = '';
   const names = dayNames();
@@ -4142,6 +4340,15 @@ function renderWeekDetail(){
     }
     top.appendChild(sum);
     card.appendChild(top);
+
+    // which truck, and who was on it too
+    (day.crew || []).forEach(function(c){
+      const p = document.createElement('p'); p.className = 'dw-crew';
+      const tb = document.createElement('b'); tb.textContent = placeLabel(c.truck);
+      p.appendChild(tb);
+      p.appendChild(document.createTextNode('  ·  ' + (c.with && c.with.length ? t('day.with', c.with.join(', ')) : t('day.noOneElse'))));
+      card.appendChild(p);
+    });
 
     if (!day.punches.length){
       const none = document.createElement('p');
@@ -4187,7 +4394,7 @@ function renderWeekDetail(){
         if (p.pending || p.edited){
           const mk = document.createElement('span');
           mk.className = 'mark' + (p.pending ? ' saving' : '');
-          mk.textContent = t(p.pending ? 'oq.pending' : 'day.edited');
+          mk.textContent = p.pending ? t('oq.pending') : editedWord(p);
           row.appendChild(mk);
         }
         chevron(row);
@@ -4204,7 +4411,7 @@ function renderWeekDetail(){
         const why = document.createElement('em');
         why.textContent = b.pending ? t('oq.pending')
           : [!b.endMs ? t('day.brkOpen') : '', b.toClockOut ? t('day.brkToOut') : '',
-             b.late ? t('day.late') : '', b.edited && !b.late ? t('day.edited') : ''].filter(Boolean).join('  ·  ');
+             b.late ? t('day.late') : '', b.edited && !b.late ? editedWord(b) : ''].filter(Boolean).join('  ·  ');
         span.appendChild(why);
       }
       blk.appendChild(lbl); blk.appendChild(span);
@@ -4235,10 +4442,75 @@ function renderWeekDetail(){
       const canBreak = day.punches.length > 0;
       add.onclick = function(){ openAddToDay(day.date, canBreak); };
       card.appendChild(add);
+      if (canPay && day.copy && day.copy.length){
+        const cp = document.createElement('button');
+        cp.type = 'button'; cp.className = 'dw-addone dw-copy'; cp.textContent = t('day.copyBrk');
+        cp.onclick = function(){ openCopyBreak(day); };
+        card.appendChild(cp);
+      }
     }
     box.appendChild(card);
   });
 }
+
+/* "corrected" — or, when the person whose week it is changed it himself, his name
+   and what it used to say. */
+function editedWord(x){
+  if (!x.editedBy || x.editedBy !== dwWorker) return t('day.edited');
+  return t('day.editedBy', x.editedBy) + (x.original ? '  ·  ' + t('jb.was', x.original) : '');
+}
+/* For the office, on top of the week: he changed his own hours, and what. */
+function selfEditWords(what){
+  const key = ({ 'in time': 'se.inTime', 'out time': 'se.outTime', 'added in': 'se.addIn', 'added out': 'se.addOut',
+                 'deleted in': 'se.delIn', 'deleted out': 'se.delOut', 'added break': 'se.addBrk',
+                 'break changed': 'se.chgBrk', 'deleted break': 'se.delBrk' })[what];
+  return key ? t(key) : what;
+}
+function paintSelfEdits(d){
+  const box = $('dwSelf'); box.innerHTML = '';
+  const list = d.selfEdits || [];
+  box.hidden = !list.length;
+  if (!list.length) return;
+  const h = document.createElement('b'); h.textContent = t('hrs.selfEdited', d.worker); box.appendChild(h);
+  list.forEach(function(e){
+    const p = document.createElement('p');
+    const span = [e.from, e.to].filter(Boolean).join(' → ');
+    p.textContent = fmtDay(dayMs(e.date)) + '  ·  ' + selfEditWords(e.what) + (span ? ': ' + span : '');
+    box.appendChild(p);
+  });
+}
+/* A break somebody forgot to tap, taken from somebody who tapped his: anybody
+   clocked in at the time, the people on the same truck first. It goes in as a
+   new break on this person, saved and checked like one added by hand, and the
+   Edits tab says where it came from. */
+let cbDay = null;
+function openCopyBreak(day){
+  cbDay = day;
+  $('cbTitle').textContent = t('cb.title', dwWorker);
+  $('cbSub').textContent = fmtDayLong(dayMs(day.date)) + '. ' + t('cb.sub');
+  const box = $('cbList'); box.innerHTML = '';
+  day.copy.forEach(function(c){
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'cb-row';
+    const who = document.createElement('span'); who.className = 'who';
+    const nm = document.createElement('b'); nm.textContent = c.from; who.appendChild(nm);
+    if (c.crew){
+      const tg = document.createElement('i'); tg.textContent = t('cb.sameTruck'); who.appendChild(tg);
+    }
+    const when = document.createElement('span'); when.className = 'when';
+    when.textContent = fmtTime(c.startMs) + ' → ' + fmtTime(c.endMs);
+    const mins = document.createElement('span'); mins.className = 'mins'; mins.textContent = human(c.minutes * 60000);
+    b.appendChild(who); b.appendChild(when); b.appendChild(mins);
+    b.onclick = function(){
+      queueOffice('addbreak', { worker: dwWorker, date: day.date, from: hhmm(c.startMs), to: hhmm(c.endMs),
+                                startPid: 'adm_' + uid(), endPid: 'adm_' + uid(), copiedFrom: c.from });
+      buzz(35); closeCopyBreak();
+    };
+    box.appendChild(b);
+  });
+  $('copyBrk').classList.add('open'); $('copyBrk').scrollTop = 0;
+}
+function closeCopyBreak(){ cbDay = null; $('copyBrk').classList.remove('open'); }
+$('cbBack').onclick = closeCopyBreak;
 
 /* The server's reasons, said in the reader's language. Never its raw words,
    and never the browser's own "Failed to fetch". */
@@ -4351,10 +4623,6 @@ async function sendOffice(){
 /* What a change will look like once the sheet has it, drawn on the week now:
    the time moved, the line gone, the new line there — each marked as saving.
    The day's hours wait for the sheet to work them out. */
-function localMs(date, hhmm){
-  const p = String(date).split('-').map(Number), h = String(hhmm).split(':').map(Number);
-  return new Date(p[0], p[1] - 1, p[2], h[0], h[1] || 0).getTime();
-}
 function applyLocal(item){
   const d = dwData;
   if (!d || !d.days || dwWorker !== item.worker || dwStart !== item.weekStart) return;
@@ -4374,6 +4642,9 @@ function applyLocal(item){
   } else if (item.action === 'addbreak'){
     const a = localMs(p.date, p.from), b = localMs(p.date, p.to);
     day.breaks.push({ startId: p.startPid, endId: p.endPid, startMs: a, endMs: b, minutes: mins(a, b), pending: true });
+    if (p.copiedFrom && day.copy){
+      day.copy = day.copy.filter(function(c){ return c.endMs <= a || c.startMs >= b; });   // no longer free to copy
+    }
   } else if (item.action === 'editbreak'){
     const x = day.breaks.filter(function(q){ return q.startId === p.startId; })[0];
     if (x){
@@ -4391,10 +4662,6 @@ window.addEventListener('online', sendOffice);
 /* What the sheet is working on: the break or the punch being changed, or what
    kind of line is being added ('in', 'out' or 'break'). */
 let baEdit = null, baPunch = null, baKind = null;
-function hhmm(ms){
-  const x = new Date(ms);
-  return String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0');
-}
 function openTimeSheet(date){
   baDate = date; baEdit = null; baPunch = null; baKind = null;
   $('baSub').textContent = dwWorker + '  ·  ' + (fmtDay(dayMs(date)) || date);
@@ -4698,6 +4965,7 @@ function closeThanks(){
 }
 
 /* ═══════════ sync ═══════════ */
+let syncKeep = true;
 async function sync(){
   if (syncing || !queue.length) return;
   if (!navigator.onLine){ paint(); return; }
@@ -4720,11 +4988,17 @@ async function sync(){
 
   syncing = true; paint();
   const batch = queue.filter(function(e){ return e.worker === owner; }).slice(0, 60);
+  let sent = false;
   try {
+    const body = JSON.stringify({ who:owner, token:ownerTok, events:batch });
     const r = await fetch(CONFIG.ENDPOINT, {
       method:'POST',
       headers:{ 'Content-Type':'text/plain;charset=utf-8' },   // avoids CORS preflight
-      body: JSON.stringify({ who:owner, token:ownerTok, events:batch })
+      /* A clock-out and then the phone in the pocket: this lets the request
+         finish after the app has gone. Over the browser's size limit, or once
+         it has failed this way, it goes the ordinary way. */
+      keepalive: syncKeep && body.length < 60000,
+      body: body
     });
     const d = await r.json();
     if (d && !d.ok && d.error === 'unauthorized'){
@@ -4744,6 +5018,7 @@ async function sync(){
       const done = {};
       batch.forEach(function(e){ done[e.id] = true; });
       queue = queue.filter(function(e){ return !done[e.id]; });
+      sent = true;
       DB.set('jh.lastSync', Date.now()); DB.set('jh.err', null); save();
       if (d.speech && d.speech !== acctGet('speech', '')) acctSet({ speech: d.speech });
       loadCommission();                 // the server's own figure, now the queue is clear
@@ -4751,9 +5026,10 @@ async function sync(){
       if (!queue.some(function(e){ return e.worker === worker; })) checkMyState();
     } else DB.set('jh.err', ({ 'busy, retry': 'err.busy', 'could not save, try again': 'err.save',
                               'too many at once': 'err.tooMany', 'not allowed': 'err.denied' })[d && d.error] || 'err.rejected');
-  } catch(e){ DB.set('jh.err', 'err.nonet'); }
+  } catch(e){ DB.set('jh.err', 'err.nonet'); syncKeep = false; }
   syncing = false; paint();
-  if (queue.length) setTimeout(sync, 20000);
+  // anything saved while that was on its way goes now; trouble waits and tries again
+  if (queue.length) setTimeout(sync, sent ? 300 : 20000);
 }
 
 /* ═══════════ lock screen ═══════════ */
@@ -4852,7 +5128,8 @@ function lock(skipBio){
   loadLang();                      // his language, not whoever was here before
   unlocked = false; entry = ''; pinMode = null; pinChanging = false;
   setBack('lockScreen', 'lockBack', t('back'), true);
-  closeOut(); closeTrack(); closeThanks(); closeTruck(); closeReview(); closeSchedule();   // no sheet over the lock screen
+  xc = null; closeCrewCheck();
+  closeTrack(); closeThanks(); closeTruck(); closeReview(); closeSchedule();   // no sheet over the lock screen
   $('myjobs').classList.remove('open');
   document.body.classList.add('locked'); mirrorRoot();
   $('lockName').textContent = worker;
@@ -4883,6 +5160,7 @@ function unlock(){
   maybeAskBreak();
   sendOffice();                     // anything the office saved before the app was closed
   checkMyState();                   // anything the office did for him while it was closed
+  xcWarm();
 }
 async function offerBio(){
   if (!confirm(t('bio.ask', bioName()))) return;
@@ -4974,10 +5252,8 @@ function paint(){
 }
 /* today's date and the wall clock, under the name */
 function stamp(){
-  const d = new Date();
-  $('now').textContent =
-    d.toLocaleDateString(LOCALES[langOf()], { weekday:'short', month:'short', day:'numeric' }) + ' · ' +
-    d.toLocaleTimeString(LOCALES[langOf()], { hour:'numeric', minute:'2-digit' });
+  const ms = Date.now();
+  $('now').textContent = fmtDay(ms) + ' · ' + fmtTime(ms);
 }
 function tick(){
   // Off the clock the big number is always zero. The last shift is in the
@@ -5012,35 +5288,6 @@ setInterval(function(){
 /* Clocking out by mistake — reaching for the break button and hitting the big
    one — costs somebody their afternoon on the sheet. Always ask first, and put
    the break they probably meant right there in the answer. */
-/* Left open, this sheet is a phone sitting in a pocket with the shift neither
-   ended nor running. After 7 seconds with nobody answering it, back out to the
-   clock — the same thing "Never mind" does. The count is on the button so the
-   screen never closes itself without warning. */
-const OUT_SECONDS = 7;
-let outTimer = null;
-function closeOut(){
-  clearInterval(outTimer); outTimer = null;
-  $('confirmOut').classList.remove('open');
-  $('cNo').textContent = t('out.no');
-}
-function askClockOut(){
-  const worked = Date.now() - st.shiftStart - st.breakMs -
-                 (st.status === 'break' ? Date.now() - st.breakStart : 0);
-  $('confirmSub').textContent = t(st.status === 'break' ? 'out.onBrk' : 'out.onNow', human(worked));
-  $('cBreak').hidden = st.status === 'break';
-  $('confirmOut').classList.add('open');
-
-  let left = OUT_SECONDS;
-  const draw = function(){
-    $('cNo').innerHTML = t('out.noIn', left);
-  };
-  draw();
-  clearInterval(outTimer);
-  outTimer = setInterval(function(){
-    if (--left <= 0){ closeOut(); return; }
-    draw();
-  }, 1000);
-}
 $('main').onclick = function(){
   if (st.status === 'out'){
     // pick the truck first; clockIn happens once one is chosen. Andy is never
@@ -5048,27 +5295,13 @@ $('main').onclick = function(){
     if (truckMode(worker) !== 'none' && CONFIG.TRUCKS && CONFIG.TRUCKS.length) askTruck();
     else { clockIn(); paint(); }
   }
-  else askClockOut();
+  else startClockOut();
   pulse(this);
 };
 $('brk').onclick = function(){
   st.status === 'break' ? endBreak() : startBreak();
   paint(); pulse(this);
 };
-$('cNo').onclick       = function(){ closeOut(); };
-$('outBackTop').onclick = function(){ closeOut(); };   // same as Never mind, timer and all
-$('cYes').onclick   = function(){
-  closeOut();
-  // on break past the mark: did he forget to come back from it? A shorter
-  // break than that is just a break, and clocking out ends it as it always did.
-  if (breakLong()){
-    openBreakCheck('out');
-    return;
-  }
-  crewCheckThen(finishClockOut);
-};
-$('cBreak').onclick = function(){ closeOut(); startBreak(); paint(); };
-
 $('who').onclick = function(){
   disarmLogout();
   applyTheme(DB.get('jh.theme', 'dark'));
@@ -5867,7 +6100,7 @@ $('trkForm').onsubmit = function(e){
   const after = trkAfter; trkAfter = null;      // saved, not backed out of
   closeTrack();
   toast(fixing ? t('edit.saved') : t(job ? 'saved.job' : 'saved.quote', first));
-  if (booked && job){
+  if (booked){
     noteLogged(booked);
     // logged, so it is finished — unless a crewmate already said so
     if (!booked.done) markDone(booked, true, true);
@@ -6197,8 +6430,7 @@ let freshN = 0;
 function freshOn(){ freshN++; $('freshPill').textContent = t('saved.updating'); $('freshPill').hidden = false; }
 function freshOff(){ freshN = Math.max(0, freshN - 1); if (!freshN) $('freshPill').hidden = true; }
 function savedWhen(ms){
-  const d = new Date(ms), now = new Date();
-  return d.toDateString() === now.toDateString() ? fmtTime(ms) : fmtDay(ms) + ' ' + fmtTime(ms);
+  return ymd(ms) === ymd(Date.now()) ? fmtTime(ms) : fmtDay(ms) + ' ' + fmtTime(ms);
 }
 /* Draws the saved copy straight away when there is one, then the fresh answer.
    show(d, fresh) draws; current() says whether the screen still wants this
@@ -6286,26 +6518,6 @@ function jobTwins(list){
   return function(e){ return n[key(e)] > 1; };
 }
 
-/* The jobs behind a list of entries from several people. For each day,
-   customer first name and amount, the most any one person logged is how many
-   jobs there were — so two of one man's are two, and one each from a crew of
-   three is one. The same rule the server uses for a truck's total. */
-function oneEach(list){
-  const per = {}, most = {};
-  list.forEach(function(e){
-    const k = [e.date, String(e.first || '').trim().split(/\s+/)[0].toLowerCase(),
-               (Number(e.amount) || 0).toFixed(2)].join('|');
-    const w = per[e.worker] = per[e.worker] || {};
-    w[k] = (w[k] || 0) + 1;
-    if (!most[k] || w[k] > most[k]) most[k] = w[k];
-  });
-  let n = 0, total = 0;
-  Object.keys(most).forEach(function(k){
-    n += most[k]; total += most[k] * Number(k.split('|').pop());
-  });
-  return { n: n, total: total };
-}
-
 function renderJobs(){
   const d = jb.data;
   if (!d) return;
@@ -6331,20 +6543,6 @@ function renderJobs(){
   if (jb.who && !byWho[jb.who]) jb.who = '';
 
   // the names along the top
-  const chips = $('jbPeople'); chips.innerHTML = '';
-  const chip = function(label, count, who){
-    const c = document.createElement('button');
-    c.type = 'button'; c.className = 'jb-chip' + (jb.who === who ? ' on' : '');
-    c.appendChild(document.createTextNode(label));
-    const i = document.createElement('i'); i.textContent = count; c.appendChild(i);
-    c.onclick = function(){ jb.who = who; renderJobs(); buzz(12); };
-    chips.appendChild(c);
-  };
-  if (names.length > 1) {
-    chip(t('jb.all'), all.length, '');
-    names.forEach(function(n){ chip(n, byWho[n].length, n); });
-  }
-
   const shown = jb.who ? byWho[jb.who] : all;
   const sum = function(list){
     return list.reduce(function(a, e){ return a + (Number(e.amount) || 0); }, 0);
@@ -6352,19 +6550,23 @@ function renderJobs(){
   const count = function(n){
     return t(job ? (n === 1 ? 'com.jobs1' : 'com.jobsN') : (n === 1 ? 'jb.qt1' : 'jb.qtN'), n);
   };
-  /* Everybody logs every job they were on, so across people one job can be two
-     or three entries. The headline counts it once — same day, same customer
-     first name, same money — and says how many entries that took. One person
-     on their own is simply their own. */
-  if (!jb.who && names.length > 1){
-    const one = oneEach(all);
-    $('jbTotal').textContent = money(one.total);
-    $('jbCount').textContent = count(one.n) +
-      (one.n !== all.length ? '  ·  ' + t('jb.logged', all.length) : '');
-  } else {
-    $('jbTotal').textContent = money(sum(shown));
-    $('jbCount').textContent = count(shown.length);
-  }
+  /* Everybody logs every job they were on, so a sum across people counts one job
+     two or three times. There is no such sum: the top of the page is what each
+     person tracked, one tile each. Tap a tile to see only that person's. */
+  const tiles = $('jbPeople'); tiles.innerHTML = '';
+  names.forEach(function(n){
+    const c = document.createElement('button');
+    c.type = 'button'; c.className = 'jb-tile' + (jb.who === n ? ' on' : '');
+    c.setAttribute('aria-pressed', jb.who === n ? 'true' : 'false');
+    const nb = document.createElement('span'); nb.className = 'nm'; nb.textContent = n;
+    const mb = document.createElement('b'); mb.textContent = money(sum(byWho[n]));
+    const cb = document.createElement('i'); cb.textContent = count(byWho[n].length);
+    c.appendChild(nb); c.appendChild(mb); c.appendChild(cb);
+    c.onclick = function(){ jb.who = jb.who === n ? '' : n; renderJobs(); buzz(12); };
+    tiles.appendChild(c);
+  });
+  $('jbTotal').textContent = jb.day ? fmtDay(dayMs(jb.day)) : t('jb.tracked');
+  $('jbCount').textContent = jb.who ? jb.who : t('jb.perPerson');
 
   const box = $('workData'); box.innerHTML = '';
   if (!shown.length){
@@ -6481,7 +6683,7 @@ function renderRightNow(){
         sp.textContent = [t('rn.in', fmtTime(p.since)), p.truck ? truckTag(p.truck).replace(/ /g, ' ') : ''].filter(Boolean).join('  ·  ');
       } else if (p.status === 'break'){ sp.className = 'brk'; sp.textContent = t('rn.break', fmtTime(p.breakSince)); }
       else {
-        const today = p.last && p.last.type === 'out' && new Date(p.last.at).toDateString() === new Date().toDateString();
+        const today = p.last && p.last.type === 'out' && ymd(p.last.at) === ymd(Date.now());
         sp.textContent = today ? t('rn.outAt', fmtTime(p.last.at)) : t('rn.out');
       }
       who.appendChild(nb); who.appendChild(sp); row.appendChild(who);
@@ -6534,8 +6736,7 @@ $('fcSave').onclick = function(){
   if (!fc) return;
   const v = $('fcTime').value;
   if (!/^\d{1,2}:\d{2}/.test(v)) return fcFail(t('fc.badTime'));
-  const now = new Date(), at = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
-                                          Number(v.slice(0, 2)), Number(v.slice(3, 5)), 0).getTime();
+  const now = new Date(), at = localMs(ymd(now), v.slice(0, 5));
   if (at > Date.now() + 60000) return fcFail(t('fc.badTime'));
   const p = fc.person;
   if (fc.type === 'out' && p.since && at < p.since) return fcFail(t('fc.beforeIn', fmtTime(p.since)));
@@ -6561,8 +6762,14 @@ async function checkMyState(){
   let d;
   try { d = await ask({ action:'mystate' }); } catch(e){ return; }
   const c = d && d.ok && d.clock;
-  if (!c || !c.last || !c.last.office) return;
   if (queue.some(function(e){ return e.worker === worker; })) return;   // he tapped meanwhile
+  // his clock-in was moved (by the office, or by Rey himself): the timer follows
+  if (c && st.status !== 'out' && c.status !== 'out' && c.since && st.shiftStart &&
+      Math.abs(c.since - st.shiftStart) > 60000){
+    st.shiftStart = c.since; save(); paint();
+  }
+  if (!c || !c.last || !c.last.office) return;
+  const self = c.last.by === worker;
   const by = c.last.by || t('admin');
   if (st.status !== 'out' && c.status === 'out' && c.last.type === 'out' &&
       c.last.at >= (st.shiftStart || 0) - 60000){
@@ -6571,23 +6778,20 @@ async function checkMyState(){
     st = { status:'out', shiftStart:null, breakStart:null, breakMs:0, breaks:0,
            last: worked, lastAt: c.last.at, lastBy: worker };
     save(); paint();
-    toast(t('force.outMe', by, fmtTime(c.last.at)));
+    if (xc){ xc = null; closeCrewCheck(); }
+    toast(self ? t('force.outSelf', fmtTime(c.last.at)) : t('force.outMe', by, fmtTime(c.last.at)));
   } else if (st.status === 'out' && c.status !== 'out' && c.last.type === 'in' && c.since &&
              c.since > (st.lastAt || 0)){
     st = { status: c.status === 'break' ? 'break' : 'in', shiftStart: c.since,
            breakStart: c.status === 'break' ? c.breakSince : null, breakMs: 0, breaks: 0, truck: c.truck || '' };
     save(); paint(); loadSchedule();
-    toast(t('force.inMe', by, fmtTime(c.since)));
+    toast(self ? t('force.inSelf', fmtTime(c.since)) : t('force.inMe', by, fmtTime(c.since)));
   }
 }
 setInterval(function(){ if (unlocked && !document.hidden) checkMyState(); }, 5 * 60000);
 
-/* The week's days as chips, each with what that day brought in (jobs, counted
-   once however many of the crew logged them) or how many quotes went out. */
-function isoPlus(iso, n){
-  const p = String(iso).split('-').map(Number);
-  return ymd(new Date(p[0], p[1] - 1, p[2] + n));
-}
+/* The week's days as chips, each with how many were tracked that day. Tap one
+   and the top of the page says what each person tracked on it. */
 function dayChip(box, label, value, on, idle, pick){
   const c = document.createElement('button');
   c.type = 'button'; c.className = 'day-chip' + (on ? ' on' : '') + (idle ? ' idle' : '');
@@ -6598,12 +6802,12 @@ function dayChip(box, label, value, on, idle, pick){
   box.appendChild(c);
 }
 function dayLabel(iso, i){
-  return dayNames()[i].slice(0, 3) + ' ' + new Date(dayMs(iso)).getDate();
+  return dayNames()[i].slice(0, 3) + ' ' + Number(String(iso).split('-')[2]);
 }
 function paintJobDays(weekStart, list, job){
   const box = $('jbDays'); box.innerHTML = '';
   if (!weekStart) return;
-  const say = function(l){ return job ? money(oneEach(l).total) : String(l.length); };
+  const say = function(l){ return String(l.length); };
   dayChip(box, t('day.week'), say(list), !jb.day, false, function(){ jb.day = ''; renderJobs(); });
   for (let i = 0; i < 7; i++){
     const k = isoPlus(weekStart, i);
@@ -6720,7 +6924,7 @@ let jaEntry = null;
 function openJobAct(e){
   jaEntry = e;
   const job = e.kind === 'job';
-  const full = !!(jb.data && jb.data.canEdit);
+  const full = isOwner() || !!(jb.data && jb.data.canEdit);
   $('jaTitle').textContent = ((e.first || '') + (e.last ? ' ' + e.last : '')).trim() || t('mj.customer');
   $('jaSub').textContent = [e.worker, fmtDay(e.whenMs), e.town, payName(e.method)].filter(Boolean).join('  ·  ');
   // a quote's status, for anyone working the list
@@ -6733,9 +6937,16 @@ function openJobAct(e){
   $('jaFirst').value = e.first || ''; $('jaLast').value = e.last || ''; $('jaTown').value = e.town || '';
   $('jaAmt').value = e.amount == null ? '' : String(e.amount);
   $('jaNotes').value = e.notes || '';
-  $('jaPayWrap').hidden = !job;
-  $('jaNotesWrap').hidden = job;
-  if (job) buildJaPays(e.method);
+  $('jaDay').value = e.date || ''; $('jaDay').max = ymd(Date.now());
+  $('jaTime').value = e.whenMs ? hhmm(e.whenMs) : '';
+  const who = $('jaWho'); who.innerHTML = '';
+  rosterNames().concat(rosterNames().indexOf(e.worker) === -1 && e.worker ? [e.worker] : []).forEach(function(n){
+    const o = document.createElement('option'); o.value = n; o.textContent = n; who.appendChild(o);
+  });
+  who.value = e.worker || '';
+  jaKindNow = job ? 'job' : 'quote';
+  buildJaPays(e.method);
+  paintJaKind();
   ['jaFirst','jaTown','jaAmt'].forEach(function(id){ $(id).classList.remove('bad'); });
   $('jaPays').classList.remove('bad');
   $('jaErr').hidden = true;
@@ -6745,6 +6956,24 @@ function openJobAct(e){
   $('jobAct').classList.add('open');
   $('jobAct').scrollTop = 0;
 }
+let jaKindNow = 'job';
+function paintJaKind(){
+  qsMark('jaKind', 'data-k', jaKindNow);
+  $('jaPayWrap').hidden = jaKindNow !== 'job';     // a quote has no payment
+}
+[].forEach.call($('jaKind').children, function(b){
+  b.onclick = function(){ jaKindNow = b.getAttribute('data-k'); $('jaErr').hidden = true; paintJaKind(); buzz(8); };
+});
+function rosterNames(){
+  const out = [];
+  CONFIG.WORKERS.forEach(function(g){ (typeof g === 'string' ? [g] : g.names || []).forEach(function(n){ out.push(n); }); });
+  return out;
+}
+/* What the job sheet was opened from, redrawn after a change. */
+function refreshAfterJob(){
+  if ($('work').classList.contains('open')) loadJobs();
+  if ($('quotes').classList.contains('open')) loadQuotes();
+}
 function closeJobAct(){ jaEntry = null; $('jobAct').classList.remove('open'); }
 function jaFail(msg){ $('jaErr').textContent = msg; $('jaErr').hidden = false; }
 function jaWords(err){
@@ -6752,6 +6981,9 @@ function jaWords(err){
   if (err === 'first name needed') return t('ja.badFirst');
   if (err === 'town needed') return t('ja.badTown');
   if (err === 'bad method') return t('ja.badPay');
+  if (err === 'bad date') return t('ja.badDay');
+  if (err === 'bad time') return t('tf.badTime');
+  if (err === 'no such person') return t('ja.badWho');
   if (err === 'busy, retry') return t('srv.busy');
   if (err === 'not allowed') return t('srv.denied');
   if (err === 'that entry was deleted' || err === 'no such entry') return t('ja.already');
@@ -6802,10 +7034,17 @@ $('jaSave').onclick = async function(){
   if (!first){ $('jaFirst').classList.add('bad'); return jaFail(t('ja.badFirst')); }
   if (!town){ $('jaTown').classList.add('bad'); return jaFail(t('ja.badTown')); }
   if (!raw || isNaN(amount) || amount <= 0){ $('jaAmt').classList.add('bad'); return jaFail(t('ja.bad')); }
-  if (e.kind === 'job' && !jaPay){ $('jaPays').classList.add('bad'); return jaFail(t('ja.badPay')); }
+  if (jaKindNow === 'job' && !jaPay){ $('jaPays').classList.add('bad'); return jaFail(t('ja.badPay')); }
+  const day = $('jaDay').value, tm = $('jaTime').value.slice(0, 5);
+  if (!day || day > ymd(Date.now())) return jaFail(t('ja.badDay'));
+  if (!tm) return jaFail(t('tf.badTime'));
   const change = { action:'editjob', id: e.id, first: first, last: $('jaLast').value.trim(), town: town,
-                   amount: Math.round(amount * 100) / 100 };
-  if (e.kind === 'job') change.method = jaPay; else change.notes = $('jaNotes').value.trim();
+                   amount: Math.round(amount * 100) / 100, notes: $('jaNotes').value.trim() };
+  if (jaKindNow === 'job') change.method = jaPay;
+  if (jaKindNow !== e.kind) change.kind = jaKindNow;
+  if (day !== e.date) change.date = day;
+  if (!e.whenMs || tm !== hhmm(e.whenMs)) change.time = tm;
+  if ($('jaWho').value && $('jaWho').value !== e.worker) change.worker = $('jaWho').value;
   jb.busy = true; this.disabled = true; $('jaDel').disabled = true;
   /* The answer belongs to this job. If a slow one arrives after somebody has
      gone back and opened another, it must not close or mark that one. */
@@ -6813,8 +7052,8 @@ $('jaSave').onclick = async function(){
   try {
     const d = await ask(change);
     if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
-    buzz(35); if (mine()) closeJobAct(); toast(t(d.unchanged ? 'ja.savedAll' : 'ja.savedAll'));
-    loadJobs();
+    buzz(35); if (mine()) closeJobAct(); toast(t('ja.savedAll'));
+    refreshAfterJob();
   } catch(err){ if (mine()) jaFail(jaWords(err && err.message)); else toast(jaWords(err && err.message)); }
   finally { jb.busy = false; $('jaSave').disabled = false; $('jaDel').disabled = false; }
 };
@@ -6829,7 +7068,7 @@ $('jaDel').onclick = async function(){
     const d = await ask({ action:'voidjob', id: e.id });
     if (!d || !d.ok) throw new Error((d && d.error) || 'failed');
     buzz([30,60,30]); if (mine()) closeJobAct(); toast(t('ja.gone'));
-    loadJobs();
+    refreshAfterJob();
   } catch(err){ if (mine()) jaFail(jaWords(err && err.message)); else toast(jaWords(err && err.message)); }
   finally { jb.busy = false; $('jaSave').disabled = false; $('jaDel').disabled = false; }
 };
@@ -7145,6 +7384,7 @@ function openQs(id, mode){
   $('qsNote').value = ''; $('qsErr').hidden = true; $('qsLostErr').hidden = true;
   $('qsDate').value = q.next || ''; $('qsDateWrap').hidden = true;
   $('qsLost').hidden = mode !== 'lost';
+  $('qsEdit').hidden = !isOwner();
   paintQs(); paintQsLog();
   $('qSheet').classList.add('open'); $('qSheet').scrollTop = 0;
   if (mode === 'lost') setTimeout(function(){ $('qsLost').scrollIntoView({ block: 'center' }); }, 60);
@@ -7175,6 +7415,13 @@ function paintQsLog(){
   add(fmtDay(q.whenMs) + '  ·  ' + t('qe.quoted', q.worker), q.notes || '', false);
 }
 $('qsBack').onclick = closeQs;
+$('qsEdit').onclick = function(){
+  const q = qsFind();
+  if (!q) return closeQs();
+  closeQs();
+  openJobAct(Object.assign({ kind: 'quote', method: '' }, q));
+  buzz(12);
+};
 [].forEach.call($('qsTry').children, function(b){
   b.onclick = function(){
     const k = b.getAttribute('data-k');
@@ -7202,7 +7449,7 @@ $('qsBack').onclick = closeQs;
     qsState.whenAuto = false;
     qsState.when = qsState.when === v ? null : v;
     if (qsState.when === 'pick' && !$('qsDate').value){
-      const d = new Date(); d.setDate(d.getDate() + 3); $('qsDate').value = ymd(d);
+      $('qsDate').value = isoPlus(ymd(Date.now()), 3);
     }
     $('qsErr').hidden = true;
     buzz(8); paintQs();
@@ -7218,8 +7465,7 @@ function qsNextValue(){
   if (w === null) return undefined;
   if (w === 'none') return '';
   if (w === 'pick') return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test($('qsDate').value) ? $('qsDate').value : null;
-  const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + Number(w));
-  return ymd(d);
+  return isoPlus(ymd(Date.now()), Number(w));
 }
 function qsFail(msg){ $('qsErr').textContent = msg; $('qsErr').hidden = false; }
 /* What was said, as one change — null when nothing was, false when it cannot
@@ -7352,6 +7598,11 @@ function paintHoursList(){
       el.firstChild.textContent = (everyone ? rw.worker : t('hrs.worked')) +
         (rw.overtime > 0 ? ' · ' + t('hrs.otN', fmtNum(rw.overtime, 2)) : '') +
         (rw.open ? t('hrs.open') : '');
+      if (everyone && rw.selfEdited){
+        const se = document.createElement('em'); se.className = 'row-self';
+        se.textContent = t('hrs.selfEdited', rw.worker);
+        el.firstChild.appendChild(se);
+      }
       // the week's breaks, in the break colour, so they are seen without opening it
       if (rw.breakMin > 0){
         const bk = document.createElement('em'); bk.className = 'row-brk';
@@ -7391,19 +7642,6 @@ function weekWords(key){
 }
 function dayNames(){ return DAYS_LONG[langOf()] || DAYS_LONG.en; }
 
-function weekStartISO(d){
-  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  x.setDate(x.getDate() - ((x.getDay() + (7 - WEEK_STARTS_ON) % 7) % 7));
-  return x.getFullYear() + '-' +
-         String(x.getMonth() + 1).padStart(2, '0') + '-' +
-         String(x.getDate()).padStart(2, '0');
-}
-function shiftWeekISO(iso, backWeeks){
-  const p = iso.split('-').map(Number);
-  const d = new Date(p[0], p[1] - 1, p[2]);
-  d.setDate(d.getDate() - 7 * backWeeks);
-  return weekStartISO(d);
-}
 function hrsText(h){
   const mins = Math.round(h * 60);
   const H = Math.floor(mins / 60), M = mins % 60;
@@ -7560,7 +7798,7 @@ function paintHours(){
   // the chart always compares the two weeks either side of the switch
   const a = hoursData.sel === 0 ? hoursData.now : hoursData.prev;
   const b = hoursData.sel === 0 ? hoursData.prev : hoursData.older;
-  const todayIdx = hoursData.sel === 0 ? (new Date().getDay() + 4) % 7 : -1;
+  const todayIdx = hoursData.sel === 0 ? todayIndex() : -1;
   $('chart').innerHTML = drawChart(a, b, todayIdx);
   [].forEach.call(document.querySelectorAll('#chart .hit'), function(el){
     el.onclick = function(){ chartTip(Number(this.getAttribute('data-day'))); };
@@ -7657,7 +7895,7 @@ function mjTipFor(which, i){
 function drawMj(which, nowDays, prevDays, opts){
   const box = $('mjChart' + which);
   box.innerHTML = drawChart({ days: nowDays }, { days: prevDays },
-    mjData.sel === 0 ? (new Date().getDay() + 4) % 7 : -1, opts);
+    mjData.sel === 0 ? todayIndex() : -1, opts);
   [].forEach.call(box.querySelectorAll('.hit'), function(h){
     h.onclick = function(){ mjTipFor(which, Number(this.getAttribute('data-day'))); };
   });
@@ -7749,12 +7987,12 @@ window.addEventListener('online', sync);
 document.addEventListener('visibilitychange', function(){
   // Note when it went away, so the gap below is time actually spent closed
   // rather than time since the passcode was last typed.
-  if (document.hidden){ DB.set('jh.awayAt', Date.now()); return; }
+  if (document.hidden){ DB.set('jh.awayAt', Date.now()); sync(); return; }
   if (!unlocked) return;
   const mins = CONFIG.LOCK_AFTER_MINUTES;
   const gap = Date.now() - DB.get('jh.awayAt', Date.now());
   if (mins > 0 && gap > mins * 60000) lock();
-  else { paint(); sync(); loadCrew(); loadSchedule(); loadCommission(); maybeAskBreak(); sendOffice(); checkMyState(); }
+  else { paint(); sync(); loadCrew(); loadSchedule(); loadCommission(); maybeAskBreak(); sendOffice(); checkMyState(); xcWarm(); }
 });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
 
