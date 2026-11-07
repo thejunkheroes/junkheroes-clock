@@ -27,7 +27,7 @@
 /* Which build this is. Shown faintly in the corner of the menu, so anybody can
    tell at a glance whether a phone has picked up the latest. Goes up by one
    every release, together with CACHE in sw.js. */
-const APP_VERSION = 81;
+const APP_VERSION = 82;
 
 /* ══════════════════════════════════════════════════════════════
    EDIT THIS BLOCK, THEN YOU'RE DONE.
@@ -138,6 +138,9 @@ const CONFIG = {
   --pop-soft:#0E0532;             /* their shadow */
   --action:#22E8DA;               /* money actions only */
   --on-action:#12081F;
+  --rw-star:#FFC93C;              /* a collected review */
+  --on-rw-star:#12081F;
+  --rw-star-text:#FFC93C;
   --brand:#7C4DFF;
   --back-line:#7C4DFF;
   --ghost-bg:rgba(18,8,31,.32);   /* a button that sits on whatever ground is there */
@@ -176,6 +179,7 @@ html.light{
   --shadow:rgba(18,8,31,.18);
   --shadow-deep:rgba(18,8,31,.26);
   --tint:rgba(74,31,168,.10);
+  --rw-star-text:#8A5B00;
   --tint-soft:rgba(74,31,168,.07);
   --tint-key:rgba(74,31,168,.14);
   --tint-pick:rgba(74,31,168,.10);
@@ -771,7 +775,7 @@ button.jb-row:active{transform:scale(.985);background:var(--tint)}
 #enrol .inner,#truckSheet .inner,#crews .inner,#myjobs .inner,#schedule .inner,#lockScreen.hasback .lock,#setup.hasback .inner{padding-top:calc(env(safe-area-inset-top) + 88px)}
 #myjobs .inner,#trackSheet .inner,#reviewSheet .inner,#work .inner,#owner .inner,
 #join .inner,#waitList .inner,#recent .inner,#dayWeek .inner,#payHist .inner,
-#jobAct .inner,#brkAdd .inner,#brkCheck .inner,#crewChk .inner,#commCalc .inner,#quotes .inner,#qSheet .inner,#copyBrk .inner{
+#jobAct .inner,#brkAdd .inner,#brkCheck .inner,#crewChk .inner,#commCalc .inner,#quotes .inner,#reviews .inner,#qSheet .inner,#copyBrk .inner{
   padding-top:calc(env(safe-area-inset-top) + 88px)}
 h2{font-size:25px;font-weight:680;letter-spacing:.005em;margin:0 0 6px}
 .sub{color:var(--haze);margin:0 0 24px;font-size:16px;line-height:1.5}
@@ -1361,6 +1365,33 @@ html.light{--brk:#A3410F}
   letter-spacing:.05em;text-transform:uppercase;color:var(--lilac)}
 .cb-row .when{grid-column:1;font-size:14px;color:var(--haze)}
 .cb-row .mins{grid-column:2;grid-row:1 / span 2;align-self:center;font-weight:700;font-variant-numeric:tabular-nums}
+/* the Reviews page: a star when one was collected, an X when not (v82) */
+.rw-filter{grid-template-columns:repeat(3,minmax(0,1fr))}
+.rw-filter .wk-opt{padding:8px 3px;font-size:13px;line-height:1.15}
+.rw-filter .wk-opt b{display:block;margin-bottom:2px;font-size:21px;font-weight:730;font-variant-numeric:tabular-nums}
+.rw-filter .wk-opt span{display:block}
+.rw-row{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;padding:12px;border-radius:14px;background:var(--sunk);
+  border:2px solid var(--card-line);box-shadow:4px 5px 0 var(--pop-soft)}
+.rw-mark{flex:none;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:transparent;
+  border:3px solid var(--err-text);color:var(--err-text);box-shadow:2px 3px 0 var(--pop);
+  transition:transform .12s var(--spring),box-shadow .12s var(--spring)}
+.rw-mark:active{transform:translate(2px,3px);box-shadow:1px 1px 0 var(--pop)}
+.rw-mark svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.rw-mark.on{background:var(--rw-star);border-color:var(--line);color:var(--on-rw-star)}
+.rw-mark.on svg{width:30px;height:30px;fill:currentColor;stroke-width:1.5}
+.rw-what{flex:1;min-width:0}
+.rw-what b{display:block;font-size:16px;font-weight:650;line-height:1.3;overflow-wrap:anywhere}
+.rw-what>span{display:block;margin-top:2px;font-size:13px;color:var(--haze);line-height:1.4;overflow-wrap:anywhere}
+.rw-state{display:block;margin-top:5px;font-style:normal;font-family:var(--font-label);font-weight:700;font-size:13px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--err-text)}
+.rw-row.yes .rw-state{color:var(--rw-star-text)}
+.rw-what .q-tag{margin-top:6px}
+.rw-amt{flex:none;max-width:40%;text-align:right;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.rw-stray{margin:0 0 8px;padding:10px 12px;border-radius:8px;border:1.5px dashed var(--edge);font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.rw-stray em{display:block;font-style:normal;font-size:13px;color:var(--haze)}
+.rw-note{margin:0 0 10px 2px;font-size:13.5px;line-height:1.45;color:var(--haze)}
+.rw-older{margin-top:12px}
+#rwList>.qf-group:first-child{margin-top:0}
 /* following quotes up (v80) */
 .qf-stats{margin:0 0 20px;padding:14px 15px;border-radius:10px;background:var(--sunk);
   border:2px solid var(--card-line);box-shadow:4px 5px 0 var(--pop-soft)}
@@ -1751,6 +1782,25 @@ html.light{--brk:#A3410F}
   </div>
 </div>
 
+<!-- ═══ every finished job, and whether a review came of it ═══ -->
+<div class="overlay" id="reviews">
+  <button class="back" id="rwBack">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12H5"/><path d="M11.5 5.5L5 12l6.5 6.5"/></svg>
+    <span data-i18n="back">Go back</span>
+  </button>
+  <div class="inner">
+    <h2 data-i18n="rw.title">Reviews</h2>
+    <p class="sub" id="rwSub" data-i18n="rw.sub">Every finished job. Tap the star or the X to change it.</p>
+    <div class="wk-switch rw-filter" id="rwFilter">
+      <button class="wk-opt on" type="button" data-f="all"><b id="rwAll">0</b><span data-i18n="rw.all">All</span></button>
+      <button class="wk-opt" type="button" data-f="no"><b id="rwNo">0</b><span data-i18n="rw.no">Not collected</span></button>
+      <button class="wk-opt" type="button" data-f="yes"><b id="rwYes">0</b><span data-i18n="rw.yes">Collected</span></button>
+    </div>
+    <div id="rwList"></div>
+    <button class="pick calm rw-older" type="button" id="rwOlder" hidden data-i18n="rw.older">Show older jobs</button>
+  </div>
+</div>
+
 <!-- ═══ one quote, followed up: what happened, a note, who moves next, when ═══ -->
 <div class="overlay above" id="qSheet">
   <button class="back" id="qsBack">
@@ -1930,6 +1980,7 @@ html.light{--brk:#A3410F}
       <button class="pick wide" id="mWait" hidden><span data-i18n="wait.menu">Phones waiting</span><small id="mWaitN"></small></button>
       <button class="pick" id="mWork" hidden data-i18n="menu.work">Jobs &amp; quotes</button>
       <button class="pick" id="mQuotes" hidden data-i18n="menu.quotes">Quotes to follow up</button>
+      <button class="pick" id="mReviews" hidden data-i18n="menu.reviews">Reviews</button>
       <button class="pick" id="mCrews" hidden data-i18n="menu.crews">Trucks &amp; crews</button>
       <button class="pick" id="mPay" hidden data-i18n="pay.history">Payments</button>
       <button class="pick" id="mComm" hidden data-i18n="menu.comm">Calculate commission</button>
@@ -2306,6 +2357,10 @@ function fmtDayNum(ms){
 }
 function fmtDayLong(ms){
   try { return new Date(ms).toLocaleDateString(locale(), { timeZone: CLOCK_ZONE, weekday:'long', month:'short', day:'numeric' }); }
+  catch(e){ return ''; }
+}
+function fmtMonth(ms){
+  try { return new Date(ms).toLocaleDateString(locale(), { timeZone: CLOCK_ZONE, month:'long', year:'numeric' }); }
   catch(e){ return ''; }
 }
 /* TZ-END */
@@ -2768,6 +2823,7 @@ const STRINGS = {
   'admin':       ['Admin', 'Administrador'],
   'menu.comm':   ['Calculate commission', 'Calcular comissão'],
   'menu.quotes': ['Quotes to follow up', 'Orçamentos para acompanhar'],
+  'menu.reviews':['Reviews', 'Avaliações'],
   'wk.earlier':  ['Earlier week', 'Semana anterior'],
   'wk.later':    ['Later week', 'Semana seguinte'],
   'bio.finger':  ['Fingerprint', 'Digital'],
@@ -2827,6 +2883,25 @@ const STRINGS = {
   'cc.none':     ['Nobody has a commission rate set.', 'Ninguém tem uma taxa de comissão definida.'],
   'cc.note':     ["Worked out from the jobs each person logged themselves that week. Quotes and deleted jobs don't count.",
                   'Calculado com os serviços que cada pessoa registrou naquela semana. Orçamentos e serviços apagados não contam.'],
+  'rw.title':    ['Reviews', 'Avaliações'],
+  'rw.sub':      ['Every finished job. Tap the star or the X to change it.',
+                  'Todos os serviços concluídos. Toque na estrela ou no X para mudar.'],
+  'rw.all':      ['All', 'Todos'],
+  'rw.no':       ['Not collected', 'Sem avaliação'],
+  'rw.yes':      ['Collected', 'Com avaliação'],
+  'rw.isYes':    ['Review collected', 'Avaliação recebida'],
+  'rw.isNo':     ['Review not collected', 'Avaliação não recebida'],
+  'rw.older':    ['Show older jobs', 'Ver serviços mais antigos'],
+  'rw.ofN':      ['{0} of {1} collected', '{0} de {1} com avaliação'],
+  'rw.tracked':  ['{0} · tracked by {1}, {2}', '{0} · registrada por {1}, {2}'],
+  'rw.markYes':  ['Marked collected by {0}, {1}', 'Marcada como recebida por {0}, {1}'],
+  'rw.markNo':   ['Marked not collected by {0}, {1}', 'Marcada como não recebida por {0}, {1}'],
+  'rw.none':     ['No finished jobs here yet.', 'Nenhum serviço concluído aqui ainda.'],
+  'rw.noneNo':   ['Nothing to chase here: every job has its review.', 'Nada pendente aqui: todos os serviços têm avaliação.'],
+  'rw.noneYes':  ['No reviews collected here yet.', 'Nenhuma avaliação recebida aqui ainda.'],
+  'rw.strayHead':['Reviews with no matching job', 'Avaliações sem serviço correspondente'],
+  'rw.strayNote':['The crew tracked these, but the name matches no job. Check the spelling, or tap the star on the right job.',
+                  'A equipe registrou estas, mas o nome não bate com nenhum serviço. Confira a grafia ou toque na estrela do serviço certo.'],
   'qf.title':    ['Quotes to follow up', 'Orçamentos para acompanhar'],
   'qf.sub':      ['Open quotes from the last 60 days, and any with a follow-up day. Tap one to add a note.',
                   'Orçamentos abertos dos últimos 60 dias, e os que têm dia de retorno. Toque em um para anotar.'],
@@ -3215,6 +3290,7 @@ function paintMenu(){
   $('mPay').hidden = !isOwner();
   $('mComm').hidden = !isOwner();
   $('mQuotes').hidden = !isOwner() && !isJobAdmin();
+  $('mReviews').hidden = !isOwner() && !isJobAdmin();
   $('mWait').hidden = !isOwner() || !waitingNow.length;
   $('mOffice').hidden = !isOwner() && !isJobAdmin();
   if (isOwner()) loadWaiting(true);
@@ -7126,6 +7202,161 @@ async function loadComm(){
   });
 }
 
+/* ═══════════ reviews ═══════════
+   Every finished job, a month at a time, newest first: a star if a review was
+   collected, an X if not. The server works out which from what the crew tracked
+   and what the office has said. A tap flips it, kept on the phone and drawn at
+   once, sent with the follow-up list's changes. Full admins and Andy; the server
+   says no to anybody else. */
+const rw = { months: [], byMonth: {}, filter: 'all', older: '', loading: false };
+let rwAsk = 0;
+const RW_STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3.1-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z"/></svg>';
+const RW_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>';
+
+$('mReviews').onclick = function(){
+  $('menu').classList.remove('open');
+  rw.months = []; rw.byMonth = {}; rw.filter = 'all'; rw.older = '';
+  rwAsk++;
+  $('reviews').classList.add('open'); $('reviews').scrollTop = 0;
+  rwPaintFilter();
+  $('rwSub').textContent = t('loading');
+  $('rwList').innerHTML = '';
+  loadReviews(ymd(new Date()).slice(0, 7));
+};
+$('rwBack').onclick = function(){ $('reviews').classList.remove('open'); };
+$('rwOlder').onclick = function(){ if (rw.older && !rw.loading) loadReviews(rw.older); };
+$('rwFilter').onclick = function(ev){
+  const b = ev.target.closest('.wk-opt');
+  if (!b) return;
+  rw.filter = b.getAttribute('data-f');
+  rwPaintFilter(); paintReviews(); buzz(12);
+};
+function rwPaintFilter(){
+  [].forEach.call($('rwFilter').children, function(b){ b.classList.toggle('on', b.getAttribute('data-f') === rw.filter); });
+}
+async function loadReviews(month){
+  const mine = rwAsk;
+  const current = function(){ return mine === rwAsk && $('reviews').classList.contains('open'); };
+  rw.loading = true; $('rwOlder').hidden = true;
+  await loadWithCopy('reviewjobs|' + month, { action:'reviewjobs', month: month }, function(d){
+    rw.byMonth[month] = d;
+    if (rw.months.indexOf(month) === -1) rw.months.push(month);
+    if (month === rw.months[rw.months.length - 1]) rw.older = d.older || '';
+    $('rwSub').textContent = t('rw.sub');
+    paintReviews();
+  }, current, function(e){
+    $('rwSub').textContent = e && e.message === 'bad request' ? t('srv.old') : t('net.fail');
+  });
+  if (!current()) return;
+  rw.loading = false;
+  const d = rw.byMonth[month];
+  // a month nobody worked says nothing: on to the one before
+  if (d && !(d.jobs || []).length && !(d.stray || []).length && d.older && rw.older === d.older) return loadReviews(d.older);
+  paintReviews();
+}
+/* The job as the sheet last said, with any tap still on its way laid on top. */
+function rwNow(j){
+  const out = Object.assign({}, j);
+  qqMine().forEach(function(i){
+    if (i.action !== 'rvmark' || !i.payload.ids.some(function(id){ return j.ids.indexOf(id) !== -1; })) return;
+    out.collected = i.payload.collected;
+    out.mark = { by: worker, at: i.at, yes: i.payload.collected };
+    out.saving = true;
+  });
+  return out;
+}
+/* A tap the sheet has taken: the list and the saved copy now say the same. */
+function rwSaved(batch, results){
+  batch.forEach(function(i){
+    if (i.action !== 'rvmark' || !results.some(function(x){ return x.eid === i.eid && x.ok; })) return;
+    const p = i.payload, month = p.date.slice(0, 7), what = 'reviewjobs|' + month;
+    const copy = savedCopy(what);
+    [rw.byMonth[month], copy && copy.data].forEach(function(d){
+      ((d && d.jobs) || []).forEach(function(j){
+        if (!p.ids.some(function(id){ return j.ids.indexOf(id) !== -1; })) return;
+        j.collected = p.collected;
+        j.mark = { by: i.by, at: i.at, yes: p.collected };
+      });
+    });
+    if (copy) keepCopy(what, copy.data);
+  });
+}
+function rwAmount(j){
+  const a = j.amounts || [];
+  return a.length ? a.map(money).join(' / ') : '—';
+}
+function reviewRow(j){
+  const row = document.createElement('div'); row.className = 'rw-row' + (j.collected ? ' yes' : '');
+  const name = quoteName(j), state = t(j.collected ? 'rw.isYes' : 'rw.isNo');
+  const mark = document.createElement('button');
+  mark.type = 'button'; mark.className = 'rw-mark' + (j.collected ? ' on' : '');
+  mark.innerHTML = j.collected ? RW_STAR : RW_X;
+  mark.setAttribute('aria-pressed', j.collected ? 'true' : 'false');
+  mark.setAttribute('aria-label', name + ': ' + state);
+  mark.onclick = function(){
+    buzz(j.collected ? 12 : 35);
+    queueQuote('rvmark', { ids: j.ids, date: j.date, collected: !j.collected, mid: uid() });
+  };
+  const what = document.createElement('div'); what.className = 'rw-what';
+  const b = document.createElement('b'); b.textContent = name;
+  const sp = document.createElement('span');
+  sp.textContent = [fmtDayNum(dayMs(j.date)), j.town, (j.workers || []).join(', ')].filter(Boolean).join('  ·  ');
+  const em = document.createElement('em'); em.className = 'rw-state'; em.textContent = state;
+  what.appendChild(b); what.appendChild(sp); what.appendChild(em);
+  const line = function(text){ const x = document.createElement('span'); x.textContent = text; what.appendChild(x); };
+  if (j.rev) line(t('rw.tracked', j.rev.where, j.rev.by, fmtDayNum(dayMs(j.rev.date))));
+  if (j.mark) line(t(j.mark.yes ? 'rw.markYes' : 'rw.markNo', j.mark.by, fmtDayNum(j.mark.at)));
+  if (j.saving){
+    const tag = document.createElement('span'); tag.className = 'q-tag saving'; tag.textContent = t('oq.day');
+    what.appendChild(tag);
+  }
+  const amt = document.createElement('div'); amt.className = 'rw-amt'; amt.textContent = rwAmount(j);
+  row.appendChild(mark); row.appendChild(what); row.appendChild(amt);
+  return row;
+}
+function paintReviews(){
+  if (!$('reviews').classList.contains('open') || !rw.months.length) return;
+  const box = $('rwList'); box.innerHTML = '';
+  let nAll = 0, nYes = 0, shown = 0;
+  rw.months.forEach(function(month){
+    const d = rw.byMonth[month]; if (!d) return;
+    const jobs = (d.jobs || []).map(rwNow);
+    const yes = jobs.filter(function(j){ return j.collected; }).length;
+    nAll += jobs.length; nYes += yes;
+    const list = jobs.filter(function(j){
+      return rw.filter === 'all' || (rw.filter === 'yes') === j.collected;
+    });
+    const stray = d.stray || [];
+    if (!list.length && !stray.length) return;
+    const h = document.createElement('p'); h.className = 'qf-group';
+    h.textContent = fmtMonth(dayMs(month + '-15')) + (jobs.length ? '  ·  ' + t('rw.ofN', yes, jobs.length) : '');
+    box.appendChild(h);
+    list.forEach(function(j){ box.appendChild(reviewRow(j)); shown++; });
+    if (stray.length){
+      const sh = document.createElement('p'); sh.className = 'qf-group';
+      sh.textContent = t('rw.strayHead') + '  ·  ' + stray.length;
+      box.appendChild(sh);
+      const note = document.createElement('p'); note.className = 'rw-note'; note.textContent = t('rw.strayNote');
+      box.appendChild(note);
+      stray.forEach(function(r){
+        const x = document.createElement('div'); x.className = 'rw-stray';
+        x.textContent = quoteName(r);
+        const em = document.createElement('em');
+        em.textContent = t('rw.tracked', r.where, r.by, fmtDayNum(dayMs(r.date)));
+        x.appendChild(em);
+        box.appendChild(x);
+      });
+    }
+  });
+  $('rwAll').textContent = nAll; $('rwYes').textContent = nYes; $('rwNo').textContent = nAll - nYes;
+  if (!shown && !rw.loading){
+    const p = document.createElement('p'); p.className = 'note';
+    p.textContent = t(rw.filter === 'no' ? 'rw.noneNo' : rw.filter === 'yes' ? 'rw.noneYes' : 'rw.none');
+    box.insertBefore(p, box.firstChild);
+  }
+  $('rwOlder').hidden = rw.loading || !rw.older;
+}
+
 /* ═══════════ quotes to follow up ═══════════
    Open quotes from the last 60 days, plus any with a day set to follow up,
    grouped by what needs doing: due (or late), never given a day, coming up,
@@ -7143,7 +7374,7 @@ let qqSending = false, qqTimer = null;
 function queueQuote(action, payload){
   const item = { eid: uid(), by: worker, action: action, payload: payload, at: Date.now() };
   const q = qqAll(); q.push(item); DB.set('jh.qq', q);
-  paintQuotes(); paintSaving(); sendQuotes();
+  paintQuotes(); paintReviews(); paintSaving(); sendQuotes();
 }
 function qWords(err){
   if (err === 'bad date') return t('qe.badDate');
@@ -7166,6 +7397,7 @@ async function sendQuotes(){
         const gone = {}; batch.forEach(function(i){ gone[i.eid] = 1; });
         DB.set('jh.qq', qqAll().filter(function(i){ return !gone[i.eid]; }));
         toast(t('oq.failed', qWords(d.error)));
+        paintReviews();
       } else again = true;
     } else {
       const done = {}, refused = [];
@@ -7174,6 +7406,7 @@ async function sendQuotes(){
         done[x.eid] = 1;
         if (!x.ok) refused.push(x);
       });
+      rwSaved(batch, d.results || []);
       DB.set('jh.qq', qqAll().filter(function(i){ return !done[i.eid]; }));
       settled = true;
       if (refused.length) toast(refused.length === 1 ? t('oq.failed', qWords(refused[0].error))
@@ -7186,7 +7419,7 @@ async function sendQuotes(){
   } catch(e){ again = true; }
   finally { qqSending = false; paintSaving(); }
   if (settled){
-    paintQuotes();
+    paintQuotes(); paintReviews();
     if ($('work').classList.contains('open')) loadJobs();
   }
   if (qqMine().length){
