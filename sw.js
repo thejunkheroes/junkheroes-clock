@@ -1,7 +1,7 @@
-/* Bump CACHE whenever you edit index.html, then reload twice on each phone.
-   Keep the number the same as APP_VERSION in index.html — that is the one
-   shown in the corner of the menu. */
-const CACHE = 'jh-clock-v82';
+/* Bump CACHE whenever you edit index.html. Keep the number the same as
+   APP_VERSION in index.html — that is the one shown in the corner of the menu.
+   Phones take it on their next open, or when the app next comes back on screen. */
+const CACHE = 'jh-clock-v83';
 const FILES = [
   './', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png', './logo.png',
@@ -11,8 +11,15 @@ const FILES = [
 const WAIT_MS = 5000;
 const SLOW = {};
 
+/* GitHub tells browsers a file is good for 10 minutes. 'no-cache' asks it anyway
+   ("has this changed?"), which costs almost nothing when it hasn't. Without this
+   a phone could open the old page after a release, or even save the old page
+   under the new release's name. */
+const ASK_GITHUB = { cache: 'no-cache' };
+
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  const files = FILES.map(f => new Request(f, ASK_GITHUB));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(files)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -30,7 +37,8 @@ self.addEventListener('fetch', e => {
 
   // A fresh copy, saved for next time. It keeps downloading in the background
   // even after a saved copy has already been shown.
-  const fresh = fetch(req).then(res => {
+  const asked = req.mode === 'navigate' ? fetch(req.url, ASK_GITHUB) : fetch(req);
+  const fresh = asked.then(res => {
     // only a good answer replaces the saved copy — a 404 mid-upload must not
     if (!res.ok) return res;
     const copy = res.clone();

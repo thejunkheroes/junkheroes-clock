@@ -27,7 +27,7 @@
 /* Which build this is. Shown faintly in the corner of the menu, so anybody can
    tell at a glance whether a phone has picked up the latest. Goes up by one
    every release, together with CACHE in sw.js. */
-const APP_VERSION = 82;
+const APP_VERSION = 83;
 
 /* ══════════════════════════════════════════════════════════════
    EDIT THIS BLOCK, THEN YOU'RE DONE.
@@ -8215,19 +8215,62 @@ $('mMine').onclick = async function(){
 };
 let mjAsk = 0;
 
+/* ═══════════ a new version ═══════════
+   Opening the app already gets the newest page (see sw.js). Somebody who only
+   switches away and back never opens it, so it asks again each time it comes
+   back on screen. A new version found that way takes over with a reload, but
+   only on the clock's own screen with no sheet up, and not once he has started
+   tapping: then it waits until the next time he comes back. Nothing is lost by
+   the reload, because whatever is waiting to send is already saved on the phone,
+   and an unlocked phone stays unlocked (see boot). */
+const NEW_VERSION_ASK_GAP = 60000;   // switching back and forth needn't ask each time
+let swReg = null, swAskedAt = 0, swNewVersion = false, swTapped = false;
+function takeNewVersion(){
+  if (!swNewVersion || swTapped || !unlocked || document.hidden) return false;
+  if (document.querySelector('.overlay.open')) return false;   // something he is doing
+  location.reload();
+  return true;
+}
+function askForNewVersion(){
+  if (!swReg || Date.now() - swAskedAt < NEW_VERSION_ASK_GAP) return;
+  swAskedAt = Date.now();
+  // no signal doesn't count as having asked
+  swReg.update().catch(function(){ swAskedAt = 0; });
+}
+if ('serviceWorker' in navigator){
+  const swc = navigator.serviceWorker;
+  swc.addEventListener('controllerchange', function(){
+    // Only a higher number than this page's counts. A phone's first install isn't
+    // news, and opening the app after a release gets the new page first and the new
+    // worker a moment later: that phone is already on it, so no blink for nothing.
+    caches.keys().then(function(names){
+      const newer = names.some(function(n){ return Number(n.split('-v')[1]) > APP_VERSION; });
+      if (!newer) return;
+      swNewVersion = true;
+      takeNewVersion();
+    }).catch(function(){});
+  });
+  ['pointerdown', 'keydown'].forEach(function(what){
+    document.addEventListener(what, function(){ swTapped = true; }, { capture: true, passive: true });
+  });
+  swc.register('sw.js').then(function(r){ swReg = r; }).catch(function(){});
+}
+
 /* ═══════════ boot ═══════════ */
 window.addEventListener('online', sync);
 document.addEventListener('visibilitychange', function(){
   // Note when it went away, so the gap below is time actually spent closed
   // rather than time since the passcode was last typed.
   if (document.hidden){ DB.set('jh.awayAt', Date.now()); sync(); return; }
+  swTapped = false;
+  if (takeNewVersion()) return;
+  askForNewVersion();
   if (!unlocked) return;
   const mins = CONFIG.LOCK_AFTER_MINUTES;
   const gap = Date.now() - DB.get('jh.awayAt', Date.now());
   if (mins > 0 && gap > mins * 60000) lock();
   else { paint(); sync(); loadCrew(); loadSchedule(); loadCommission(); maybeAskBreak(); sendOffice(); checkMyState(); xcWarm(); }
 });
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
 
 (async function boot(){
   bioReady = await bioAvailable();
