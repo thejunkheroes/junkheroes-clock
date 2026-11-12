@@ -27,7 +27,7 @@
 /* Which build this is. Shown faintly in the corner of the menu, so anybody can
    tell at a glance whether a phone has picked up the latest. Goes up by one
    every release, together with CACHE in sw.js. */
-const APP_VERSION = 83;
+const APP_VERSION = 84;
 
 /* ══════════════════════════════════════════════════════════════
    EDIT THIS BLOCK, THEN YOU'RE DONE.
@@ -1355,6 +1355,7 @@ html.light{--brk:#A3410F}
 .dw-self p{margin:3px 0 0;font-size:13.5px;line-height:1.4;color:var(--ink)}
 .row .row-self{display:block;margin-top:3px;font-style:normal;font-family:var(--font-label);font-weight:700;
   font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--brk)}
+.row .row-wk{color:var(--haze)}
 .dw-copy{margin-left:16px}
 .cb-row{display:grid;grid-template-columns:1fr auto;gap:3px 10px;width:100%;margin-bottom:12px;padding:13px 14px;border-radius:6px;
   text-align:left;background:var(--sunk);color:var(--ink);border:2.5px solid var(--line-2);box-shadow:3px 4px 0 var(--pop);
@@ -2323,16 +2324,53 @@ function dayMs(iso){
   if (p.length !== 3 || !p[0]) return NaN;
   return zoneMs(p[0], p[1], p[2], 0, 0);
 }
-/* The work week a plain day is in, and the one a moment is in. */
-function isoWeekStart(iso){
+/* The day of the week a plain day falls on, Sunday 0. */
+function isoWeekday(iso){
   const p = String(iso).split('-').map(Number);
-  const wd = new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
+  return new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
+}
+/* Somebody on his own week (WEEK_STARTS_FOR, set beside WEEK_STARTS_ON), or
+   null for the crew's. Asked without a name — the jobs pages — it is always
+   the crew's. One that does not add up is ignored, the same as the sheet does. */
+function weekRuleOf(name){
+  const all = (typeof WEEK_STARTS_FOR === 'object' && WEEK_STARTS_FOR) || {};
+  const me = String(name || '').trim().toLowerCase();
+  if (!me) return null;
+  const k = Object.keys(all).filter(function(x){ return x.trim().toLowerCase() === me; })[0];
+  const r = k ? all[k] : null;
+  if (!r || !/^\d{4}-\d{2}-\d{2}$/.test(String(r.from))) return null;
+  const day = Number(r.day);
+  if (!(day >= 0 && day <= 6) || isoWeekday(r.from) !== day) return null;
+  return { day: day, from: String(r.from) };
+}
+/* The day his weeks begin on: the order his days are drawn in. */
+function weekDayOf(name){ const r = weekRuleOf(name); return r ? r.day : WEEK_STARTS_ON; }
+/* The work week a plain day is in, and the one a moment is in — the crew's, or
+   with a name, that person's. Before his own week began he was on the crew's. */
+function isoWeekStart(iso, name){
+  const wd = isoWeekday(iso), r = weekRuleOf(name);
+  if (r && String(iso) >= r.from) return isoPlus(iso, -((wd - r.day + 7) % 7));
   return isoPlus(iso, -((wd + (7 - WEEK_STARTS_ON) % 7) % 7));
 }
-function weekStartISO(d){ return isoWeekStart(ymd(d)); }
-function shiftWeekISO(iso, backWeeks){ return isoWeekStart(isoPlus(iso, -7 * backWeeks)); }
+function weekStartISO(d, name){ return isoWeekStart(ymd(d), name); }
+/* The week after: seven days on, except the one cut short when his began. */
+function nextWeekISO(start, name){ return isoWeekStart(isoPlus(start, 7), name); }
+function shiftWeekISO(iso, backWeeks, name){
+  let s = isoWeekStart(iso, name);
+  for (let i = 0; i < backWeeks; i++) s = isoWeekStart(isoPlus(s, -1), name);
+  for (let i = 0; i < -backWeeks; i++) s = nextWeekISO(s, name);
+  return s;
+}
+/* A week's days in date order, each with its place in that person's order. */
+function weekDates(start, name){
+  const out = [], end = nextWeekISO(start, name), first = weekDayOf(name);
+  for (let d = start; d < end && out.length < 7; d = isoPlus(d, 1)){
+    out.push({ iso: d, i: (isoWeekday(d) - first + 7) % 7 });
+  }
+  return out;
+}
 /* Today's place in the week: 0 is the first day of the work week. */
-function todayIndex(){ return (zoneParts(Date.now()).wd + (7 - WEEK_STARTS_ON) % 7) % 7; }
+function todayIndex(name){ return (zoneParts(Date.now()).wd - weekDayOf(name) + 7) % 7; }
 /* 'HH:mm' on a plain day, as a moment; and a moment as 'HH:mm' */
 function localMs(date, hhmm){
   const p = String(date).split('-').map(Number), h = String(hhmm).split(':').map(Number);
@@ -2766,6 +2804,7 @@ const STRINGS = {
   'day.noOneElse':['no one else', 'ninguém mais'],
   'day.copyBrk': ['Copy a break', 'Copiar uma pausa'],
   'hrs.selfEdited':['{0} edited his hours', '{0} editou as próprias horas'],
+  'hrs.ownWeek': ['Own week: {0}', 'Semana própria: {0}'],
   'se.inTime':   ['Moved his clock-in', 'Mudou a entrada'],
   'se.outTime':  ['Moved his clock-out', 'Mudou a saída'],
   'se.addIn':    ['Added a clock-in', 'Adicionou uma entrada'],
@@ -3200,6 +3239,11 @@ const STRINGS = {
 /* The day a work week begins: 0 Sunday … 6 Saturday. Must match
    CONFIG.WEEK_STARTS_ON in Code.gs — the backend buckets by the same number. */
 const WEEK_STARTS_ON = 3;                       // Wednesday
+/* Somebody whose own hours and pay run on a different week. Must match
+   CONFIG.WEEK_STARTS_FOR in Code.gs, which says what each part means. */
+const WEEK_STARTS_FOR = {
+  Andy: { day: 0, from: '2026-11-08' }          // Sunday to Saturday
+};
 
 /* Sunday-first, the way getDay() counts. The week's own order is rotated out
    of these, so changing the constant above changes the labels too. */
@@ -3207,7 +3251,10 @@ const DOW_SHORT = { en:['S','M','T','W','T','F','S'],
                     pt:['dom','seg','ter','qua','qui','sex','sáb'] };
 const DOW_LONG  = { en:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
                     pt:['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'] };
-function rotate(a){ return a.slice(WEEK_STARTS_ON).concat(a.slice(0, WEEK_STARTS_ON)); }
+function rotate(a, first){
+  const n = first == null ? WEEK_STARTS_ON : first;
+  return a.slice(n).concat(a.slice(0, n));
+}
 const DAYS_SHORT = { en: rotate(DOW_SHORT.en), pt: rotate(DOW_SHORT.pt) };
 const DAYS_LONG  = { en: rotate(DOW_LONG.en),  pt: rotate(DOW_LONG.pt) };
 const LOCALES = { en:'en-US', pt:'pt-BR' };
@@ -3238,10 +3285,12 @@ function locale(){ return LOCALES[lang] || 'en-US'; }
 
 /* A work week, first day to last, counted on the calendar so the week the
    clocks change is still seven days long. */
-function weekLabel(startIso){
+function weekLabel(startIso, who, endIso){
   const a = dayMs(startIso);
   if (isNaN(a)) return '';
-  return fmtDay(a) + ' – ' + fmtDay(dayMs(isoPlus(startIso, 6)));
+  // the last day: as the sheet has it, or worked out from whose week it is
+  const end = /^\d{4}-\d{2}-\d{2}$/.test(String(endIso || '')) ? endIso : isoPlus(nextWeekISO(startIso, who), -1);
+  return fmtDay(a) + ' – ' + fmtDay(dayMs(end));
 }
 
 /* Everything written into the markup carries its key, so a switch is one pass
@@ -4366,7 +4415,7 @@ async function loadWeekDetail(useSaved){
 function renderWeekDetail(){
   const d = dwData;
   if (!d) return;
-  $('dwRange').textContent = weekLabel(d.weekStart) || '';
+  $('dwRange').textContent = weekLabel(d.weekStart, d.worker || dwWorker, d.weekEnd) || '';
   $('dwTotal').textContent = hrsText(d.hours);
 
   const paidLine = $('dwPaid');
@@ -4385,8 +4434,7 @@ function renderWeekDetail(){
   paintSelfEdits(d);
 
   const box = $('dwDays'); box.innerHTML = '';
-  const names = dayNames();
-  d.days.forEach(function(day, i){
+  d.days.forEach(function(day){
     // a day moved to its month tab is history: shown, never changed
     // nor while a saved copy is up: the fresh one may already differ
     const canChange = d.canEdit && !d.paid && !day.archived && !d.stale;
@@ -4395,7 +4443,8 @@ function renderWeekDetail(){
 
     const top = document.createElement('div'); top.className = 'dw-day-top';
     const nm = document.createElement('b');
-    nm.textContent = names[i] + '  ·  ' + (fmtDayNum(dayMs(day.date)) || '');
+    // named from its date: Andy's week does not start on the crew's day
+    nm.textContent = dayNameOn(day.date) + '  ·  ' + (fmtDayNum(dayMs(day.date)) || '');
     top.appendChild(nm);
     // the hours, with the day's break time quietly underneath
     const sum = document.createElement('span'); sum.className = 'dw-sum';
@@ -4843,8 +4892,8 @@ $('baDel').onclick = function(){
 };
 
 $('dwBack').onclick = function(){ closeWeekDetail(); if (hoursDirty) refreshHours(); };
-$('dwPrev').onclick = function(){ dwStart = shiftWeekISO(dwStart, 1); loadWeekDetail(true); buzz(12); };
-$('dwNext').onclick = function(){ dwStart = shiftWeekISO(dwStart, -1); loadWeekDetail(true); buzz(12); };
+$('dwPrev').onclick = function(){ dwStart = shiftWeekISO(dwStart, 1, dwWorker); loadWeekDetail(true); buzz(12); };
+$('dwNext').onclick = function(){ dwStart = shiftWeekISO(dwStart, -1, dwWorker); loadWeekDetail(true); buzz(12); };
 
 $('dwMark').onclick = async function(){
   if (!confirm(t('pay.askMark', dwWorker))) return;
@@ -4882,7 +4931,7 @@ async function openPayments(){
     const who = document.createElement('div'); who.className = 'who';
     const b = document.createElement('b'); b.textContent = p.worker;
     const sp = document.createElement('span');
-    sp.textContent = (weekLabel(p.weekStart) || p.weekStart) +
+    sp.textContent = (weekLabel(p.weekStart, p.worker, p.weekEnd) || p.weekStart) +
       (p.paidOn ? '  ·  ' + t('pay.done', fmtDay(p.paidOn)) : '');
     who.appendChild(b); who.appendChild(sp);
     const h = document.createElement('div');
@@ -6819,7 +6868,7 @@ $('fcSave').onclick = function(){
   const day = ymd(now);
   const payload = { worker: p.name, date: day, type: fc.type, time: v.slice(0, 5), pid: 'adm_' + uid() };
   if (fc.type === 'in') payload.truck = fc.truck || '';
-  queueOffice('addpunch', payload, { worker: p.name, weekStart: weekStartISO(now) });
+  queueOffice('addpunch', payload, { worker: p.name, weekStart: weekStartISO(now, p.name) });
   buzz(35);
   closeForce();
   renderRightNow();
@@ -6877,8 +6926,8 @@ function dayChip(box, label, value, on, idle, pick){
   c.onclick = function(){ pick(); buzz(12); };
   box.appendChild(c);
 }
-function dayLabel(iso, i){
-  return dayNames()[i].slice(0, 3) + ' ' + Number(String(iso).split('-')[2]);
+function dayLabel(iso){
+  return dayNameOn(iso).slice(0, 3) + ' ' + Number(String(iso).split('-')[2]);
 }
 function paintJobDays(weekStart, list, job){
   const box = $('jbDays'); box.innerHTML = '';
@@ -7781,23 +7830,28 @@ $('wkPrev').onclick = function(){ hoursData.sel = 1; hoursData.day = -1; this.cl
   $('wkNow').classList.remove('on'); paintHours(); paintHoursList(); };
 
 function render(weeks, everyone){
-  $('ownerSub').textContent = weekWords(everyone ? 'hrs.weekAll' : 'hrs.week');
+  /* Looking at only his own, the weeks are his own: Andy's run Sunday to
+     Saturday. The office's view goes by the crew's week. */
+  const who = everyone ? null : self();
+  hoursData.who = who;
+  $('ownerSub').textContent = weekWords(everyone ? 'hrs.weekAll' : 'hrs.week', who);
 
   const list = weeks || [];
   const find = function(iso){
     return list.filter(function(w){ return w.start === iso; })[0] || null;
   };
-  const nowISO  = weekStartISO(new Date());
-  const prevISO = shiftWeekISO(nowISO, 1);
-  const backISO = shiftWeekISO(nowISO, 2);
+  const nowISO  = weekStartISO(new Date(), who);
+  const prevISO = shiftWeekISO(nowISO, 1, who);
+  const backISO = shiftWeekISO(nowISO, 2, who);
   const wNow = find(nowISO), wPrev = find(prevISO);
 
   hoursData.everyone  = everyone;
-  hoursData.now       = foldWeek(wNow);
-  hoursData.prev      = foldWeek(wPrev);
-  hoursData.older     = foldWeek(find(backISO));
-  hoursData.nowLabel  = weekLabel(nowISO) || t('wk.this');
-  hoursData.prevLabel = weekLabel(prevISO) || t('wk.last');
+  hoursData.list      = list;
+  hoursData.now       = foldWeek(wNow, nowISO);
+  hoursData.prev      = foldWeek(wPrev, prevISO);
+  hoursData.older     = foldWeek(find(backISO), backISO);
+  hoursData.nowLabel  = weekLabel(nowISO, who) || t('wk.this');
+  hoursData.prevLabel = weekLabel(prevISO, who) || t('wk.last');
   hoursData.list = list; hoursData.nowISO = nowISO; hoursData.prevISO = prevISO;
   if (hoursData.day == null) hoursData.day = -1;
   $('hoursTop').hidden = false;
@@ -7819,7 +7873,7 @@ function paintHoursList(){
   }
   list.forEach(function(w){
     const h = document.createElement('p'); h.className = 'wk';
-    h.textContent = weekLabel(w.start) || w.label; box.appendChild(h);
+    h.textContent = weekLabel(w.start, hoursData.who, w.end) || w.label; box.appendChild(h);
     /* Unpaid first, then what has already been settled, so a glance at the top
        of the list is what is still owed. */
     const unpaid = w.rows.filter(function(x){ return !x.paid; });
@@ -7831,6 +7885,12 @@ function paintHoursList(){
       el.firstChild.textContent = (everyone ? rw.worker : t('hrs.worked')) +
         (rw.overtime > 0 ? ' · ' + t('hrs.otN', fmtNum(rw.overtime, 2)) : '') +
         (rw.open ? t('hrs.open') : '');
+      // somebody on his own week says which days this row is: Andy's Sun–Sat
+      if (everyone && rw.start && (rw.start !== w.start || (rw.end && rw.end !== isoPlus(w.start, 6)))){
+        const ow = document.createElement('em'); ow.className = 'row-self row-wk';
+        ow.textContent = t('hrs.ownWeek', weekLabel(rw.start, rw.worker, rw.end));
+        el.firstChild.appendChild(ow);
+      }
       if (everyone && rw.selfEdited){
         const se = document.createElement('em'); se.className = 'row-self';
         se.textContent = t('hrs.selfEdited', rw.worker);
@@ -7843,7 +7903,7 @@ function paintHoursList(){
         el.firstChild.appendChild(bk);
       }
       el.lastChild.textContent = fmtNum(rw.hours, 2) + ' ' + t('hrs.hrs');
-      el.onclick = function(){ openWeekDetail(rw.worker, w.start); };
+      el.onclick = function(){ openWeekDetail(rw.worker, rw.start || w.start); };
       box.appendChild(el);
     };
     if (everyone && unpaid.length && settled.length){
@@ -7863,17 +7923,26 @@ function paintHoursList(){
 
 /* HOURS-START */
 /* The work week runs Tuesday to Monday, matching the backend. */
-function dayLetters(){ return DAYS_SHORT[langOf()] || DAYS_SHORT.en; }
+/* With a name, in that person's own order: Andy's Sunday first. */
+function dayLetters(who){
+  if (weekRuleOf(who)) return rotate(DOW_SHORT[langOf()] || DOW_SHORT.en, weekDayOf(who));
+  return DAYS_SHORT[langOf()] || DAYS_SHORT.en;
+}
 /* The first and last day of the work week, in words, for the sentences that
    describe it. Taken from the same rotation the charts use, so a change to
    WEEK_STARTS_ON moves the words as well as the maths. */
-function weekWords(key){
-  const d = dayNames();
+function weekWords(key, who){
+  const d = dayNames(who);
   const first = d[0], last = d[6];
   return t(key, langOf() === 'pt' ? first.toLowerCase() : first,
                 langOf() === 'pt' ? last.toLowerCase()  : last);
 }
-function dayNames(){ return DAYS_LONG[langOf()] || DAYS_LONG.en; }
+function dayNames(who){
+  if (weekRuleOf(who)) return rotate(DOW_LONG[langOf()] || DOW_LONG.en, weekDayOf(who));
+  return DAYS_LONG[langOf()] || DAYS_LONG.en;
+}
+/* The name of the day a date falls on, whoever's week it is in. */
+function dayNameOn(iso){ return (DOW_LONG[langOf()] || DOW_LONG.en)[isoWeekday(iso)]; }
 
 function hrsText(h){
   const mins = Math.round(h * 60);
@@ -7889,20 +7958,50 @@ function fmtNum(n, dp){
 /* One week folded into the shape the screen needs. For an admin the crew is
    summed, except overtime, which is each person's own 40 and so is added up
    rather than recalculated from the total. */
-function foldWeek(week){
-  const empty = { total:0, regular:0, overtime:0, days:[0,0,0,0,0,0,0], open:false, people:0 };
-  if (!week || !week.rows || !week.rows.length) return empty;
+function foldWeek(week, startIso){
   const out = { total:0, regular:0, overtime:0, days:[0,0,0,0,0,0,0], open:false,
-                people: week.rows.length };
-  week.rows.forEach(function(r){
-    out.total    += Number(r.hours) || 0;
-    out.regular  += Number(r.regular) || 0;
+                people: week && week.rows ? week.rows.length : 0 };
+  const rows = (week && week.rows) || [];
+  /* Somebody on his own week (Andy) is in the office's list at the same
+     distance back as the crew, but his days are not the crew's days: his
+     hours go on the chart by date, from whichever of his weeks they are in,
+     so a day shows everybody who worked it. His overtime is his own week's. */
+  const own = function(r){ return hoursData.everyone && !!weekRuleOf(r.worker); };
+  rows.forEach(function(r){
     out.overtime += Number(r.overtime) || 0;
     if (r.open) out.open = true;
+    if (own(r)) return;
+    out.total    += Number(r.hours) || 0;
+    out.regular  += Number(r.regular) || 0;
     (r.days || []).forEach(function(v, i){ out.days[i] += Number(v) || 0; });
   });
+  if (hoursData.everyone && startIso){
+    const end = isoPlus(startIso, 7);
+    let more = 0;
+    (hoursData.list || []).forEach(function(w){
+      (w.rows || []).forEach(function(r){
+        if (!own(r)) return;
+        rowDates(r, w.start).forEach(function(x){
+          if (x.iso < startIso || x.iso >= end || !(x.h > 0)) return;
+          out.days[dayGap(startIso, x.iso)] += x.h;
+          more += x.h;
+        });
+      });
+    });
+    // the regular hours are whatever of the whole is not somebody's overtime
+    out.total += more;
+    out.regular = Math.max(0, out.total - out.overtime);
+  }
   return out;
 }
+/* A row's hours as dates, from its days in that person's own order. */
+function rowDates(r, bucketStart){
+  const start = r.start || bucketStart;
+  return weekDates(start, r.worker).filter(function(x){ return !r.end || x.iso <= r.end; })
+    .map(function(x){ return { iso: x.iso, h: Number((r.days || [])[x.i]) || 0 }; });
+}
+/* How many days on from one plain day another is. */
+function dayGap(a, b){ return Math.round((dayMs(b) - dayMs(a)) / 864e5); }
 
 let hoursData = { now:null, prev:null, everyone:false, sel:0 };
 
@@ -7957,7 +8056,7 @@ function drawChart(now, prev, todayIdx, opts){
     svg.push(bar(x0, now.days[i], 'now', i));              // legend order, left to right
     svg.push(bar(x0 + barW + 2, prev.days[i], 'prev', i));  // the pair rises together
     svg.push('<text class="dayl' + (i === todayIdx ? ' today' : '') + '" x="' + (gx + groupW / 2) +
-             '" y="' + (H - 8) + '" text-anchor="middle">' + dayLetters()[i] + '</text>');
+             '" y="' + (H - 8) + '" text-anchor="middle">' + (o.letters || dayLetters())[i] + '</text>');
     svg.push('<rect class="hit" data-day="' + i + '" x="' + gx + '" y="' + padT +
              '" width="' + groupW + '" height="' + plotH + '"/>');
   }
@@ -7969,7 +8068,7 @@ function chartTip(i){
   const n = hoursData.now.days[i], p = hoursData.prev.days[i];
   $('chartTip').innerHTML = '';
   const b = document.createElement('b');
-  b.textContent = dayNames()[i];
+  b.textContent = dayNames(hoursData.who)[i];
   $('chartTip').appendChild(b);
   $('chartTip').appendChild(document.createTextNode(' — ' +
     t('hrs.tip', n > 0 ? hrsText(n) : t('hrs.nothing'), p > 0 ? hrsText(p) : t('hrs.nothing'))));
@@ -8020,7 +8119,7 @@ function paintHours(){
   // one day: its hours up top; overtime and the week's stats are week things
   $('hTotal').textContent = hrsText(day >= 0 ? (cur.days[day] || 0) : cur.total);
   $('hTotalLabel').textContent = day >= 0
-    ? t(hoursData.everyone ? 'hrs.crewOnDay' : 'hrs.onDay', dayNames()[day])
+    ? t(hoursData.everyone ? 'hrs.crewOnDay' : 'hrs.onDay', dayNames(hoursData.who)[day])
     : t(hoursData.everyone ? 'hrs.crewOn' : 'hrs.onClock');
   document.querySelector('#hoursTop .split').hidden = day >= 0;
   $('stats').hidden = day >= 0;
@@ -8031,8 +8130,8 @@ function paintHours(){
   // the chart always compares the two weeks either side of the switch
   const a = hoursData.sel === 0 ? hoursData.now : hoursData.prev;
   const b = hoursData.sel === 0 ? hoursData.prev : hoursData.older;
-  const todayIdx = hoursData.sel === 0 ? todayIndex() : -1;
-  $('chart').innerHTML = drawChart(a, b, todayIdx);
+  const todayIdx = hoursData.sel === 0 ? todayIndex(hoursData.who) : -1;
+  $('chart').innerHTML = drawChart(a, b, todayIdx, { letters: dayLetters(hoursData.who) });
   [].forEach.call(document.querySelectorAll('#chart .hit'), function(el){
     el.onclick = function(){ chartTip(Number(this.getAttribute('data-day'))); };
   });
@@ -8048,11 +8147,20 @@ function paintHourDays(cur){
   if (!iso) return;
   const pick = function(i){ hoursData.day = i; paintHours(); paintHoursList(); };
   dayChip(box, t('day.week'), hrsText(cur.total), hoursData.day < 0, false, function(){ pick(-1); });
-  for (let i = 0; i < 7; i++){
-    const h = cur.days[i] || 0;
-    dayChip(box, dayLabel(isoPlus(iso, i), i), h > 0 ? hrsText(h) : '—', hoursData.day === i, !(h > 0),
-            (function(n){ return function(){ pick(n); }; })(i));
+  // in date order; Andy's short week (Nov 4 – 7) has only its four days
+  hourDays(iso).forEach(function(x){
+    const h = cur.days[x.i] || 0;
+    dayChip(box, dayLabel(x.iso), h > 0 ? hrsText(h) : '—', hoursData.day === x.i, !(h > 0),
+            function(){ pick(x.i); });
+  });
+}
+/* The days of the week on screen, each with its place on the chart: the
+   crew's seven for the office, the person's own when it is only his. */
+function hourDays(iso){
+  if (hoursData.everyone || !weekRuleOf(hoursData.who)){
+    return [0, 1, 2, 3, 4, 5, 6].map(function(i){ return { iso: isoPlus(iso, i), i: i }; });
   }
+  return weekDates(iso, hoursData.who);
 }
 /* Who was on the clock on the picked day, most hours first; a tap opens his
    week, the same as the week list does. */
@@ -8060,11 +8168,24 @@ function paintDayList(box, list, everyone){
   const iso = hoursData.sel === 0 ? hoursData.nowISO : hoursData.prevISO;
   const i = hoursData.day;
   const w = list.filter(function(x){ return x.start === iso; })[0];
+  const date = (hourDays(iso).filter(function(x){ return x.i === i; })[0] || {}).iso || isoPlus(iso, i);
   const h = document.createElement('p'); h.className = 'wk';
-  h.textContent = fmtDayLong(dayMs(isoPlus(iso, i)));
+  h.textContent = fmtDayLong(dayMs(date));
   box.appendChild(h);
-  const rows = w ? w.rows.filter(function(r){ return ((r.days || [])[i] || 0) > 0; })
-                         .sort(function(a, b){ return b.days[i] - a.days[i]; }) : [];
+  const own = function(r){ return everyone && !!weekRuleOf(r.worker); };
+  const rows = w ? w.rows.filter(function(r){ return !own(r) && ((r.days || [])[i] || 0) > 0; })
+                         .map(function(r){ return { worker: r.worker, h: r.days[i], start: w.start }; }) : [];
+  // somebody on his own week: that date, from whichever of his weeks has it
+  if (everyone){
+    list.forEach(function(wk){
+      wk.rows.forEach(function(r){
+        if (!own(r)) return;
+        const x = rowDates(r, wk.start).filter(function(d){ return d.iso === date; })[0];
+        if (x && x.h > 0) rows.push({ worker: r.worker, h: x.h, start: r.start || wk.start });
+      });
+    });
+  }
+  rows.sort(function(a, b){ return b.h - a.h; });
   if (!rows.length){
     const note = document.createElement('p'); note.className = 'note';
     note.textContent = t(everyone ? 'hrs.noneDay' : 'hrs.noneDayMe');
@@ -8076,8 +8197,8 @@ function paintDayList(box, list, everyone){
     el.className = 'row tappable';
     el.innerHTML = '<span></span><b></b>';
     el.firstChild.textContent = everyone ? rw.worker : t('hrs.worked');
-    el.lastChild.textContent = fmtNum(rw.days[i], 2) + ' ' + t('hrs.hrs');
-    el.onclick = function(){ openWeekDetail(rw.worker, iso); };
+    el.lastChild.textContent = fmtNum(rw.h, 2) + ' ' + t('hrs.hrs');
+    el.onclick = function(){ openWeekDetail(rw.worker, rw.start); };
     box.appendChild(el);
   });
 }
